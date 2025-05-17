@@ -464,3 +464,5 @@ class ChangePasswordView(APIView):
             'success': True,
             'message': 'Password changed successfully'
         }, status=status.HTTP_200_OK)
+
+        

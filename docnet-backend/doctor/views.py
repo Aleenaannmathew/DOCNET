@@ -1,6 +1,7 @@
 from rest_framework import status, generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.mail import send_mail
@@ -61,27 +62,35 @@ class DoctorLoginView(APIView):
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
     
-class DoctorProfileRetrieveUpdateView(generics.RetrieveUpdateAPIView):
-
-    permission_classes = [permissions.IsAuthenticated]
-    serializer_class = DoctorProfileSerializer
     
-    def get_object(self):
+class DoctorProfileRetrieveUpdateView(APIView):
+  
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
         try:
-            return DoctorProfile.objects.get(user=self.request.user)
+            doctor_profile = DoctorProfile.objects.get(user=request.user)
+            serializer = DoctorProfileSerializer(doctor_profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except DoctorProfile.DoesNotExist:
             return Response(
-                {"error": "Doctor profile not found"}, 
+                {"detail": "Doctor profile not found"}, 
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"detail": f"Error retrieving profile: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 class DoctorProfileUpdateView(APIView):
+    
     permission_classes = [IsAuthenticated]
 
     def put(self, request):
         try:
             user = request.user
-            doctor_profile = DoctorProfile.objects.get(user=user)
+            doctor_profile = get_object_or_404(DoctorProfile, user=user)
             
             serializer = DoctorProfileUpdateSerializer(
                 instance={'user': user, 'doctor_profile': doctor_profile},
@@ -95,16 +104,12 @@ class DoctorProfileUpdateView(APIView):
             
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
-        except DoctorProfile.DoesNotExist:
-            return Response(
-                {"detail": "Doctor profile not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
         except Exception as e:
             return Response(
                 {"detail": f"Error updating profile: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
         
 class DoctorChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]

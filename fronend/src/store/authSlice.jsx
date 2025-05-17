@@ -1,9 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
 
 
-// Get token and user from local storage if they exist
 const getInitialState = () => {
   const token = localStorage.getItem('token');
+  const refreshToken = localStorage.getItem('refreshToken');
   const userString = localStorage.getItem('user');
   let user = null;
   
@@ -17,6 +17,7 @@ const getInitialState = () => {
   
   return {
     token,
+    refreshToken,
     user,
     isAuthenticated: !!token
   };
@@ -27,27 +28,37 @@ const authSlice = createSlice({
   initialState: getInitialState(),
   reducers: {
     login: (state, action) => {
-      const { token, user } = action.payload;
+      const { token, refreshToken, user } = action.payload;
       
       // Update state
       state.token = token;
+      state.refreshToken = refreshToken;
       state.user = user;
       state.isAuthenticated = true;
       
       // Store in localStorage
       localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
     },
     logout: (state) => {
       // Clear state
       state.token = null;
+      state.refreshToken = null;
       state.user = null;
       state.isAuthenticated = false;
       
       // Remove from localStorage
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     },
+
+    updateToken: (state, action) => {
+      state.token = action.payload;
+      localStorage.setItem('token', action.payload);
+    },
+
     updateUser: (state, action) => {
       // Update user profile details
       state.user = {
@@ -58,6 +69,7 @@ const authSlice = createSlice({
       // Update localStorage
       localStorage.setItem('user', JSON.stringify(state.user));
     },
+    
     updateProfileComplete: (state, action) => {
       // Update is_profile_complete status
       state.user = {

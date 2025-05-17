@@ -99,6 +99,7 @@ useEffect(() => {
       
       dispatch(login({
         token: data.access,
+        refreshToken: data.refresh,
         user: {
           username: data.username,
           email:data.email,
@@ -130,8 +131,8 @@ useEffect(() => {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    // Implement Google Sign-In logic
+  const handleGoogleSignIn = async () => {
+    const response = await userAxios.post('/dj-rest-auth/google/',)
     console.log('Google Sign-In clicked');
     // Usually would redirect to Google OAuth endpoint
   };

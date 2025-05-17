@@ -6,7 +6,8 @@ import { adminAxios } from '../../axios/AdminAxios';
 import { toast } from 'react-toastify';
 import { 
   ArrowLeft, CheckCircle, XCircle, UserRound, CalendarDays, 
-  Briefcase, GraduationCap, Globe, Award, Phone, Mail, MapPin
+  Briefcase, GraduationCap, Globe, Award, Phone, Mail, MapPin,
+  FileText, Hospital, Clock, FileCheck, User, Building
 } from 'lucide-react';
 
 export default function DoctorDetail() {
@@ -150,6 +151,24 @@ export default function DoctorDetail() {
     if (isApproved === true) return 'APPROVED';
     if (isApproved === false) return 'REJECTED';
     return 'PENDING';
+  };
+  
+  const getCertificateLink = () => {
+    if (doctor?.certificate) {
+      return (
+        <a 
+          href={doctor.certificate} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-blue-600 hover:underline flex items-center"
+        >
+          <FileCheck size={16} className="mr-1" />
+          View Certificate
+        </a>
+      );
+    }
+    
+    return <span className="text-gray-500">No certificate uploaded</span>;
   };
   
   if (loading) {
@@ -326,6 +345,30 @@ export default function DoctorDetail() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center">
+                  <FileText size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Registration ID</p>
+                    <p className="font-medium">{doctor.registration_id || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Hospital size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Hospital</p>
+                    <p className="font-medium">{doctor.hospital || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Globe size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Languages</p>
+                    <p className="font-medium">{doctor.languages || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
                   <Briefcase size={18} className="text-gray-500 mr-2" />
                   <div>
                     <p className="text-sm text-gray-500">Specialization</p>
@@ -348,12 +391,18 @@ export default function DoctorDetail() {
                     <p className="font-medium">{doctor.qualifications || 'Not specified'}</p>
                   </div>
                 </div>
-                
+              </div>
+            </div>
+            
+            {/* Certificate Information */}
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Certificate Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center">
-                  <Globe size={18} className="text-gray-500 mr-2" />
+                  <FileCheck size={18} className="text-gray-500 mr-2" />
                   <div>
-                    <p className="text-sm text-gray-500">Languages</p>
-                    <p className="font-medium">{doctor.languages || 'Not specified'}</p>
+                    <p className="text-sm text-gray-500">Certificate</p>
+                    {getCertificateLink()}
                   </div>
                 </div>
               </div>
@@ -372,16 +421,24 @@ export default function DoctorDetail() {
               <h3 className="text-lg font-semibold mb-4">Registration Details</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Registration Date</p>
-                  <p className="font-medium">
-                    {doctor.created_at ? new Date(doctor.created_at).toLocaleDateString() : 'Not available'}
-                  </p>
+                <div className="flex items-center">
+                  <Clock size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Registration Date</p>
+                    <p className="font-medium">
+                      {doctor.created_at ? new Date(doctor.created_at).toLocaleDateString() : 'Not available'}
+                    </p>
+                  </div>
                 </div>
                 
-                <div>
-                  <p className="text-sm text-gray-500">License Number</p>
-                  <p className="font-medium">{doctor.license_number || 'Not provided'}</p>
+                <div className="flex items-center">
+                  <Clock size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Last Updated</p>
+                    <p className="font-medium">
+                      {doctor.updated_at ? new Date(doctor.updated_at).toLocaleDateString() : 'Not available'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -391,21 +448,27 @@ export default function DoctorDetail() {
               <h3 className="text-lg font-semibold mb-4">Account Status</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className={`font-medium ${doctor.user?.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                    {doctor.user?.is_active ? 'Active' : 'Blocked'}
-                  </p>
+                <div className="flex items-center">
+                  <User size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Status</p>
+                    <p className={`font-medium ${doctor.user?.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                      {doctor.user?.is_active ? 'Active' : 'Blocked'}
+                    </p>
+                  </div>
                 </div>
                 
-                <div>
-                  <p className="text-sm text-gray-500">Approval Status</p>
-                  <p className={`font-medium 
-                    ${doctor.is_approved === true ? 'text-green-600' : 
-                      doctor.is_approved === false ? 'text-red-600' : 'text-yellow-600'}`}>
-                    {doctor.is_approved === true ? 'Approved' : 
-                     doctor.is_approved === false ? 'Rejected' : 'Pending Review'}
-                  </p>
+                <div className="flex items-center">
+                  <CheckCircle size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Approval Status</p>
+                    <p className={`font-medium 
+                      ${doctor.is_approved === true ? 'text-green-600' : 
+                        doctor.is_approved === false ? 'text-red-600' : 'text-yellow-600'}`}>
+                      {doctor.is_approved === true ? 'Approved' : 
+                       doctor.is_approved === false ? 'Rejected' : 'Pending Review'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

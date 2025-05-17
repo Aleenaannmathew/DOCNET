@@ -159,65 +159,64 @@ class DoctorLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid username or password.')
 
 class DoctorProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
-    email = serializers.EmailField(source='user.email', read_only=True)
-    phone = serializers.CharField(source='user.phone', read_only=True)
-    is_verified = serializers.BooleanField(source='user.is_verified', read_only=True)
-    
+    """Serializer for retrieving doctor profiles"""
+    user_id = serializers.ReadOnlyField(source='user.id')
+    username = serializers.ReadOnlyField(source='user.username')
+    email = serializers.ReadOnlyField(source='user.email')
+    phone = serializers.ReadOnlyField(source='user.phone')
+    profile_image = serializers.ReadOnlyField(source='user.profile_image')
+    is_verified = serializers.ReadOnlyField(source='user.is_verified')
+    role = serializers.ReadOnlyField(source='user.role')
+
     class Meta:
         model = DoctorProfile
         fields = [
-            'id', 'username', 'email', 'phone', 'is_verified', 
-            'registration_id', 'hospital', 'languages', 'age', 
-            'gender', 'experience', 'is_approved', 'created_at', 'updated_at'
+            'user_id', 'username', 'email', 'phone', 'profile_image',
+            'registration_id', 'hospital', 'languages', 'age', 'gender',
+            'experience', 'is_approved', 'is_verified', 'role'
         ]
-        read_only_fields = ['id', 'is_approved', 'created_at', 'updated_at']
+        read_only_fields = ['registration_id', 'is_approved']
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['username', 'email', 'phone', 'profile_image']
-        extra_kwargs = {
-            'username': {'required': False},
-            'email': {'required': False},
-            'phone': {'required': False},
-            'profile_image': {'required': False}
-        }       
 
 class DoctorProfileUpdateSerializer(serializers.Serializer):
+    # User fields
     username = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
-    phone = serializers.CharField(required=False)
-    hospital = serializers.CharField(required=False, allow_blank=True)
-    languages = serializers.CharField(required=False, allow_blank=True)
-    age = serializers.IntegerField(required=False, allow_null=True)
-    gender = serializers.CharField(required=False, allow_blank=True)
-    experience = serializers.IntegerField(required=False, allow_null=True)
+    phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     profile_image = serializers.ImageField(required=False, allow_null=True)
     
+    # Doctor profile fields
+    hospital = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
+    languages = serializers.CharField(required=False, allow_blank=True, default='English', max_length=255)
+    age = serializers.IntegerField(required=False, allow_null=True, 
+                                  min_value=21, max_value=80)
+    gender = serializers.ChoiceField(required=False, allow_blank=True, allow_null=True, 
+                                    choices=['male', 'female', 'other', 'prefer not to say'])
+    experience = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    
     def validate_email(self, value):
-        instance = self.instance['user']
-        if User.objects.exclude(pk=instance.pk).filter(email=value).exists():
+        user = self.instance['user']
+        if User.objects.exclude(pk=user.pk).filter(email=value).exists():
             raise serializers.ValidationError("This email is already in use.")
         return value
     
     def validate_phone(self, value):
-        instance = self.instance['user']
-        if value and User.objects.exclude(pk=instance.pk).filter(phone=value).exists():
+        user = self.instance['user']
+        if value and User.objects.exclude(pk=user.pk).filter(phone=value).exists():
             raise serializers.ValidationError("This phone number is already in use.")
         return value
     
     def validate_username(self, value):
-        instance = self.instance['user']
-        if User.objects.exclude(pk=instance.pk).filter(username=value).exists():
+        user = self.instance['user']
+        if User.objects.exclude(pk=user.pk).filter(username=value).exists():
             raise serializers.ValidationError("This username is already in use.")
         return value
-        
+    
     def save(self):
         user = self.instance['user']
         doctor_profile = self.instance['doctor_profile']
         
-       
+        # Handle profile image upload
         profile_image = self.validated_data.pop('profile_image', None)
         if profile_image:
             try:
@@ -230,14 +229,14 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
             except Exception as e:
                 raise serializers.ValidationError(f"Image upload failed: {str(e)}")
         
-       
-        user_fields = ['username', 'email', 'phone']
+        # Update user fields
         for attr, value in self.validated_data.items():
-            if attr in user_fields:
+            if attr in ['username', 'email', 'phone']:
                 setattr(user, attr, value)
         
-       
+        # Update doctor profile fields
         profile_fields = ['hospital', 'languages', 'age', 'gender', 'experience']
+        
         for field in profile_fields:
             if field in self.validated_data:
                 setattr(doctor_profile, field, self.validated_data[field])
@@ -245,20 +244,22 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
         user.save()
         doctor_profile.save()
         
-      
+        # Return updated user data with doctor profile fields
         return {
             'id': user.id,
             'username': user.username,
             'email': user.email,
             'phone': user.phone,
             'profile_image': user.profile_image,
-            'registration_id': doctor_profile.registration_id,
-            'hospital': doctor_profile.hospital,
-            'languages': doctor_profile.languages,
-            'age': doctor_profile.age,
-            'gender': doctor_profile.gender,
-            'experience': doctor_profile.experience,
-            'is_approved': doctor_profile.is_approved,
-            'role': user.role,
-            'is_verified': user.is_verified
-        }        
+            'role': getattr(user, 'role', 'doctor'),
+            'is_verified': user.is_verified,
+            'doctor_profile': {
+                'registration_id': doctor_profile.registration_id,
+                'hospital': doctor_profile.hospital,
+                'languages': doctor_profile.languages,
+                'age': doctor_profile.age,
+                'gender': doctor_profile.gender,
+                'experience': doctor_profile.experience,
+                'is_approved': doctor_profile.is_approved
+            }
+        }

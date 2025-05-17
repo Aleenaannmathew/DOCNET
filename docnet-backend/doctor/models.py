@@ -9,6 +9,7 @@ class DoctorProfile(models.Model):
         ('male', 'Male'),
         ('female', 'Female'),
         ('other', 'Other'),
+        ('prefer not to say', 'Prefer not to say'),
     )
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='doctor_profile')
@@ -17,11 +18,11 @@ class DoctorProfile(models.Model):
     hospital = models.CharField(max_length=255, blank=True, null=True)
     languages = models.CharField(max_length=255, default='English')
     age = models.PositiveIntegerField(
-        validators=[MinValueValidator(21), MaxValueValidator(80)],null=True
+        validators=[MinValueValidator(21), MaxValueValidator(80)], null=True, blank=True
     )
-    gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True, null=True)
     experience = models.PositiveIntegerField(
-        validators=[MinValueValidator(0)], null=True
+        validators=[MinValueValidator(0)], null=True, blank=True
     )
     is_approved = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True, null=True)

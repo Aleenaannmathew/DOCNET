@@ -113,7 +113,7 @@ class UserLoginSerializer(serializers.Serializer):
                 'username': user.username,
                 'email': user.email,
                 'phone': user.phone,
-                'is_profile_compelte': is_profile_complete
+                'is_profile_complete': is_profile_complete
             }
         else:
             raise serializers.ValidationError('Invalid username or password.')

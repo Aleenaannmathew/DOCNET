@@ -202,8 +202,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 AUTHENTICATION_BACKENDS = (
-    'django.contrib.auth.backends.ModelBackend',  # For regular username/password login
-    'allauth.account.auth_backends.AuthenticationBackend',  # For social login
+    'django.contrib.auth.backends.ModelBackend',  
+    'allauth.account.auth_backends.AuthenticationBackend', 
 )
 
 SESSION_ENGINE = "django.contrib.sessions.backends.db"

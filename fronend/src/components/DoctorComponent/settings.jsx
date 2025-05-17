@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { doctorAxios } from '../../axios/DoctorAxios';
 import { ToastContainer, toast } from 'react-toastify';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Camera, Save, X, ChevronDown, ChevronRight, CheckCircle } from 'lucide-react';
+import { Camera, Save, X, ChevronDown, ChevronRight, CheckCircle, FileText } from 'lucide-react';
 import { updateUser } from '../../store/authSlice';
 import { logout } from '../../store/authSlice';
 import DocnetLoading from '../Constants/Loading';
@@ -24,15 +24,17 @@ const Settings = () => {
     age: '',
     gender: '',
     experience: '',
-    profile_image: null
+    profile_image: null,
+    certificate: null
   });
   
   const [formErrors, setFormErrors] = useState({});
   const [profileImage, setProfileImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [certificatePreview, setCertificatePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [successMessage, setSuccessMessage ] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [showSuccessLoader, setShowSuccessLoader] = useState(false);
   const [profileFetched, setProfileFetched] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -67,8 +69,12 @@ const Settings = () => {
         age: user.doctor_profile?.age || '',
         gender: user.doctor_profile?.gender || '',
         experience: user.doctor_profile?.experience || '',
+        certificate: null
       });
       setPreviewImage(user.profile_image || null);
+      if (user.doctor_profile?.certificate) {
+        setCertificatePreview(user.doctor_profile.certificate);
+      }
     }
   }, [user]);
 
@@ -107,6 +113,10 @@ const Settings = () => {
             ...response.data
           }
         }));
+
+        if (response.data.certificate) {
+          setCertificatePreview(response.data.certificate);
+        }
       }
       
       setProfileFetched(true);
@@ -119,18 +129,18 @@ const Settings = () => {
   };
 
   useEffect(() => {
-      if (location.state?.successMessage) {
-        setSuccessMessage(location.state.successMessage);
-        setShowSuccess(true);
-        window.history.replaceState({}, document.title);
-  
-        const timer = setTimeout(() => {
-          setShowSuccess(false);
-        }, 5000);
-  
-        return () => clearTimeout(timer)
-      }
-    }, [location.state]);
+    if (location.state?.successMessage) {
+      setSuccessMessage(location.state.successMessage);
+      setShowSuccess(true);
+      window.history.replaceState({}, document.title);
+
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 5000);
+
+      return () => clearTimeout(timer)
+    }
+  }, [location.state]);
 
   // Form validation function
   const validateForm = () => {
@@ -154,8 +164,8 @@ const Settings = () => {
     
     if (formData.age) {
       const age = parseInt(formData.age);
-      if (isNaN(age) || age < 25 || age > 80) {
-        errors.age = 'Please enter a valid age between 25 and 80';
+      if (isNaN(age) || age < 21 || age > 80) {
+        errors.age = 'Please enter a valid age between 21 and 80';
       }
     }
     
@@ -172,6 +182,15 @@ const Settings = () => {
         errors.profile_image = 'Please select a valid image file (JPEG, PNG, or GIF)';
       } else if (profileImage.size > 5 * 1024 * 1024) {
         errors.profile_image = 'Image size should be less than 5MB';
+      }
+    }
+
+    if (formData.certificate) {
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+      if (!allowedTypes.includes(formData.certificate.type)) {
+        errors.certificate = 'Please select a valid certificate file (PDF, JPEG, or PNG)';
+      } else if (formData.certificate.size > 10 * 1024 * 1024) {
+        errors.certificate = 'Certificate size should be less than 10MB';
       }
     }
     
@@ -209,9 +228,34 @@ const Settings = () => {
     }
   };
 
+  const handleCertificateChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({
+        ...formData,
+        certificate: file
+      });
+      
+      if (formErrors.certificate) {
+        setFormErrors({
+          ...formErrors,
+          certificate: ''
+        });
+      }
+    }
+  };
+
   const handleRemoveImage = () => {
     setProfileImage(null);
     setPreviewImage(user.profile_image || null);
+  };
+
+  const handleRemoveCertificate = () => {
+    setFormData({
+      ...formData,
+      certificate: null
+    });
+    setCertificatePreview(user.doctor_profile?.certificate || null);
   };
 
   const handleSubmit = async (e) => {
@@ -237,6 +281,10 @@ const Settings = () => {
       if (profileImage) {
         formDataToSend.append('profile_image', profileImage);
       }
+
+      if (formData.certificate) {
+        formDataToSend.append('certificate', formData.certificate);
+      }
       
       const response = await doctorAxios.put('doctor-profile/update', formDataToSend, {
         headers: { 
@@ -248,6 +296,7 @@ const Settings = () => {
         dispatch(updateUser(response.data));
         toast.success('Profile updated successfully!');
         setIsEditing(false);
+        setCertificatePreview(response.data.doctor_profile?.certificate || null);
       }
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -257,22 +306,22 @@ const Settings = () => {
     }
   };
 
- const handleTabClick = (tab) => {
-  if (tab === 'Logout') {
-    handleLogout();
-  } else if (tab === 'Change Password'){
-    navigate('/doctor/change-password', {
-      state: {
-        isDoctor: true,
-        email: user.email
-      },
-      replace: true
-    });
-  } else {
-    setActiveTab(tab);
-    setMobileSidebarOpen(false);
-  }
-};
+  const handleTabClick = (tab) => {
+    if (tab === 'Logout') {
+      handleLogout();
+    } else if (tab === 'Change Password'){
+      navigate('/doctor/change-password', {
+        state: {
+          isDoctor: true,
+          email: user.email
+        },
+        replace: true
+      });
+    } else {
+      setActiveTab(tab);
+      setMobileSidebarOpen(false);
+    }
+  };
 
   const handleLogout = () => {
     dispatch(logout());
@@ -288,6 +337,11 @@ const Settings = () => {
       }
       setProfileImage(null);
       setPreviewImage(user.profile_image || null);
+      setFormData({
+        ...formData,
+        certificate: null
+      });
+      setCertificatePreview(user.doctor_profile?.certificate || null);
       
       if (user) {
         setFormData({
@@ -299,6 +353,7 @@ const Settings = () => {
           age: user.doctor_profile?.age || '',
           gender: user.doctor_profile?.gender || '',
           experience: user.doctor_profile?.experience || '',
+          certificate: null
         });
       }
       
@@ -657,7 +712,7 @@ const Settings = () => {
                         value={formData.age || ''}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        min="25"
+                        min="21"
                         max="80"
                         className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                           formErrors.age ? 'border-red-500' : 'border-gray-300'
@@ -716,6 +771,82 @@ const Settings = () => {
                         )}
                       </div>
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Approval Status</label>
+                      <div className="px-3 py-2 rounded-lg">
+                        {user.doctor_profile?.is_approved === true ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Approved
+                          </span>
+                        ) : user.doctor_profile?.is_approved === false ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Rejected
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Pending Approval
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Certificate Upload */}
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Medical Certificate</h3>
+                  <div className="space-y-4">
+                    {certificatePreview && (
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-50 text-blue-600">
+                          <FileText size={24} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {certificatePreview.split('/').pop()}
+                          </p>
+                          <p className="text-sm text-gray-500">Medical License/Certificate</p>
+                        </div>
+                        {isEditing && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveCertificate}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <X size={20} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {certificatePreview ? 'Replace Certificate' : 'Upload Certificate'}
+                        </label>
+                        <div className="mt-1 flex items-center">
+                          <label className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <span>Choose File</span>
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              onChange={handleCertificateChange}
+                              className="hidden"
+                            />
+                          </label>
+                          <span className="ml-2 text-sm text-gray-500">
+                            {formData.certificate?.name || 'PDF, JPG, or PNG (max 10MB)'}
+                          </span>
+                        </div>
+                        {formErrors.certificate && (
+                          <p className="mt-1 text-sm text-red-600">{formErrors.certificate}</p>
+                        )}
+                        <p className="mt-2 text-xs text-gray-500">
+                          Upload your medical license or certification document.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -40,10 +40,9 @@ const UserProfile = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccessLoader, setShowSuccessLoader] = useState(false);
-  // Add flag to prevent infinite fetch loops
+
   const [profileFetched, setProfileFetched] = useState(false);
 
-  // Sidebar menu items
   const sidebarItems = [
     'Profile Information',
     'Change Password',
@@ -54,7 +53,7 @@ const UserProfile = () => {
     'Logout'
   ];
 
-  // Blood group options
+
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
   useEffect(() => {
@@ -71,7 +70,6 @@ const UserProfile = () => {
     }
   }, [location.state]);
 
-  // Initialize form data from user state
   useEffect(() => {
     if (user) {
       setFormData({
@@ -90,9 +88,8 @@ const UserProfile = () => {
     }
   }, [user]);
 
-  // Fetch detailed user profile data - FIXED to prevent infinite loop
   useEffect(() => {
-    // Only fetch if we haven't already and have valid auth
+  
     if (user && token && !profileFetched && !loading) {
       fetchUserDetails();
     }
@@ -105,15 +102,11 @@ const UserProfile = () => {
       console.log("using token: ", token);
       console.log("Token type: ", typeof token);
       
-      // Check if the URL needs adjustment
-      // Sometimes API paths can be inconsistent with or without trailing slashes
-      // or may need different formatting
-      
-      // Try with standard format first
+    
       const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
       
       try {
-        // First attempt with trailing slash
+    
         const response = await userAxios.get('user-profile/', {
           headers: { Authorization: authToken }
         });
@@ -121,22 +114,20 @@ const UserProfile = () => {
         console.log("Profile data received:", response.data);
         
         if (response.data) {
-          // Merge profile data with existing user data
+       
           setFormData(prevState => ({
             ...prevState,
             ...response.data,
           }));
           
-          // Update Redux store with complete profile data
-          // This won't cause an infinite loop now because we set profileFetched
+          
           dispatch(updateUser(response.data));
         }
-        
-        // Mark profile as fetched to prevent re-fetching
+       
         setProfileFetched(true);
         setLoading(false);
       } catch (apiError) {
-        // If first attempt fails, try without trailing slash
+  
         try {
           console.log("First attempt failed, trying without trailing slash");
           const altResponse = await userAxios.get('user-profile', {
@@ -157,18 +148,16 @@ const UserProfile = () => {
           setProfileFetched(true);
           setLoading(false);
         } catch (altError) {
-          // Both attempts failed
-          throw apiError; // Throw the original error to be caught by outer catch
+       
         }
       }
     } catch (err) {
       console.error('Error fetching user details:', err);
       toast.error(`Failed to load profile data: ${err.response?.data?.detail || err.message}`);
       setLoading(false);
-      // Even on error, mark as fetched to prevent continuous retries
+    
       setProfileFetched(true);
-      
-      // Log more detailed error info for debugging
+    
       if (err.response) {
         console.log('Error Response Data:', err.response.data);
         console.log('Error Response Status:', err.response.status);
@@ -177,38 +166,33 @@ const UserProfile = () => {
     }
   };
 
-  // Form validation function
   const validateForm = () => {
     const errors = {};
-    
-    // Username validation
+
     if (!formData.username.trim()) {
       errors.username = 'Username is required';
     } else if (formData.username.length < 3) {
       errors.username = 'Username must be at least 3 characters';
     }
-    
-    // Email validation
+ 
     if (!formData.email.trim()) {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Please enter a valid email address';
     }
     
-    // Phone validation
+
     if (formData.phone && !/^[0-9+\-\s()]{7,15}$/.test(formData.phone)) {
       errors.phone = 'Please enter a valid phone number';
     }
-    
-    // Age validation
+
     if (formData.age) {
       const age = parseInt(formData.age);
       if (isNaN(age) || age < 0 || age > 120) {
         errors.age = 'Please enter a valid age between 0 and 120';
       }
     }
-    
-    // Height validation
+  
     if (formData.height) {
       const height = parseFloat(formData.height);
       if (isNaN(height) || height <= 0 || height > 300) {
@@ -216,7 +200,7 @@ const UserProfile = () => {
       }
     }
     
-    // Weight validation
+   
     if (formData.weight) {
       const weight = parseFloat(formData.weight);
       if (isNaN(weight) || weight <= 0 || weight > 500) {
@@ -224,17 +208,17 @@ const UserProfile = () => {
       }
     }
     
-    // Emergency contact number validation
+   
     if (formData.emergency_contact && !/^[0-9+\-\s()]{7,15}$/.test(formData.emergency_contact)) {
       errors.emergency_contact = 'Please enter a valid emergency contact number';
     }
     
-    // Image validation
+    
     if (profileImage) {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(profileImage.type)) {
         errors.profile_image = 'Please select a valid image file (JPEG, PNG, or GIF)';
-      } else if (profileImage.size > 5 * 1024 * 1024) { // 5MB limit
+      } else if (profileImage.size > 5 * 1024 * 1024) { 
         errors.profile_image = 'Image size should be less than 5MB';
       }
     }
@@ -243,7 +227,7 @@ const UserProfile = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Handle input changes
+ 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -251,7 +235,7 @@ const UserProfile = () => {
       [name]: value
     });
     
-    // Clear the specific error when the user starts typing again
+    
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -260,15 +244,15 @@ const UserProfile = () => {
     }
   };
 
-  // Handle profile image change
+ 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setProfileImage(file);
-      // Create preview URL for the selected image
+     
       setPreviewImage(URL.createObjectURL(file));
       
-      // Clear any image-related errors
+    
       if (formErrors.profile_image) {
         setFormErrors({
           ...formErrors,
@@ -278,11 +262,11 @@ const UserProfile = () => {
     }
   };
 
-  // Handle form submission
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate form before submission
+    
     if (!validateForm()) {
       toast.error('Please correct the errors before submitting');
       return;
@@ -291,27 +275,27 @@ const UserProfile = () => {
     try {
       setLoading(true);
       
-      // Create FormData object for file upload
+  
       const profileFormData = new FormData();
       
-      // Add all form fields to FormData
+    
       Object.keys(formData).forEach(key => {
         if (formData[key] !== null && formData[key] !== undefined && key !== 'profile_image') {
           profileFormData.append(key, formData[key]);
         }
       });
       
-      // Add profile image if selected
+     
       if (profileImage) {
         profileFormData.append('profile_image', profileImage);
       }
       
-      // Debug FormData contents
+    
       for (let pair of profileFormData.entries()) {
         console.log(pair[0] + ': ' + pair[1]);
       }
       
-      // Send PUT request to update profile
+     
       const response = await userAxios.put('user-profile/update/', profileFormData, {
         headers: { 
           Authorization: `Bearer ${token}`,
@@ -322,23 +306,20 @@ const UserProfile = () => {
       console.log("Update response:", response.data);
       
       if (response.data) {
-        // Update Redux store with updated profile data
+ 
         dispatch(updateUser(response.data));
         
-        // Show loading screen for 2 seconds after successful update
         setShowSuccessLoader(true);
-        
-        // Display success toast
+  
         toast.success('Profile updated successfully!');
-        
-        // Clear the preview image and selected file
+   
         if (previewImage) {
           URL.revokeObjectURL(previewImage);
           setPreviewImage(null);
         }
         setProfileImage(null);
         
-        // Set timer to hide loading screen and turn off edit mode
+       
         setTimeout(() => {
           setShowSuccessLoader(false);
           setIsEditing(false);
@@ -353,7 +334,7 @@ const UserProfile = () => {
     }
   };
 
-  // Handle tab clicks with special handling for Logout
+ 
   const handleTabClick = (tab) => {
     if (tab === 'Logout') {
       handleLogout();
@@ -364,17 +345,15 @@ const UserProfile = () => {
     }
   };
 
-  // Handle logout action
+ 
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
   };
 
-  // Toggle edit mode
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
     
-    // If canceling edit, reset any unsaved changes
     if (isEditing) {
       if (previewImage) {
         URL.revokeObjectURL(previewImage);
@@ -382,7 +361,7 @@ const UserProfile = () => {
       }
       setProfileImage(null);
       
-      // Reset form data to current user data
+ 
       if (user) {
         setFormData({
           username: user.username || '',
@@ -399,12 +378,11 @@ const UserProfile = () => {
         });
       }
       
-      // Clear form errors
       setFormErrors({});
     }
   };
 
-  // Determine profile image URL (use placeholder if none exists)
+  
   const profileImageUrl = previewImage || (user?.profile_image || "/api/placeholder/80/80");
 
   if (!user) {
@@ -423,7 +401,6 @@ const UserProfile = () => {
     );
   }
 
-  // Show success loading screen
   if (showSuccessLoader) {
     return <DocnetLoading />;
   }
