@@ -6,6 +6,7 @@ import { doctorAxios } from '../../axios/DoctorAxios';
 import DocnetLoading from '../Constants/Loading';
 import { login } from '../../store/authSlice';
 import docImg from '../../assets/doctor1.png';
+import GoogleAuthButton from '../DoctorComponent/GoogleAuth';
 
 export default function DoctorLogin() {
   const [isLoading, setIsLoading] = useState(false);
@@ -283,6 +284,15 @@ export default function DoctorLogin() {
             >
               Sign In
             </button>
+
+            {/* Divider */}
+            <div className="flex items-center my-6">
+              <hr className="flex-1 border-gray-200" />
+              <span className="mx-4 text-sm text-gray-500">or sign in with</span>
+              <hr className="flex-1 border-gray-200" />
+            </div>
+
+            <GoogleAuthButton/>
 
             {/* Register link */}
             <div className="text-center text-gray-600">

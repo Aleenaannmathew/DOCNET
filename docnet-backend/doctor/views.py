@@ -6,7 +6,8 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.core.mail import send_mail
 from django.conf import settings
-import random, re
+import random, re,requests
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
@@ -322,3 +323,79 @@ class DoctorResetPasswordView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class GoogleLoginView(APIView):
+    def post(self, request):
+        access_token = request.data.get('token')
+
+        if not access_token:
+            return Response({
+                'error':'Access token is required',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            userinfo = requests.get(
+                'https://www.googleapis.com/oauth2/v3/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'}
+            ).json()
+
+            if 'error' in userinfo:
+                raise ValueError(userinfo['error'])
+            
+            email = userinfo['email']
+
+            try:
+                user = User.objects.get(email=email)
+
+                if not user.is_verified:
+                    user.is_verified = True
+                    user.save()
+
+                if user.role != 'doctor':
+                    return Response({
+                        'error': 'This login is for doctors only'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            except User.DoesNotExist:
+                username = email.split('@')[0]
+                base_username = username
+                counter = 1
+
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter +=1
+
+                user = User.objects.create(
+                    username=username,
+                    email=email,
+                    role='doctor',
+                    is_verified=True
+                )          
+
+                DoctorProfile.objects.create(user=user)
+
+            refresh = RefreshToken.for_user(user)
+
+            try:
+                doctor_profile = DoctorProfile.objects.get(user=user)
+                is_profile_complete = doctor_profile.age is not None
+            except DoctorProfile.DoesNotExist:
+                is_profile_complete = False
+
+            return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'username': user.username,
+                'email': user.email,
+                'phone': user.phone,
+                'is_profile_complete': is_profile_complete
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'error': f'Authentication failed: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)                  

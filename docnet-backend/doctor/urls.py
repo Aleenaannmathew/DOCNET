@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView
-from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView
+from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView
 
 urlpatterns = [
     path('doctor-register/', DoctorRegistrationView.as_view(), name='doctor-register'),
@@ -12,4 +12,5 @@ urlpatterns = [
     path('send-password-reset-otp/', DoctorSendPasswordResetOTPView.as_view(), name='doctor-send-password-reset-otp'),
     path('verify-password-reset-otp/', DoctorVerifyPasswordResetOTPView.as_view(), name='doctor-verify-password-reset-otp'),
     path('doctor-reset-password/', DoctorResetPasswordView.as_view(), name='doctor-reset-password'),
+    path('google-login-doctor/', GoogleLoginView.as_view(), name='google-login-doctor')
 ]

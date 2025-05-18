@@ -3,7 +3,8 @@ from django.views import View
 import json, re
 from django.core.mail import send_mail
 from django.http import JsonResponse
-import random
+import random, string, requests
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import make_password, check_password
@@ -18,6 +19,9 @@ from rest_framework.response import Response
 from .serializers import UserRegistrationSerializer, UserLoginSerializer,PatientProfile,UserProfileUpdateSerializer
 from dj_rest_auth.registration.views import SocialLoginView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from django.contrib.auth import login
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 class UserRegistrationView(APIView):
     def post(self, request):
@@ -72,13 +76,6 @@ class UserLoginView(APIView):
         if serializer.is_valid():
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class GoogleLogin(SocialLoginView):
-    adapter_class = GoogleOAuth2Adapter
-
-
-
 
 class VerifyOTPView(APIView):
     def post(self, request):
@@ -465,4 +462,78 @@ class ChangePasswordView(APIView):
             'message': 'Password changed successfully'
         }, status=status.HTTP_200_OK)
 
+class GoogleLoginView(APIView):
+    def post(self, request):
+        access_token = request.data.get('token')
+
+        if not access_token:
+            return Response({
+                'error':'Access token is required',
+            }, status=status.HTTP_400_BAD_REQUEST)
         
+        try:
+            userinfo = requests.get(
+                'https://www.googleapis.com/oauth2/v3/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'}
+            ).json()
+
+            if 'error' in userinfo:
+                raise ValueError(userinfo['error'])
+            
+            email = userinfo['email']
+
+            try:
+                user = User.objects.get(email=email)
+
+                if not user.is_verified:
+                    user.is_verified = True
+                    user.save()
+
+                if user.role != 'patient':
+                    return Response({
+                        'error': 'This login is for patients only'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            except User.DoesNotExist:
+                username = email.split('@')[0]
+                base_username = username
+                counter = 1
+
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter +=1
+
+                user = User.objects.create(
+                    username=username,
+                    email=email,
+                    role='patient',
+                    is_verified=True
+                )          
+
+                PatientProfile.objects.create(user=user)
+
+            refresh = RefreshToken.for_user(user)
+
+            try:
+                patient_profile = PatientProfile.objects.get(user=user)
+                is_profile_complete = patient_profile.age is not None
+            except PatientProfile.DoesNotExist:
+                is_profile_complete = False
+
+            return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'username': user.username,
+                'email': user.email,
+                'phone': user.phone,
+                'is_profile_complete': is_profile_complete
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'error': f'Authentication failed: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)          

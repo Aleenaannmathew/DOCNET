@@ -12,7 +12,7 @@ class User(AbstractUser):
     is_verified = models.BooleanField(default=False)
     profile_image = models.URLField(max_length=500, blank=True, null=True)
     phone = models.CharField(max_length=15, blank=True, null=True,unique=True, validators=[RegexValidator(r'^[0-9]{10,15}$')], db_index=True)
-    google_id = models.CharField(max_length=100, blank=True, null=True)
+   
    
     class Meta:
         indexes = [
