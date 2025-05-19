@@ -31,7 +31,7 @@ class DoctorProfileListSerializer(serializers.ModelSerializer):
         model = DoctorProfile
         fields = [
             'id', 'user', 'name', 'email', 'registration_id', 
-            'age', 'gender', 'experience', 'hospital',
+            'age', 'gender', 'experience', 'hospital','specialization',
             'is_approved', 'is_active'
         ]
     
@@ -53,7 +53,7 @@ class DoctorProfileDetailSerializer(serializers.ModelSerializer):
         model = DoctorProfile
         fields = [
             'id', 'user', 'name', 'registration_id', 
-            'hospital', 'languages', 'age', 'gender', 
+            'hospital','specialization', 'languages', 'age', 'gender', 
             'experience', 'is_approved', 'created_at', 'updated_at'
         ]
     

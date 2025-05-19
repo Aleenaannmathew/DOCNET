@@ -10,7 +10,10 @@ from .serializers import AdminLoginSerializer, AdminUserSerializer
 from django.shortcuts import get_object_or_404
 from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer
 from accounts.models import User, PatientProfile
+from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
 from .serializers import PatientListSerializer, PatientDetailSerializer
+from rest_framework_simplejwt.exceptions import TokenError
+
 
 
 class AdminLoginView(APIView):
@@ -183,12 +186,10 @@ class AdminPatientListView(APIView):
             )
 
 class PatientStatusToggleView(APIView):
-   
     permission_classes = [IsAuthenticated, IsAdminUser]
     
     def put(self, request, patient_id):
         try:
-          
             try:
                 patient = User.objects.get(id=patient_id, role='patient')
             except User.DoesNotExist:
@@ -197,7 +198,6 @@ class PatientStatusToggleView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
             
-           
             is_active = request.data.get('is_active')
             
             if is_active is None:
@@ -206,7 +206,12 @@ class PatientStatusToggleView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-          
+            if not is_active and patient.is_active:
+                tokens = OutstandingToken.objects.filter(user=patient)
+                for token in tokens:
+                    BlacklistedToken.objects.get_or_create(token=token)
+                    
+            
             patient.is_active = is_active
             patient.save()
             
@@ -221,6 +226,7 @@ class PatientStatusToggleView(APIView):
                 {"detail": f"Error updating patient status: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
 
 class PatientDetailView(APIView):
    

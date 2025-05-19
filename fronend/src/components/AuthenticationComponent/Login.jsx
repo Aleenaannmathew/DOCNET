@@ -42,6 +42,13 @@ useEffect(() => {
   }
 }, []);
 
+useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.get('message') === 'account_deactivated') {
+      alert('Your account has been deactivated by admin. Please contact support if you believe this is an error.');
+    }
+  }, [location]);
+
   const validateForm = () => {
     const errors = {};
     let isValid = true;

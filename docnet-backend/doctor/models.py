@@ -24,6 +24,7 @@ class DoctorProfile(models.Model):
     experience = models.PositiveIntegerField(
         validators=[MinValueValidator(0)], null=True, blank=True
     )
+    specialization = models.CharField(max_length=255, blank=True, null=True)
     is_approved = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
@@ -36,6 +37,7 @@ class DoctorProfile(models.Model):
             models.Index(fields=['is_approved']),
             models.Index(fields=['gender']),
             models.Index(fields=['experience']),
+            
         ]
     
     def __str__(self):

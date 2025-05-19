@@ -78,7 +78,7 @@ const Navbar = () => {
         <div className="hidden md:flex space-x-8">
           <NavLink href="/" label="Home" />
           <NavLink href="#services" label="Services" />
-          <NavLink href="#doctors" label="Doctors" />
+          <NavLink href="/doctor-list" label="Doctors" />
           <NavLink href="#about" label="About" />
           <NavLink href="#contact" label="Contact" />
           <NavLink href="#blog" label="Blog" />

@@ -1,3 +1,4 @@
+// userAxios.js - frontend fix
 import axios from 'axios';
 import { userApi } from '../constants/api';
 import { logout } from '../store/authSlice';
@@ -24,7 +25,7 @@ userAxios.interceptors.request.use(
   }
 );
 
-
+// Combined response interceptor to handle all authentication issues
 userAxios.interceptors.response.use(
   (response) => {
     return response;
@@ -32,7 +33,18 @@ userAxios.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-   
+    // Handle blocked user - look for either 403 OR 401 with specific message
+    if (
+      error.response?.status === 403 || 
+      (error.response?.status === 401 && 
+       error.response?.data?.detail === 'Your account has been deactivated by admin.')
+    ) {
+      store.dispatch(logout());
+      window.location.href = '/login?message=account_deactivated';
+      return Promise.reject(error);
+    }
+
+    // Handle expired token scenario
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
@@ -40,12 +52,10 @@ userAxios.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         
         if (!refreshToken) {
-         
           store.dispatch(logout());
           return Promise.reject(error);
         }
         
-       
         const response = await axios.post(
           `${userApi}/token/refresh/`, 
           { refresh: refreshToken },
@@ -53,15 +63,10 @@ userAxios.interceptors.response.use(
         );
         
         const { access } = response.data;
-        
-    
         localStorage.setItem('token', access);
-        
-       
         originalRequest.headers.Authorization = `Bearer ${access}`;
         return axios(originalRequest);
       } catch (refreshError) {
-      
         store.dispatch(logout());
         return Promise.reject(refreshError);
       }

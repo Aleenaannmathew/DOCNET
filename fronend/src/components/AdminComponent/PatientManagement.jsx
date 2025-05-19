@@ -68,7 +68,16 @@ export default function PatientsManagement() {
       console.error('Error toggling patient access:', error);
       // Revert on error
       setPatients(prev => [...prev]);
-      alert('Failed to update patient status. Please try again.');
+      let errorMessage = 'Failed to update patient status. Please try again.';
+    if (error.response) {
+      if (error.response.status === 500) {
+        errorMessage = 'Server error occurred. Please contact support.';
+      } else if (error.response.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+    }
+    
+    alert(errorMessage);
     }
   };
 

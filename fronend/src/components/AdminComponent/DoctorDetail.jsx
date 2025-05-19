@@ -300,7 +300,7 @@ export default function DoctorDetail() {
                     <Mail size={18} className="text-gray-500 mr-2" />
                     <div>
                       <p className="text-sm text-gray-500">Email</p>
-                      <p className="font-medium">{doctor.email}</p>
+                      <p className="font-medium">{doctor.user?.email }</p>
                     </div>
                   </div>
                   

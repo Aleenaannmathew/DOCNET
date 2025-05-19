@@ -9,6 +9,7 @@ import { useSelector } from 'react-redux';
 import PasswordChange from '../pages/PatientPages/PasswordChange';
 import PasswordReset from '../pages/PatientPages/PasswordReset';
 import ChangePassword from '../pages/PatientPages/ChangePassword';
+import DoctorListingPage from '../pages/PatientPages/DoctorList';
 
 // Patient/User Route Guard - Only for authenticated patients
 const PatientRoute = ({ children }) => {
@@ -121,6 +122,12 @@ function UserRoutes() {
       <Route path="/new-password" element={
         <PatientRoute>
           <ChangePassword/>
+        </PatientRoute>
+      } />
+
+      <Route path="/doctor-list" element={
+        <PatientRoute>
+          <DoctorListingPage/>
         </PatientRoute>
       } />
       

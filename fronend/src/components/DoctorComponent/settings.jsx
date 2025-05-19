@@ -792,6 +792,15 @@ const Settings = () => {
                     </div>
                   </div>
                 </div>
+                
+
+                <div className="mb-4">
+  <label className="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
+  <div className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700">
+    {user?.doctor_profile?.specialization || 'Not specified'}
+  </div>
+</div>
+
 
                 {/* Certificate Upload */}
                 <div className="p-6">

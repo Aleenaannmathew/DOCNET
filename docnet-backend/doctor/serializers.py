@@ -46,6 +46,7 @@ class DoctorRegistrationSerializer(serializers.Serializer):
 
     registration_id = serializers.CharField(max_length=50)
     hospital = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    specialization = serializers.CharField(max_length=255, required=False, allow_blank=True)
     languages = serializers.CharField(max_length=255, default='English')
     age = serializers.IntegerField(
         validators=[MinValueValidator(21), MaxValueValidator(80)]
@@ -89,6 +90,7 @@ class DoctorRegistrationSerializer(serializers.Serializer):
         doctor_data = {
             'registration_id': validated_data.pop('registration_id'),
             'hospital': validated_data.pop('hospital', ''),
+            'specialization': validated_data.pop('specialization',''),
             'languages': validated_data.pop('languages'),
             'age': validated_data.pop('age'),
             'gender': validated_data.pop('gender'),
@@ -148,6 +150,7 @@ class DoctorLoginSerializer(serializers.Serializer):
                     'is_active': user.is_active,
                     'registration_id': doctor_profile.registration_id,
                     'hospital': doctor_profile.hospital,
+                    'specialization': doctor_profile.specialization,
                     'languages': doctor_profile.languages,
                     'age': doctor_profile.age,
                     'gender': doctor_profile.gender,
@@ -159,7 +162,7 @@ class DoctorLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid username or password.')
 
 class DoctorProfileSerializer(serializers.ModelSerializer):
-    """Serializer for retrieving doctor profiles"""
+   
     user_id = serializers.ReadOnlyField(source='user.id')
     username = serializers.ReadOnlyField(source='user.username')
     email = serializers.ReadOnlyField(source='user.email')
@@ -172,10 +175,10 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
         model = DoctorProfile
         fields = [
             'user_id', 'username', 'email', 'phone', 'profile_image',
-            'registration_id', 'hospital', 'languages', 'age', 'gender',
+            'registration_id', 'hospital','specialization' ,'languages', 'age', 'gender',
             'experience', 'is_approved', 'is_verified', 'role'
         ]
-        read_only_fields = ['registration_id', 'is_approved']
+        read_only_fields = ['registration_id','specialization', 'is_approved']
 
 
 class DoctorProfileUpdateSerializer(serializers.Serializer):

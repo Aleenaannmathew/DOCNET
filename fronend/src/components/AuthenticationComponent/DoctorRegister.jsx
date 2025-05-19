@@ -18,6 +18,7 @@ export default function DoctorRegistration() {
     password2: '',
     registration_id: '',
     hospital: '',
+    specialization: '',
     languages: '',
     age: '',
     gender: '',
@@ -87,6 +88,14 @@ export default function DoctorRegistration() {
       isValid = false;
     }
 
+     if (!formData.specialization.trim()) {
+      formErrors.specialization = 'Specialization is required';
+      isValid = false;
+    } else if (formData.specialization.length < 3) {
+      formErrors.specialization = 'Specialization must be at least 3 characters';
+      isValid = false;
+    }
+
     // Age validation
     if (!formData.age) {
       formErrors.age = 'Age is required';
@@ -145,6 +154,7 @@ export default function DoctorRegistration() {
       data.append('role', 'doctor');
       data.append('registration_id', formData.registration_id);
       data.append('hospital', formData.hospital);
+      data.append('specialization', formData.specialization);
       data.append('languages', formData.languages);
       data.append('age', formData.age);
       data.append('gender', formData.gender);
@@ -386,6 +396,25 @@ export default function DoctorRegistration() {
                   placeholder="Hospital Name (Optional)"
                   className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-teal-500 focus:ring-2 focus:border-transparent outline-none"
                 />
+              </div>
+
+              <div className="relative mb-4">
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                  <User size={18} />
+                </div>
+                <input
+                  type="text"
+                  name="specialization"
+                  onChange={handleChange}
+                  value={formData.specialization}
+                  placeholder="Specialization"
+                  className={`w-full pl-12 pr-4 py-3 rounded-lg border ${
+                    errors.specialization ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-teal-500'
+                  } focus:ring-2 focus:border-transparent outline-none`}
+                />
+                {errors.specialization && (
+                  <p className="text-red-500 text-sm mt-1">{errors.specialization}</p>
+                )}
               </div>
 
               {/* Languages */}

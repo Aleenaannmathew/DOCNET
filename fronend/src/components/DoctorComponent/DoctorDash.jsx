@@ -152,7 +152,7 @@ const DoctorDashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold text-blue-600">DocNet</h1>
+            <h1 className="text-xl font-bold text-blue-600">DOCNET</h1>
           </div>
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex items-center space-x-2">
@@ -193,7 +193,7 @@ const DoctorDashboard = () => {
                 </div>
                 <div>
                   <h3 className="font-medium text-gray-900">Dr. {user?.username}</h3>
-                  <p className="text-sm text-gray-500">{user?.email}</p>
+                
                 </div>
               </div>
             </div>
@@ -242,7 +242,7 @@ const DoctorDashboard = () => {
                   <h2 className="text-2xl font-bold text-gray-900">Good morning, Dr. {user?.username}</h2>
                   <p className="text-gray-600 mt-1">
                     {user?.doctor_profile?.hospital ? `${user.doctor_profile.hospital} • ` : ''}
-                    {user?.doctor_profile?.specialization || 'General Practitioner'}
+                    {user?.doctor_profile?.specialization ? `${user.doctor_profile.specialization}`: ''}
                   </p>
                 </div>
                 <div className="mt-4 sm:mt-0">
