@@ -19,6 +19,14 @@ export default function DoctorDetail() {
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: '',
+    confirmButtonClass: ''
+  });
   
   const fetchDoctorDetails = async () => {
     try {
@@ -44,6 +52,35 @@ export default function DoctorDetail() {
   useEffect(() => {
     fetchDoctorDetails();
   }, [doctorId, token]);
+
+  const showConfirmDialog = (title, message, onConfirm, confirmText = 'Confirm', confirmButtonClass = 'bg-blue-600 hover:bg-blue-700') => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      confirmText,
+      confirmButtonClass
+    });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog({
+      isOpen: false,
+      title: '',
+      message: '',
+      onConfirm: null,
+      confirmText: '',
+      confirmButtonClass: ''
+    });
+  };
+
+  const handleConfirm = () => {
+    if (confirmDialog.onConfirm) {
+      confirmDialog.onConfirm();
+    }
+    closeConfirmDialog();
+  };
   
   const handleApprove = async () => {
     try {
@@ -67,6 +104,16 @@ export default function DoctorDetail() {
       }
     }
   };
+
+  const confirmApprove = () => {
+    showConfirmDialog(
+      'Approve Doctor',
+      `Are you sure you want to approve Dr. ${doctor?.name}? This will allow them to access the platform and provide medical services.`,
+      handleApprove,
+      'Approve',
+      'bg-green-600 hover:bg-green-700'
+    );
+  };
   
   const handleReject = async () => {
     try {
@@ -89,6 +136,16 @@ export default function DoctorDetail() {
         navigate('/admin/admin-login');
       }
     }
+  };
+
+  const confirmReject = () => {
+    showConfirmDialog(
+      'Reject Doctor',
+      `Are you sure you want to reject Dr. ${doctor?.name}? They will not be able to access the platform or provide services.`,
+      handleReject,
+      'Reject',
+      'bg-red-600 hover:bg-red-700'
+    );
   };
   
   const toggleBlock = async () => {
@@ -117,6 +174,20 @@ export default function DoctorDetail() {
         navigate('/admin/admin-login');
       }
     }
+  };
+
+  const confirmToggleBlock = () => {
+    const isBlocking = doctor.user.is_active;
+    const action = isBlocking ? 'block' : 'unblock';
+    const actionPast = isBlocking ? 'blocked' : 'unblocked';
+    
+    showConfirmDialog(
+      `${isBlocking ? 'Block' : 'Unblock'} Doctor`,
+      `Are you sure you want to ${action} Dr. ${doctor?.name}? ${isBlocking ? 'They will lose access to the platform immediately.' : 'They will regain access to the platform.'}`,
+      toggleBlock,
+      isBlocking ? 'Block' : 'Unblock',
+      isBlocking ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+    );
   };
   
   const getProfileImage = () => {
@@ -169,6 +240,40 @@ export default function DoctorDetail() {
     }
     
     return <span className="text-gray-500">No certificate uploaded</span>;
+  };
+
+  // Confirmation Dialog Component
+  const ConfirmationDialog = () => {
+    if (!confirmDialog.isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {confirmDialog.title}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {confirmDialog.message}
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={closeConfirmDialog}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${confirmDialog.confirmButtonClass}`}
+              >
+                {confirmDialog.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
   
   if (loading) {
@@ -246,14 +351,14 @@ export default function DoctorDetail() {
               {doctor.is_approved === null && (
                 <>
                   <button
-                    onClick={handleApprove}
+                    onClick={confirmApprove}
                     className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
                   >
                     <CheckCircle size={16} className="mr-1" />
                     Approve
                   </button>
                   <button
-                    onClick={handleReject}
+                    onClick={confirmReject}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center"
                   >
                     <XCircle size={16} className="mr-1" />
@@ -263,7 +368,7 @@ export default function DoctorDetail() {
               )}
               
               <button
-                onClick={toggleBlock}
+                onClick={confirmToggleBlock}
                 className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
               >
                 {doctor.user?.is_active ? 'Block' : 'Unblock'}
@@ -475,6 +580,9 @@ export default function DoctorDetail() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog />
     </div>
   );
 }

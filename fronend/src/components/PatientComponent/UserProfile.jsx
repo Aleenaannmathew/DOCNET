@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
 import { logout, updateUser } from '../../store/authSlice';
 import { userAxios } from '../../axios/UserAxios';
 import { ToastContainer, toast } from 'react-toastify';
@@ -10,38 +12,95 @@ import Footer from './Footer';
 import DocnetLoading from '../Constants/Loading';
 import { CheckCircle } from 'lucide-react';
 
+// Validation Schema using Yup
+const validationSchema = Yup.object({
+  username: Yup.string()
+    .trim()
+    .required('Username is required')
+    .min(3, 'Username must be at least 3 characters')
+    .max(50, 'Username must not exceed 50 characters'),
+  
+  email: Yup.string()
+    .trim()
+    .required('Email is required')
+    .email('Please enter a valid email address'),
+  
+  phone: Yup.string()
+    .matches(/^[0-9+\-\s()]{7,15}$/, 'Please enter a valid phone number')
+    .nullable(),
+  
+  age: Yup.number()
+    .positive('Age must be a positive number')
+    .integer('Age must be a whole number')
+    .min(0, 'Age cannot be negative')
+    .max(120, 'Please enter a valid age between 0 and 120')
+    .nullable()
+    .transform((value, originalValue) => originalValue === '' ? null : value),
+  
+  height: Yup.number()
+    .positive('Height must be a positive number')
+    .max(300, 'Please enter a valid height (up to 300 cm)')
+    .nullable()
+    .transform((value, originalValue) => originalValue === '' ? null : value),
+  
+  weight: Yup.number()
+    .positive('Weight must be a positive number')
+    .max(500, 'Please enter a valid weight (up to 500 kg)')
+    .nullable()
+    .transform((value, originalValue) => originalValue === '' ? null : value),
+  
+  emergency_contact: Yup.string()
+    .matches(/^[0-9+\-\s()]{7,15}$/, 'Please enter a valid emergency contact number')
+    .nullable(),
+  
+  emergency_contact_name: Yup.string()
+    .max(100, 'Contact name must not exceed 100 characters')
+    .nullable(),
+  
+  blood_group: Yup.string()
+    .oneOf(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', ''], 'Please select a valid blood group')
+    .nullable(),
+  
+  allergies: Yup.string()
+    .max(500, 'Allergies description must not exceed 500 characters')
+    .nullable(),
+  
+  chronic_conditions: Yup.string()
+    .max(500, 'Chronic conditions description must not exceed 500 characters')
+    .nullable()
+});
 
+// File validation schema (separate since it's handled differently)
+const fileValidationSchema = Yup.object({
+  profile_image: Yup.mixed()
+    .nullable()
+    .test('fileSize', 'Image size should be less than 5MB', (value) => {
+      if (!value) return true;
+      return value.size <= 5 * 1024 * 1024;
+    })
+    .test('fileType', 'Please select a valid image file (JPEG, PNG, or GIF)', (value) => {
+      if (!value) return true;
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      return allowedTypes.includes(value.type);
+    })
+});
 
 const UserProfile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, token } = useSelector(state => state.auth);
+  
   const [showSuccess, setShowSuccess] = useState(false);
-  const [successMessage, setSuccessMessage ] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [activeTab, setActiveTab] = useState('Profile Information');
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    phone: '',
-    age: '',
-    blood_group: '',
-    height: '',
-    weight: '',
-    allergies: '',
-    chronic_conditions: '',
-    emergency_contact: '',
-    emergency_contact_name: '',
-    profile_image: null
-  });
-  const [formErrors, setFormErrors] = useState({});
   const [profileImage, setProfileImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccessLoader, setShowSuccessLoader] = useState(false);
-
   const [profileFetched, setProfileFetched] = useState(false);
+  const [imageError, setImageError] = useState('');
 
   const sidebarItems = [
     'Profile Information',
@@ -53,8 +112,22 @@ const UserProfile = () => {
     'Logout'
   ];
 
-
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  // Initial form values
+  const getInitialValues = () => ({
+    username: user?.username || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    age: user?.age || '',
+    blood_group: user?.blood_group || '',
+    height: user?.height || '',
+    weight: user?.weight || '',
+    allergies: user?.allergies || '',
+    chronic_conditions: user?.chronic_conditions || '',
+    emergency_contact: user?.emergency_contact || '',
+    emergency_contact_name: user?.emergency_contact_name || ''
+  });
 
   useEffect(() => {
     if (location.state?.successMessage) {
@@ -66,30 +139,11 @@ const UserProfile = () => {
         setShowSuccess(false);
       }, 5000);
 
-      return () => clearTimeout(timer)
+      return () => clearTimeout(timer);
     }
   }, [location.state]);
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        username: user.username || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        age: user.age || '',
-        blood_group: user.blood_group || '',
-        height: user.height || '',
-        weight: user.weight || '',
-        allergies: user.allergies || '',
-        chronic_conditions: user.chronic_conditions || '',
-        emergency_contact: user.emergency_contact || '',
-        emergency_contact_name: user.emergency_contact_name || '',
-      });
-    }
-  }, [user]);
-
-  useEffect(() => {
-  
     if (user && token && !profileFetched && !loading) {
       fetchUserDetails();
     }
@@ -102,11 +156,9 @@ const UserProfile = () => {
       console.log("using token: ", token);
       console.log("Token type: ", typeof token);
       
-    
       const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
       
       try {
-    
         const response = await userAxios.get('user-profile/', {
           headers: { Authorization: authToken }
         });
@@ -114,20 +166,12 @@ const UserProfile = () => {
         console.log("Profile data received:", response.data);
         
         if (response.data) {
-       
-          setFormData(prevState => ({
-            ...prevState,
-            ...response.data,
-          }));
-          
-          
           dispatch(updateUser(response.data));
         }
        
         setProfileFetched(true);
         setLoading(false);
       } catch (apiError) {
-  
         try {
           console.log("First attempt failed, trying without trailing slash");
           const altResponse = await userAxios.get('user-profile', {
@@ -137,25 +181,19 @@ const UserProfile = () => {
           console.log("Profile data received from alt URL:", altResponse.data);
           
           if (altResponse.data) {
-            setFormData(prevState => ({
-              ...prevState,
-              ...altResponse.data,
-            }));
-            
             dispatch(updateUser(altResponse.data));
           }
           
           setProfileFetched(true);
           setLoading(false);
         } catch (altError) {
-       
+          throw altError;
         }
       }
     } catch (err) {
       console.error('Error fetching user details:', err);
       toast.error(`Failed to load profile data: ${err.response?.data?.detail || err.message}`);
       setLoading(false);
-    
       setProfileFetched(true);
     
       if (err.response) {
@@ -166,136 +204,48 @@ const UserProfile = () => {
     }
   };
 
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.username.trim()) {
-      errors.username = 'Username is required';
-    } else if (formData.username.length < 3) {
-      errors.username = 'Username must be at least 3 characters';
-    }
- 
-    if (!formData.email.trim()) {
-      errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Please enter a valid email address';
-    }
-    
-
-    if (formData.phone && !/^[0-9+\-\s()]{7,15}$/.test(formData.phone)) {
-      errors.phone = 'Please enter a valid phone number';
-    }
-
-    if (formData.age) {
-      const age = parseInt(formData.age);
-      if (isNaN(age) || age < 0 || age > 120) {
-        errors.age = 'Please enter a valid age between 0 and 120';
-      }
-    }
-  
-    if (formData.height) {
-      const height = parseFloat(formData.height);
-      if (isNaN(height) || height <= 0 || height > 300) {
-        errors.height = 'Please enter a valid height (up to 300 cm)';
-      }
-    }
-    
-   
-    if (formData.weight) {
-      const weight = parseFloat(formData.weight);
-      if (isNaN(weight) || weight <= 0 || weight > 500) {
-        errors.weight = 'Please enter a valid weight (up to 500 kg)';
-      }
-    }
-    
-   
-    if (formData.emergency_contact && !/^[0-9+\-\s()]{7,15}$/.test(formData.emergency_contact)) {
-      errors.emergency_contact = 'Please enter a valid emergency contact number';
-    }
-    
-    
-    if (profileImage) {
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-      if (!allowedTypes.includes(profileImage.type)) {
-        errors.profile_image = 'Please select a valid image file (JPEG, PNG, or GIF)';
-      } else if (profileImage.size > 5 * 1024 * 1024) { 
-        errors.profile_image = 'Image size should be less than 5MB';
-      }
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
- 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-    
-    
-    if (formErrors[name]) {
-      setFormErrors({
-        ...formErrors,
-        [name]: ''
-      });
-    }
-  };
-
- 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setProfileImage(file);
-     
-      setPreviewImage(URL.createObjectURL(file));
-      
+    setImageError('');
     
-      if (formErrors.profile_image) {
-        setFormErrors({
-          ...formErrors,
-          profile_image: ''
+    if (file) {
+      // Validate file
+      fileValidationSchema.validate({ profile_image: file })
+        .then(() => {
+          setProfileImage(file);
+          setPreviewImage(URL.createObjectURL(file));
+        })
+        .catch((error) => {
+          setImageError(error.message);
+          e.target.value = ''; // Clear the input
         });
-      }
     }
   };
 
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    
-    if (!validateForm()) {
-      toast.error('Please correct the errors before submitting');
-      return;
-    }
-
+  const handleSubmit = async (values, { setSubmitting, setFieldError }) => {
     try {
       setLoading(true);
       
-  
+      // Create FormData for multipart request
       const profileFormData = new FormData();
       
-    
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== undefined && key !== 'profile_image') {
-          profileFormData.append(key, formData[key]);
+      // Append all form values
+      Object.keys(values).forEach(key => {
+        if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
+          profileFormData.append(key, values[key]);
         }
       });
       
-     
+      // Append profile image if selected
       if (profileImage) {
         profileFormData.append('profile_image', profileImage);
       }
       
-    
+      // Debug: Log form data
       for (let pair of profileFormData.entries()) {
         console.log(pair[0] + ': ' + pair[1]);
       }
       
-     
       const response = await userAxios.put('user-profile/update/', profileFormData, {
         headers: { 
           Authorization: `Bearer ${token}`,
@@ -306,20 +256,21 @@ const UserProfile = () => {
       console.log("Update response:", response.data);
       
       if (response.data) {
- 
+        // Update Redux store
         dispatch(updateUser(response.data));
         
         setShowSuccessLoader(true);
-  
         toast.success('Profile updated successfully!');
    
+        // Clean up image preview
         if (previewImage) {
           URL.revokeObjectURL(previewImage);
           setPreviewImage(null);
         }
         setProfileImage(null);
+        setImageError('');
         
-       
+        // Exit editing mode after successful update
         setTimeout(() => {
           setShowSuccessLoader(false);
           setIsEditing(false);
@@ -329,12 +280,30 @@ const UserProfile = () => {
       setLoading(false);
     } catch (err) {
       console.error('Error updating profile:', err);
+      
+      // Handle field-specific errors from server
+      if (err.response && err.response.data) {
+        const serverErrors = err.response.data;
+        
+        if (typeof serverErrors === 'object') {
+          Object.keys(serverErrors).forEach(key => {
+            if (serverErrors[key]) {
+              const errorMsg = Array.isArray(serverErrors[key]) 
+                ? serverErrors[key][0] 
+                : serverErrors[key];
+              setFieldError(key, errorMsg);
+            }
+          });
+        }
+      }
+      
       toast.error(`Failed to update profile: ${err.response?.data?.detail || err.message}`);
       setLoading(false);
+    } finally {
+      setSubmitting(false);
     }
   };
 
- 
   const handleTabClick = (tab) => {
     if (tab === 'Logout') {
       handleLogout();
@@ -345,7 +314,6 @@ const UserProfile = () => {
     }
   };
 
- 
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
@@ -355,34 +323,17 @@ const UserProfile = () => {
     setIsEditing(!isEditing);
     
     if (isEditing) {
+      // Clean up when canceling edit
       if (previewImage) {
         URL.revokeObjectURL(previewImage);
         setPreviewImage(null);
       }
       setProfileImage(null);
-      
- 
-      if (user) {
-        setFormData({
-          username: user.username || '',
-          email: user.email || '',
-          phone: user.phone || '',
-          age: user.age || '',
-          blood_group: user.blood_group || '',
-          height: user.height || '',
-          weight: user.weight || '',
-          allergies: user.allergies || '',
-          chronic_conditions: user.chronic_conditions || '',
-          emergency_contact: user.emergency_contact || '',
-          emergency_contact_name: user.emergency_contact_name || '',
-        });
-      }
-      
-      setFormErrors({});
+      setImageError('');
     }
   };
 
-  
+  // Profile image URL
   const profileImageUrl = previewImage || (user?.profile_image || "/api/placeholder/80/80");
 
   if (!user) {
@@ -407,7 +358,6 @@ const UserProfile = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-
       {/* Toast container for notifications */}
       <ToastContainer
         position="top-right"
@@ -422,6 +372,7 @@ const UserProfile = () => {
       />
       
       <Navbar/>
+      
       {showSuccess && (
         <div className="mb-4 rounded-md bg-green-50 p-4">
           <div className="flex">
@@ -434,6 +385,7 @@ const UserProfile = () => {
           </div>
         </div>
       )}
+
       {/* Profile Top Section */}
       <div className="flex justify-center mt-20 px-4">
         <div className="flex flex-col sm:flex-row items-center justify-between bg-gray-100 p-4 sm:p-6 w-full max-w-5xl rounded-md shadow-sm">
@@ -469,16 +421,15 @@ const UserProfile = () => {
               <select 
                 className="w-full p-3 bg-gray-100 border border-gray-200 rounded-md"
                 value={activeTab}
-                  onChange={(e) => {
-                    if (e.target.value === 'Logout') {
-                      handleLogout();
-                    } else if (e.target.value === 'Change Password') {
-                      navigate('/new-password');
-                    } else {
-                      setActiveTab(e.target.value);
-                    }
-                  }}
-
+                onChange={(e) => {
+                  if (e.target.value === 'Logout') {
+                    handleLogout();
+                  } else if (e.target.value === 'Change Password') {
+                    navigate('/new-password');
+                  } else {
+                    setActiveTab(e.target.value);
+                  }
+                }}
               >
                 {sidebarItems.map((item) => (
                   <option key={item} value={item}>{item}</option>
@@ -504,252 +455,245 @@ const UserProfile = () => {
 
           {/* Profile Form */}
           <div className="flex-1 bg-gray-100 p-6 rounded-md shadow-sm relative">
-            
-            
+            {/* Profile Image in Corner */}
             <div className="absolute top-0 right-6 transform -translate-y-1/2">
               <img 
                 src={profileImageUrl} 
                 alt={user.username} 
-                className="w-16 h-16 rounded-full border-4 border-white"
+                className="w-16 h-16 rounded-full border-4 border-white object-cover"
               />
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-12">
-              {/* Basic Info Section */}
-              <h3 className="text-lg font-semibold mb-3 text-navy-800">Basic Information</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Username</label>
-                  <input 
-                    type="text" 
-                    name="username"
-                    value={formData.username || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border ${formErrors.username ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                  />
-                  {formErrors.username && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.username}</p>
+            {/* Formik Form */}
+            <Formik
+              enableReinitialize={true}
+              initialValues={getInitialValues()}
+              validationSchema={validationSchema}
+              onSubmit={handleSubmit}
+            >
+              {({ isSubmitting, errors, touched, values, setFieldValue }) => (
+                <Form className="mt-12">
+                  {/* Basic Info Section */}
+                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Basic Information</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Username</label>
+                      <Field
+                        type="text" 
+                        name="username"
+                        disabled={!isEditing}
+                        className={`w-full px-3 py-2 border ${
+                          errors.username && touched.username ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="username" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Email Address</label>
+                      <Field
+                        type="email" 
+                        name="email"
+                        disabled={!isEditing}
+                        className={`w-full px-3 py-2 border ${
+                          errors.email && touched.email ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="email" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Phone Number</label>
+                      <Field
+                        type="tel" 
+                        name="phone"
+                        disabled={!isEditing}
+                        className={`w-full px-3 py-2 border ${
+                          errors.phone && touched.phone ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="phone" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Age</label>
+                      <Field
+                        type="number" 
+                        name="age"
+                        disabled={!isEditing}
+                        className={`w-full px-3 py-2 border ${
+                          errors.age && touched.age ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="age" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+                  </div>
+
+                  {/* Health Information Section */}
+                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Health Information</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Blood Group</label>
+                      <Field
+                        as="select"
+                        name="blood_group"
+                        disabled={!isEditing}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500"
+                      >
+                        <option value="">Select Blood Group</option>
+                        {bloodGroups.map(group => (
+                          <option key={group} value={group}>{group}</option>
+                        ))}
+                      </Field>
+                      <ErrorMessage name="blood_group" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Height (cm)</label>
+                      <Field
+                        type="number" 
+                        name="height"
+                        disabled={!isEditing}
+                        step="0.01"
+                        className={`w-full px-3 py-2 border ${
+                          errors.height && touched.height ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="height" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Weight (kg)</label>
+                      <Field
+                        type="number" 
+                        name="weight"
+                        disabled={!isEditing}
+                        step="0.01"
+                        className={`w-full px-3 py-2 border ${
+                          errors.weight && touched.weight ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="weight" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+                  </div>
+
+                  {/* Medical Information */}
+                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Medical Information</h3>
+                  
+                  <div className="mb-4">
+                    <label className="block mb-1 font-bold text-sm">Allergies</label>
+                    <Field
+                      as="textarea"
+                      name="allergies"
+                      disabled={!isEditing}
+                      rows={3}
+                      placeholder="List any allergies here"
+                      className={`w-full px-3 py-2 border ${
+                        errors.allergies && touched.allergies ? 'border-red-500' : 'border-gray-300'
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                    />
+                    <ErrorMessage name="allergies" component="p" className="text-red-500 text-xs mt-1" />
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block mb-1 font-bold text-sm">Chronic Conditions</label>
+                    <Field
+                      as="textarea"
+                      name="chronic_conditions"
+                      disabled={!isEditing}
+                      rows={3}
+                      placeholder="List any chronic health conditions here"
+                      className={`w-full px-3 py-2 border ${
+                        errors.chronic_conditions && touched.chronic_conditions ? 'border-red-500' : 'border-gray-300'
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                    />
+                    <ErrorMessage name="chronic_conditions" component="p" className="text-red-500 text-xs mt-1" />
+                  </div>
+
+                  {/* Emergency Contact */}
+                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Emergency Contact</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Contact Name</label>
+                      <Field
+                        type="text" 
+                        name="emergency_contact_name"
+                        disabled={!isEditing}
+                        className={`w-full px-3 py-2 border ${
+                          errors.emergency_contact_name && touched.emergency_contact_name ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="emergency_contact_name" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div>
+                      <label className="block mb-1 font-bold text-sm">Contact Number</label>
+                      <Field
+                        type="tel" 
+                        name="emergency_contact"
+                        disabled={!isEditing}
+                        className={`w-full px-3 py-2 border ${
+                          errors.emergency_contact && touched.emergency_contact ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
+                      />
+                      <ErrorMessage name="emergency_contact" component="p" className="text-red-500 text-xs mt-1" />
+                    </div>
+                  </div>
+
+                  {/* Profile Picture Upload */}
+                  {isEditing && (
+                    <div className="mb-6">
+                      <label className="block mb-1 font-bold text-sm">Profile Picture</label>
+                      <input 
+                        type="file" 
+                        name="profile_image"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className={`w-full px-3 py-2 border ${
+                          imageError ? 'border-red-500' : 'border-gray-300'
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500`}
+                      />
+                      {imageError && (
+                        <p className="text-red-500 text-xs mt-1">{imageError}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">Upload a new profile picture (JPEG, PNG, or GIF, max 5MB)</p>
+                    </div>
                   )}
-                </div>
 
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Email Address</label>
-                  <input 
-                    type="email" 
-                    name="email"
-                    value={formData.email || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border ${formErrors.email ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                  />
-                  {formErrors.email && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                  {isEditing && (
+                    <div className="flex justify-center mt-8 space-x-4">
+                      <button 
+                        type="submit" 
+                        className={`px-6 py-2 rounded font-medium transition ${
+                          isSubmitting || loading
+                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                            : 'bg-indigo-800 hover:bg-indigo-900 text-white'
+                        }`}
+                        disabled={isSubmitting || loading}
+                      >
+                        {isSubmitting || loading ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={toggleEditMode}
+                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded font-medium transition"
+                        disabled={isSubmitting || loading}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   )}
-                </div>
-
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Phone Number</label>
-                  <input 
-                    type="tel" 
-                    name="phone"
-                    value={formData.phone || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border ${formErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                  />
-                  {formErrors.phone && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Age</label>
-                  <input 
-                    type="number" 
-                    name="age"
-                    value={formData.age || ''}
-                    onChange={(e) => {
-                      const value = e.target.value ? parseInt(e.target.value) : '';
-                      setFormData({
-                        ...formData,
-                        age: value
-                      });
-                      if (formErrors.age) {
-                        setFormErrors({
-                          ...formErrors,
-                          age: ''
-                        });
-                      }
-                    }}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border ${formErrors.age ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                  />
-                  {formErrors.age && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.age}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Health Information Section */}
-              <h3 className="text-lg font-semibold mb-3 text-navy-800">Health Information</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Blood Group</label>
-                  <select
-                    name="blood_group"
-                    value={formData.blood_group || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500"
-                  >
-                    <option value="">Select Blood Group</option>
-                    {bloodGroups.map(group => (
-                      <option key={group} value={group}>{group}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Height (cm)</label>
-                  <input 
-                    type="number" 
-                    name="height"
-                    value={formData.height || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    step="0.01"
-                    className={`w-full px-3 py-2 border ${formErrors.height ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                  />
-                  {formErrors.height && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.height}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Weight (kg)</label>
-                  <input 
-                    type="number" 
-                    name="weight"
-                    value={formData.weight || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    step="0.01"
-                    className={`w-full px-3 py-2 border ${formErrors.weight ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                  />
-                  {formErrors.weight && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.weight}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Medical Information */}
-              <h3 className="text-lg font-semibold mb-3 text-navy-800">Medical Information</h3>
-              
-              <div className="mb-4">
-                <label className="block mb-1 font-bold text-sm">Allergies</label>
-                <textarea 
-                  name="allergies"
-                  value={formData.allergies || ''}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  rows={3}
-                  placeholder="List any allergies here"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500"
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="block mb-1 font-bold text-sm">Chronic Conditions</label>
-                <textarea 
-                  name="chronic_conditions"
-                  value={formData.chronic_conditions || ''}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  rows={3}
-                  placeholder="List any chronic health conditions here"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500"
-                />
-              </div>
-
-              {/* Emergency Contact */}
-              <h3 className="text-lg font-semibold mb-3 text-navy-800">Emergency Contact</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Contact Name</label>
-                  <input 
-                    type="text" 
-                    name="emergency_contact_name"
-                    value={formData.emergency_contact_name || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block mb-1 font-bold text-sm">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    name="emergency_contact"
-                    value={formData.emergency_contact || ''}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border ${formErrors.emergency_contact ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                  />
-                  {formErrors.emergency_contact && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.emergency_contact}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Profile Picture Upload */}
-              {isEditing && (
-                <div className="mb-6">
-                  <label className="block mb-1 font-bold text-sm">Profile Picture</label>
-                  <input 
-                    type="file" 
-                    name="profile_image"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className={`w-full px-3 py-2 border ${formErrors.profile_image ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500`}
-                  />
-                  {formErrors.profile_image && (
-                    <p className="text-red-500 text-xs mt-1">{formErrors.profile_image}</p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">Upload a new profile picture (JPEG, PNG, or GIF, max 5MB)</p>
-                </div>
+                </Form>
               )}
-
-              {isEditing ? (
-                <div className="flex justify-center mt-8 space-x-4">
-                  <button 
-                    type="submit" 
-                    className="bg-indigo-800 hover:bg-indigo-800 text-white px-6 py-2 rounded font-medium transition"
-                    disabled={loading}
-                  >
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={toggleEditMode}
-                    className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded font-medium transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : null}
-            </form>
+            </Formik>
           </div>
         </div>
       </div>
 
       <Footer/>
-
-     
     </div>
   );
 };

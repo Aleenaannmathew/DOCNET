@@ -5,7 +5,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { adminAxios } from '../../axios/AdminAxios';
 import { toast } from 'react-toastify';
-import Swal from 'sweetalert2'; // Import SweetAlert2
 
 export default function DoctorsManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -58,147 +57,93 @@ export default function DoctorsManagement() {
   
   const handleApprove = async (id, doctorName) => {
     // Show confirmation dialog
-    Swal.fire({
-      title: 'Approve Doctor?',
-      text: `Are you sure you want to approve ${doctorName}?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#10B981', // Green color for approve
-      cancelButtonColor: '#6B7280',
-      confirmButtonText: 'Yes, approve',
-      cancelButtonText: 'Cancel'
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await adminAxios.patch(`/doctors/${id}/approval/`, { action: 'approve' });
-          
-          // Update local state to reflect changes - only change is_approved to true
-          setDoctors(prev =>
-            prev.map(doc => doc.id === id ? { ...doc, is_approved: true } : doc)
-          );
-          
-          Swal.fire({
-            title: 'Approved!',
-            text: `${doctorName} has been approved successfully.`,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-          });
-        } catch (err) {
-          console.error('Error approving doctor:', err);
-          Swal.fire({
-            title: 'Error!',
-            text: 'Failed to approve doctor.',
-            icon: 'error'
-          });
-          
-          // Handle unauthorized
-          if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-            dispatch(logout());
-            navigate('/admin/admin-login');
-          }
+    const confirmed = window.confirm(`Are you sure you want to approve ${doctorName}?`);
+    
+    if (confirmed) {
+      try {
+        await adminAxios.patch(`/doctors/${id}/approval/`, { action: 'approve' });
+        
+        // Update local state to reflect changes - only change is_approved to true
+        setDoctors(prev =>
+          prev.map(doc => doc.id === id ? { ...doc, is_approved: true } : doc)
+        );
+        
+        toast.success(`${doctorName} has been approved successfully.`);
+      } catch (err) {
+        console.error('Error approving doctor:', err);
+        toast.error('Failed to approve doctor.');
+        
+        // Handle unauthorized
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          dispatch(logout());
+          navigate('/admin/admin-login');
         }
       }
-    });
+    }
   };
   
   const handleReject = async (id, doctorName) => {
     // Show confirmation dialog
-    Swal.fire({
-      title: 'Reject Doctor?',
-      text: `Are you sure you want to reject ${doctorName}?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#EF4444', // Red color for reject
-      cancelButtonColor: '#6B7280',
-      confirmButtonText: 'Yes, reject',
-      cancelButtonText: 'Cancel'
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await adminAxios.patch(`/doctors/${id}/approval/`, { action: 'reject' });
-          
-          // Update local state to reflect changes
-          setDoctors(prev =>
-            prev.map(doc => doc.id === id ? { ...doc, is_approved: false } : doc)
-          );
-          
-          Swal.fire({
-            title: 'Rejected!',
-            text: `${doctorName} has been rejected.`,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-          });
-        } catch (err) {
-          console.error('Error rejecting doctor:', err);
-          Swal.fire({
-            title: 'Error!',
-            text: 'Failed to reject doctor.',
-            icon: 'error'
-          });
-          
-          // Handle unauthorized
-          if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-            dispatch(logout());
-            navigate('/admin/admin-login');
-          }
+    const confirmed = window.confirm(`Are you sure you want to reject ${doctorName}? This action cannot be undone.`);
+    
+    if (confirmed) {
+      try {
+        await adminAxios.patch(`/doctors/${id}/approval/`, { action: 'reject' });
+        
+        // Update local state to reflect changes
+        setDoctors(prev =>
+          prev.map(doc => doc.id === id ? { ...doc, is_approved: false } : doc)
+        );
+        
+        toast.success(`${doctorName} has been rejected.`);
+      } catch (err) {
+        console.error('Error rejecting doctor:', err);
+        toast.error('Failed to reject doctor.');
+        
+        // Handle unauthorized
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          dispatch(logout());
+          navigate('/admin/admin-login');
         }
       }
-    });
+    }
   };
   
   const toggleBlock = async (id, currentStatus, doctorName) => {
     const action = currentStatus ? 'block' : 'unblock';
     
     // Show confirmation dialog
-    Swal.fire({
-      title: `${currentStatus ? 'Block' : 'Unblock'} Doctor?`,
-      text: `Are you sure you want to ${action} ${doctorName}?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: currentStatus ? '#4B5563' : '#10B981', // Gray for block, Green for unblock
-      cancelButtonColor: '#6B7280',
-      confirmButtonText: `Yes, ${action}`,
-      cancelButtonText: 'Cancel'
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await adminAxios.patch(`/doctors/${id}/block/`, { action });
-          
-          // Update local state to reflect changes
-          setDoctors(prev =>
-            prev.map(doc => doc.id === id ? { ...doc, is_active: !currentStatus } : doc)
-          );
-          
-          Swal.fire({
-            title: `${action.charAt(0).toUpperCase() + action.slice(1)}ed!`,
-            text: `Doctor has been ${action}ed successfully.`,
-            icon: 'success',
-            timer: 2000,
-            showConfirmButton: false
-          });
-        } catch (err) {
-          console.error(`Error ${action}ing doctor:`, err);
-          Swal.fire({
-            title: 'Error!',
-            text: `Failed to ${action} doctor.`,
-            icon: 'error'
-          });
-          
-          // Handle unauthorized
-          if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-            dispatch(logout());
-            navigate('/admin/admin-login');
-          }
+    const confirmed = window.confirm(`Are you sure you want to ${action} ${doctorName}?`);
+    
+    if (confirmed) {
+      try {
+        await adminAxios.patch(`/doctors/${id}/block/`, { action });
+        
+        // Update local state to reflect changes
+        setDoctors(prev =>
+          prev.map(doc => doc.id === id ? { ...doc, is_active: !currentStatus } : doc)
+        );
+        
+        toast.success(`Doctor has been ${action}ed successfully.`);
+      } catch (err) {
+        console.error(`Error ${action}ing doctor:`, err);
+        toast.error(`Failed to ${action} doctor.`);
+        
+        // Handle unauthorized
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          dispatch(logout());
+          navigate('/admin/admin-login');
         }
       }
-    });
+    }
   };
 
   const handleLogout = () => {
-    dispatch(logout());
-    navigate('/admin/admin-login');
+    const confirmed = window.confirm('Are you sure you want to logout?');
+    if (confirmed) {
+      dispatch(logout());
+      navigate('/admin/admin-login');
+    }
   };  
   
   const menuItems = [

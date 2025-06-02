@@ -1,6 +1,8 @@
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { User, Lock, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
 import { useDispatch } from 'react-redux';
 import { login } from '../../store/authSlice';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -8,100 +10,63 @@ import { userAxios } from '../../axios/UserAxios';
 import doc1 from '../../assets/doctor1.png';
 import GoogleAuthButton from './Google';
 
+// Validation schema using Yup
+const validationSchema = Yup.object({
+  username: Yup.string()
+    .required('Username is required')
+    .trim(),
+  password: Yup.string()
+    .required('Password is required')
+});
+
+// Initial form values
+const initialValues = {
+  username: '',
+  password: ''
+};
 
 export default function Login() {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
   
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   
-useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const fromOtpVerification = urlParams.get('verified') === 'true';
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromOtpVerification = urlParams.get('verified') === 'true';
 
-  if (fromOtpVerification) {
-    setShowNotification(true);
-    
-    // Auto-hide notification after 8 seconds
-    const timer = setTimeout(() => {
-      setShowNotification(false);
+    if (fromOtpVerification) {
+      setShowNotification(true);
       
-      // Optional: Clean up the URL by removing the query parameter
-      navigate('/login', { replace: true });
-    }, 8000);
-    
-    return () => clearTimeout(timer);
-  }
-}, []);
+      // Auto-hide notification after 8 seconds
+      const timer = setTimeout(() => {
+        setShowNotification(false);
+        
+        // Optional: Clean up the URL by removing the query parameter
+        navigate('/login', { replace: true });
+      }, 8000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [navigate]);
 
-useEffect(() => {
+  useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     if (queryParams.get('message') === 'account_deactivated') {
       alert('Your account has been deactivated by admin. Please contact support if you believe this is an error.');
     }
   }, [location]);
 
-  const validateForm = () => {
-    const errors = {};
-    let isValid = true;
-
-    if (!formData.username.trim()) {
-      errors.username = 'Username is required';
-      isValid = false;
-    }
-
-    if (!formData.password) {
-      errors.password = 'Password is required';
-      isValid = false;
-    }
-
-    setFormErrors(errors);
-    return isValid;
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-
-    if (formErrors[name]) {
-      setFormErrors({
-        ...formErrors,
-        [name]: null
-      });
-    }
-  
-    if (error) {
-      setError(null);
-    }
-  };
-
-  
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setLoading(true);
+  const handleSubmit = async (values, { setSubmitting, setFieldError }) => {
     setError(null);
+    
     try {
       // API call to backend using the userAxios instance
       const response = await userAxios.post('/login/', {
-        username: formData.username,
-        password: formData.password
+        username: values.username.trim(),
+        password: values.password
       });
       
       const data = response.data;
@@ -111,21 +76,36 @@ useEffect(() => {
         refreshToken: data.refresh,
         user: {
           username: data.username,
-          email:data.email,
+          email: data.email,
           role: 'patient',
           is_profile_complete: data.is_profile_complete || false,
           // Add any other user data you get from the response
         }
       }));
 
-      navigate('/', {replace: true});
+      navigate('/', { replace: true });
       
     } catch (error) {
       // Handle axios error responses
       if (error.response) {
-        // The request was made and the server responded with a status code outside of 2xx
-        const errorMessage = error.response.data.detail || 
-                            error.response.data.non_field_errors?.[0] || 
+        const serverErrors = error.response.data;
+        
+        // Check for field-specific errors first
+        if (serverErrors.username) {
+          setFieldError('username', Array.isArray(serverErrors.username) 
+            ? serverErrors.username[0] 
+            : serverErrors.username);
+        }
+        
+        if (serverErrors.password) {
+          setFieldError('password', Array.isArray(serverErrors.password) 
+            ? serverErrors.password[0] 
+            : serverErrors.password);
+        }
+        
+        // Set general error for non-field errors
+        const errorMessage = serverErrors.detail || 
+                            serverErrors.non_field_errors?.[0] || 
                             'Invalid username or password';
         setError(errorMessage);
       } else if (error.request) {
@@ -136,8 +116,39 @@ useEffect(() => {
         setError(error.message || 'An error occurred during login');
       }
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
+  };
+
+  // Custom input component for consistent styling
+  const FormInput = ({ field, form, placeholder, type = "text", icon: Icon, ...props }) => {
+    const hasError = form.errors[field.name] && form.touched[field.name];
+    
+    return (
+      <div>
+        <div className="relative">
+          <input
+            {...field}
+            {...props}
+            type={type}
+            placeholder={placeholder}
+            className={`w-full py-3 px-4 pl-10 rounded-lg border ${
+              hasError 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-gray-200 focus:ring-teal-500'
+            } focus:outline-none focus:ring-2 focus:border-transparent shadow-sm text-sm`}
+          />
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black">
+            <Icon size={17} />
+          </div>
+        </div>
+        <ErrorMessage 
+          name={field.name} 
+          component="p" 
+          className="text-red-500 text-sm mt-1" 
+        />
+      </div>
+    );
   };
 
   const navigateToSignUp = () => {
@@ -160,7 +171,7 @@ useEffect(() => {
             </div>
           </div>
           <button
-            onClick={() => {closeNotification}}
+            onClick={closeNotification}
             className="ml-4 text-green-700 hover:text-green-900"
           >
             <X size={18} />
@@ -203,90 +214,85 @@ useEffect(() => {
             </div>
           )}
 
-<form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-            {/* Username field */}
-            <div>
-              <div className="relative">
-                <input
-                  type="text"
+          <Formik
+            initialValues={initialValues}
+            validationSchema={validationSchema}
+            onSubmit={handleSubmit}
+          >
+            {({ isSubmitting, values, errors, touched, handleChange, handleBlur }) => (
+              <Form className="flex flex-col gap-6">
+                {/* Username field */}
+                <Field
                   name="username"
-                  value={formData.username}
-                  onChange={handleChange}
+                  component={FormInput}
                   placeholder="Username"
-                  className={`w-full py-3 px-4 pl-10 rounded-lg border ${
-                    formErrors.username ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-teal-500'
-                  } focus:outline-none focus:ring-2 focus:border-transparent shadow-sm text-sm`}
+                  icon={User}
+                  onChange={(e) => {
+                    handleChange(e);
+                    // Clear general error when user starts typing
+                    if (error) {
+                      setError(null);
+                    }
+                  }}
                 />
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black">
-                  <User size={17} />
-                </div>
-              </div>
-              {formErrors.username && (
-                <p className="text-red-500 text-sm mt-1">{formErrors.username}</p>
-              )}
-            </div>
 
-            {/* Password field */}
-            <div>
-              <div className="relative">
-                <input
-                  type="password"
+                {/* Password field */}
+                <Field
                   name="password"
-                  value={formData.password}
-                  onChange={handleChange}
+                  component={FormInput}
+                  type="password"
                   placeholder="Password"
-                  className={`w-full py-3 px-4 pl-10 rounded-lg border ${
-                    formErrors.password ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-teal-500'
-                  } focus:outline-none focus:ring-2 focus:border-transparent shadow-sm text-sm`}
+                  icon={Lock}
+                  onChange={(e) => {
+                    handleChange(e);
+                    // Clear general error when user starts typing
+                    if (error) {
+                      setError(null);
+                    }
+                  }}
                 />
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black">
-                  <Lock size={17} />
+
+                <div className="flex justify-end">
+                  <span
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-teal-600 text-sm cursor-pointer hover:text-teal-800"
+                  >
+                    Forgot password?
+                  </span>
                 </div>
-              </div>
-              {formErrors.password && (
-                <p className="text-red-500 text-sm mt-1">{formErrors.password}</p>
-              )}
-            </div>
 
-            <div className="flex justify-end">
-              <span
-                onClick={() => navigate('/forgot-password')}
-                className="text-teal-600 text-sm cursor-pointer hover:text-teal-800"
-              >
-                Forgot password?
-              </span>
-            </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`w-full bg-teal-700 hover:bg-teal-800 text-white font-medium py-3 px-4 rounded-md transition-colors duration-300 ${
+                    isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isSubmitting ? 'Logging in...' : 'Login'}
+                </button>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full bg-teal-700 hover:bg-teal-800 text-white font-medium py-3 px-4 rounded-md transition-colors duration-300 ${
-                loading ? 'opacity-70 cursor-not-allowed' : ''
-              }`}
-            >
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
+                {/* Divider */}
+                <div className="flex items-center my-6">
+                  <hr className="flex-1 border-gray-200" />
+                  <span className="mx-4 text-sm text-gray-500">or sign in with</span>
+                  <hr className="flex-1 border-gray-200" />
+                </div>
 
-            {/* Divider */}
-            <div className="flex items-center my-6">
-              <hr className="flex-1 border-gray-200" />
-              <span className="mx-4 text-sm text-gray-500">or sign in with</span>
-              <hr className="flex-1 border-gray-200" />
-            </div>
+                {/* Google Sign-In Button */}
+                <GoogleAuthButton />
 
-            {/* Google Sign-In Button */}
-           <GoogleAuthButton/>
-
-            <p className="text-center mt-4 text-gray-600">
-              Don't have an account?{' '}
-              <span 
-                className="text-teal-500 cursor-pointer hover:text-teal-600"
-                onClick={navigateToSignUp}
-              >
-                Create Account
-              </span>
-            </p>
-          </form>
+                <p className="text-center mt-4 text-gray-600">
+                  Don't have an account?{' '}
+                  <span 
+                    className="text-teal-500 cursor-pointer hover:text-teal-600"
+                    onClick={navigateToSignUp}
+                  >
+                    Create Account
+                  </span>
+                </p>
+              </Form>
+            )}
+          </Formik>
         </div>
       </div>
     </div>

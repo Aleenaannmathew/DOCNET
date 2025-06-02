@@ -11,6 +11,13 @@ export default function PatientsManagement() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    patientId: null,
+    patientName: '',
+    currentStatus: null,
+    action: ''
+  });
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const location = useLocation();
@@ -44,24 +51,46 @@ export default function PatientsManagement() {
     fetchPatients();
   }, []);
 
-  const handleToggleAccess = async (id, isBlocked) => {
+  const showConfirmDialog = (patient) => {
+    const action = patient.is_active ? 'block' : 'unblock';
+    setConfirmDialog({
+      isOpen: true,
+      patientId: patient.id,
+      patientName: patient.username,
+      currentStatus: patient.is_active,
+      action: action
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    const { patientId, currentStatus } = confirmDialog;
+    
     try {
       // Optimistically update UI
       setPatients(prev =>
         prev.map(patient =>
-          patient.id === id
+          patient.id === patientId
             ? {
                 ...patient,
-                is_active: !isBlocked,
-                status: isBlocked ? 'Allowed' : 'Blocked'
+                is_active: !currentStatus,
+                status: currentStatus ? 'Blocked' : 'Allowed'
               }
             : patient
         )
       );
       
       // Call API to update the user's blocked status
-      await adminAxios.put(`/patients/${id}/toggle-status/`, {
-        is_active: !isBlocked
+      await adminAxios.put(`/patients/${patientId}/toggle-status/`, {
+        is_active: !currentStatus
+      });
+      
+      // Close dialog
+      setConfirmDialog({
+        isOpen: false,
+        patientId: null,
+        patientName: '',
+        currentStatus: null,
+        action: ''
       });
       
     } catch (error) {
@@ -69,16 +98,35 @@ export default function PatientsManagement() {
       // Revert on error
       setPatients(prev => [...prev]);
       let errorMessage = 'Failed to update patient status. Please try again.';
-    if (error.response) {
-      if (error.response.status === 500) {
-        errorMessage = 'Server error occurred. Please contact support.';
-      } else if (error.response.data?.detail) {
-        errorMessage = error.response.data.detail;
+      if (error.response) {
+        if (error.response.status === 500) {
+          errorMessage = 'Server error occurred. Please contact support.';
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        }
       }
+      
+      alert(errorMessage);
+      
+      // Close dialog
+      setConfirmDialog({
+        isOpen: false,
+        patientId: null,
+        patientName: '',
+        currentStatus: null,
+        action: ''
+      });
     }
-    
-    alert(errorMessage);
-    }
+  };
+
+  const handleCancelAction = () => {
+    setConfirmDialog({
+      isOpen: false,
+      patientId: null,
+      patientName: '',
+      currentStatus: null,
+      action: ''
+    });
   };
 
   const handleLogout = () => {
@@ -93,6 +141,79 @@ export default function PatientsManagement() {
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-800 font-sans">
+      {/* Confirmation Dialog */}
+      {confirmDialog.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
+                confirmDialog.action === 'block' ? 'bg-red-100' : 'bg-green-100'
+              }`}>
+                <AlertTriangle size={24} className={
+                  confirmDialog.action === 'block' ? 'text-red-600' : 'text-green-600'
+                } />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Confirm {confirmDialog.action === 'block' ? 'Block' : 'Unblock'} Patient
+                </h3>
+                <p className="text-sm text-gray-500">
+                  This action will affect patient access
+                </p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700">
+                Are you sure you want to{' '}
+                <span className={`font-semibold ${
+                  confirmDialog.action === 'block' ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {confirmDialog.action}
+                </span>
+                {' '}patient{' '}
+                <span className="font-semibold">{confirmDialog.patientName}</span>?
+              </p>
+              
+              {confirmDialog.action === 'block' && (
+                <div className="mt-3 p-3 bg-red-50 rounded-md">
+                  <p className="text-sm text-red-800">
+                    <strong>Warning:</strong> Blocking this patient will prevent them from accessing their account and booking appointments.
+                  </p>
+                </div>
+              )}
+              
+              {confirmDialog.action === 'unblock' && (
+                <div className="mt-3 p-3 bg-green-50 rounded-md">
+                  <p className="text-sm text-green-800">
+                    <strong>Note:</strong> Unblocking this patient will restore their account access and allow them to book appointments.
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleCancelAction}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+                  confirmDialog.action === 'block' 
+                    ? 'bg-red-600 hover:bg-red-700' 
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {confirmDialog.action === 'block' ? 'Block Patient' : 'Unblock Patient'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -275,7 +396,7 @@ export default function PatientsManagement() {
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap">
                             <button
-                              onClick={() => handleToggleAccess(patient.id, patient.is_active)}
+                              onClick={() => showConfirmDialog(patient)}
                               className={`px-3 py-1 text-xs font-medium rounded text-white ${
                                 patient.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
                               } transition-colors`}
@@ -334,7 +455,7 @@ export default function PatientsManagement() {
                     
                     <div className="flex justify-end">
                       <button
-                        onClick={() => handleToggleAccess(patient.id, patient.is_active)}
+                        onClick={() => showConfirmDialog(patient)}
                         className={`px-3 py-1 text-xs font-medium rounded text-white ${
                           patient.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
                         } transition-colors`}
