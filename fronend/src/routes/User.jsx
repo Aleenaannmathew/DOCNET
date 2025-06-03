@@ -1,136 +1,56 @@
-import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import RegisterForm from '../pages/PatientPages/Register';
 import LoginForm from '../pages/PatientPages/Login';
 import LandingPage from '../pages/PatientPages/LandingPage';
 import VerifyOtp from '../pages/PatientPages/VerifyOtp';
 import UserProfile from '../pages/PatientPages/ProfilePage';
-import { useSelector } from 'react-redux';
 import PasswordChange from '../pages/PatientPages/PasswordChange';
 import PasswordReset from '../pages/PatientPages/PasswordReset';
 import ChangePassword from '../pages/PatientPages/ChangePassword';
 import DoctorListingPage from '../pages/PatientPages/DoctorList';
-
-// Patient/User Route Guard - Only for authenticated patients
-const PatientRoute = ({ children }) => {
-  const { token, user } = useSelector(state => state.auth);
-  const location = useLocation();
-
-  // Check if user is authenticated
-  if (!token) {
-    return <Navigate to='/login' state={{ from: location }} replace />;
-  }
-
-  // Redirect doctors to their dashboard
-  if (user?.role === 'doctor') {
-    return <Navigate to='/doctor/dashboard' replace />;
-  }
-  
-  // Redirect admins to their dashboard
-  if (user?.role === 'admin') {
-    return <Navigate to='/admin/admin-dashboard' replace />;
-  }
-
-  return children;
-};
-
-// Public Route - For unauthenticated users only
-const UserPublicRoute = ({ children }) => {
-  const { token, user } = useSelector(state => state.auth);
-  
-  if (token) {
-    // Redirect based on user role
-    if (user?.role === 'doctor') {
-      if (user?.doctor_profile?.is_approved) {
-        return <Navigate to="/doctor/dashboard" replace />;
-      } else {
-        return <Navigate to="/doctor/pending-approval" replace />;
-      }
-    } else if (user?.role === 'admin') {
-      return <Navigate to="/admin/admin-dashboard" replace />;
-    }
-    // For patients or any default role
-    return <Navigate to="/" replace />;
-  }
-  
-  return children;
-};
-
-
+import ProtectedRoute from './ProtectedRoute';
+import PublicRoute from './PublicRoute';
 
 function UserRoutes() {
   return (
     <Routes>
-      
-      <Route path='/' element={
-        <PatientRoute>
-        <LandingPage/>
-        </PatientRoute>
-      }/>
-
-      {/* Public routes - for unauthenticated users */}
-      <Route path='/login' element={
-        <UserPublicRoute>
-          <LoginForm/>
-        </UserPublicRoute>
-      }/>
-
+      {/* Public User Routes */}
+      <Route path="/login" element={
+        <PublicRoute redirectPath="/">
+          <LoginForm />
+        </PublicRoute>
+      } />
       <Route path="/register" element={
-        <UserPublicRoute>
+        <PublicRoute redirectPath="/">
           <RegisterForm />
-        </UserPublicRoute>
+        </PublicRoute>
       } />
-
       <Route path="/forgot-password" element={
-        <UserPublicRoute>
+        <PublicRoute redirectPath="/">
           <PasswordChange />
-        </UserPublicRoute>
+        </PublicRoute>
       } />
-
       <Route path="/reset-password" element={
-        <UserPublicRoute>
+        <PublicRoute redirectPath="/">
           <PasswordReset />
-        </UserPublicRoute>
+        </PublicRoute>
       } />
-      
-      {/* OTP verification route */}
-      <Route path='/verify-otp' element={
-      <UserPublicRoute>
-          <VerifyOtp/>
-      </UserPublicRoute>
-      }/>
-      
-      {/* Protected routes - only for authenticated patients */}
-      <Route path="/user-profile" element={
-        <PatientRoute>
-          <UserProfile />
-        </PatientRoute>
+      <Route path="/verify-otp" element={
+        <PublicRoute redirectPath="/">
+          <VerifyOtp />
+        </PublicRoute>
       } />
 
-      <Route path="/change-password" element={
-        <PatientRoute>
-          <PasswordChange />
-        </PatientRoute>
-      } />
+      {/* Protected User Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['patient', 'user']} />}>
+        <Route index element={<LandingPage />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/user-profile" element={<UserProfile />} />
+        <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/new-password" element={<ChangePassword />} />
+        <Route path="/doctor-list" element={<DoctorListingPage />} />
+      </Route>
 
-      <Route path="/reset-password" element={
-        <PatientRoute>
-          <PasswordReset />
-        </PatientRoute>
-      } />
-
-      <Route path="/new-password" element={
-        <PatientRoute>
-          <ChangePassword/>
-        </PatientRoute>
-      } />
-
-      <Route path="/doctor-list" element={
-        <PatientRoute>
-          <DoctorListingPage/>
-        </PatientRoute>
-      } />
-      
       {/* Catch-all route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

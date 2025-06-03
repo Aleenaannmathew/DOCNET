@@ -1,67 +1,59 @@
 import { createSlice} from '@reduxjs/toolkit';
 
-const getInitialState = () => {
-  const token = localStorage.getItem('token');
-  const refreshToken = localStorage.getItem('refreshToken');
-  const userString = localStorage.getItem('user');
-  let user = null;
-  
+
+const safeParse = (key) => {
   try {
-    user = userString ? JSON.parse(userString) : null;
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
   } catch (error) {
-    console.error('Error parsing user from localStorage:', error);
-    // If there's an error parsing, clear potentially corrupted data
-    localStorage.removeItem('user');
+    console.error(`Error parsing ${key}:`, error);
+    localStorage.removeItem(key);
+    return null;
   }
-  
-  return {
-    token,
-    refreshToken,
-    user,
-    isAuthenticated: !!token
-  };
+};
+
+const initialState = {
+  token: localStorage.getItem('token'),
+  refreshToken: localStorage.getItem('refreshToken'),
+  user: safeParse('user'),
+  isAuthenticated: !!localStorage.getItem('token'),
+  role: safeParse('user')?.role || null,
+  isLoading: false,
+  error: null
 };
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState: getInitialState(),
+  initialState,
   reducers: {
     login: (state, action) => {
       const { token, refreshToken, user } = action.payload;
-      
-      // Update state
       state.token = token;
       state.refreshToken = refreshToken;
       state.user = user;
       state.isAuthenticated = true;
-      
-      // Store in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
     },
     logout: (state) => {
-      // Clear state
-      state.token = null;
-      state.refreshToken = null;
-      state.user = null;
-      state.isAuthenticated = false;
-      
-      // Remove from localStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      Object.assign(state, initialState);
+      ['token', 'refreshToken', 'user'].forEach(key => localStorage.removeItem(key));
+    },
+    setLoading: (state, action) => {
+      state.isLoading = action.payload;
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
     },
 
     updateToken: (state, action) => {
-      const {access, refresh} = action.payload;
-      state.token = access
-      localStorage.setItem('token', access);
-
-      if (refresh) {
-        state.refreshToken = refresh;
-        localStorage.setItem('refreshToken', refresh);
+      state.token = action.payload.access;
+      if (action.payload.refresh) {
+        state.refreshToken = action.payload.refresh;
+        localStorage.setItem('refreshToken', action.payload.refresh);
       }
+      localStorage.setItem('token', action.payload.access);
     },
 
     updateUser: (state, action) => {

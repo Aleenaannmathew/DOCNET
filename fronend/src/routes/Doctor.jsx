@@ -1,6 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import DoctorPage from '../pages/DoctorPages/DoctorDashboard';
 import DoctorForm from '../pages/DoctorPages/DoctorForm';
 import DoctorConsultationForm from '../pages/DoctorPages/DoctorConsultationForm';
@@ -14,215 +13,66 @@ import PassChange from '../pages/DoctorPages/PassChange';
 import DoctorReset from '../pages/DoctorPages/DoctorReset';
 import VerifyOtp from '../pages/PatientPages/VerifyOtp';
 import OtpVerify from '../pages/DoctorPages/OtpVerify';
-
-
-// Doctor Route Guard - Ensures only APPROVED doctors can access these routes
-const ApprovedDoctorRoute = ({ children }) => {
-  const { token, user } = useSelector(state => state.auth);
-  const location = useLocation();
-  
-  // Check if user is authenticated
-  if (!token) {
-    return <Navigate to='/doctor-login' state={{ from: location }} replace />;
-  }
-  
-  // Check if user has doctor role
-  if (user?.role !== 'doctor') {
-    // Redirect admin to admin dashboard
-    if (user?.role === 'admin') {
-      return <Navigate to='/admin/admin-dashboard' replace />;
-    }
-    // Redirect patient/user to home page
-    return <Navigate to='/' replace />;
-  }
-  
-  // Check if doctor is approved
-  if (!user?.doctor_profile?.is_approved) {
-    return <Navigate to='/doctor/pending-approval' replace />;
-  }
-  
-  return children;
-};
-
-// Route specifically for unapproved doctors
-const PendingDoctorRoute = ({ children }) => {
-  const { token, user } = useSelector(state => state.auth);
-  
-  // Check if user is authenticated
-  if (!token) {
-    return <Navigate to='/doctor-login' replace />;
-  }
-  
-  // Check if user has doctor role
-  if (user?.role !== 'doctor') {
-    // Redirect admin to admin dashboard
-    if (user?.role === 'admin') {
-      return <Navigate to='/admin/admin-dashboard' replace />;
-    }
-    // Redirect patient/user to home page
-    return <Navigate to='/' replace />;
-  }
-  
-  // If doctor is already approved, redirect to dashboard
-  if (user?.doctor_profile?.is_approved) {
-    return <Navigate to='/doctor/doctor-landing' replace />;
-  }
-  
-  return children;
-};
-
-// Route for users who should not be authenticated as doctors
-const DoctorPublicRoute = ({ children }) => {
-  const { token, user } = useSelector(state => state.auth);
-  
-  if (token && user?.role === 'doctor') {
-    // If approved doctor, go to dashboard
-    if (user?.doctor_profile?.is_approved) {
-      return <Navigate to='/doctor/doctor-landing' replace />;
-    } 
-    // If unapproved doctor, go to pending approval
-    else {
-      return <Navigate to='/doctor/pending-approval' replace />;
-    }
-  } else if (token) {
-    // If admin, redirect to admin dashboard
-    if (user?.role === 'admin') {
-      return <Navigate to='/admin/admin-dashboard' replace />;
-    }
-    // If regular user, redirect to home
-    return <Navigate to='/' replace />;
-  }
-  
-  return children;
-};
-
-// Route for doctor landing page - accessible to authenticated and approved doctors
-const DoctorLandingRoute = ({ children }) => {
-  const { token, user } = useSelector(state => state.auth);
-
-  // Check if user is authenticated  
-  if (!token) {
-    return <Navigate to='/doctor-login' replace />;
-  }
-  
-  // Check if user is a doctor
-  if (user?.role !== 'doctor') {
-    // Redirect admin to admin dashboard
-    if (user?.role === 'admin') {
-      return <Navigate to='/admin/admin-dashboard' replace />;
-    }
-    // Redirect patient/user to home page
-    return <Navigate to='/' replace />;
-  }
-  
-  // Check if doctor is approved
-  if (!user?.doctor_profile?.is_approved) {
-    return <Navigate to='/doctor/pending-approval' replace />;
-  }
-  
-  // Allow approved doctors to access the landing page
-  return children;
-};
+import ProtectedRoute from './ProtectedRoute';
+import PublicRoute from './PublicRoute';
 
 function DoctorRoutes() {
   return (
     <Routes>
-      {/* Doctor dashboard - for approved doctors */}
-      <Route path="dashboard" element={
-        <ApprovedDoctorRoute>
-          <DoctorPage />
-        </ApprovedDoctorRoute>
-      } />
-      
-      {/* Doctor landing page - for approved doctors */}
-      <Route path="doctor-landing" element={
-        <ApprovedDoctorRoute>
-          <Landing />
-        </ApprovedDoctorRoute>
-      } />
-      
-      {/* Public routes - accessible without doctor authentication */}
+      {/* Public Doctor Routes */}
       <Route path="doctor-login" element={
-        <DoctorPublicRoute>
+        <PublicRoute redirectPath="/doctor/dashboard">
           <DoctorSignIn />
-        </DoctorPublicRoute>
+        </PublicRoute>
       } />
-
       <Route path="doctor-verify-otp" element={
-        <DoctorPublicRoute>
+        <PublicRoute redirectPath="/doctor/dashboard">
           <OtpVerify />
-        </DoctorPublicRoute>
+        </PublicRoute>
       } />
-      
       <Route path="doctor-register" element={
-        <DoctorPublicRoute>
+        <PublicRoute redirectPath="/doctor/dashboard">
           <DoctorRegister />
-        </DoctorPublicRoute>
+        </PublicRoute>
       } />
-
       <Route path="password-request" element={
-        <DoctorPublicRoute>
+        <PublicRoute redirectPath="/doctor/dashboard">
           <PassChange />
-        </DoctorPublicRoute>
+        </PublicRoute>
       } />
-
       <Route path="reset-password" element={
-        <DoctorPublicRoute>
+        <PublicRoute redirectPath="/doctor/dashboard">
           <DoctorReset />
-        </DoctorPublicRoute>
+        </PublicRoute>
+      } />
+      <Route path="verify-otp" element={
+        <PublicRoute redirectPath="/doctor/dashboard">
+          <VerifyOtp />
+        </PublicRoute>
       } />
 
-      <Route path='/verify-otp' element={
-      <DoctorPublicRoute>
-          <VerifyOtp/>
-      </DoctorPublicRoute>
-      }/>
-      
-      {/* Pending approval route - only for unapproved doctors */}
+      {/* Pending Approval Route */}
       <Route path="pending-approval" element={
-        <PendingDoctorRoute>
+        <ProtectedRoute allowedRoles={['doctor']} checkApproval={false}>
           <PendingApproval />
-        </PendingDoctorRoute>
-      } />
-      
-      {/* Protected routes - only for approved doctors */}
-      <Route index element={
-        <ApprovedDoctorRoute>
-          <DoctorPage />
-        </ApprovedDoctorRoute>
-      } />
-      
-      <Route path='doctor-details' element={
-        <ApprovedDoctorRoute>
-          <DoctorForm />
-        </ApprovedDoctorRoute>
+        </ProtectedRoute>
       } />
 
-      <Route path="settings" element={
-        <ApprovedDoctorRoute>
-          <DoctorSettings/>
-        </ApprovedDoctorRoute>
-      } />
+      {/* Protected Doctor Routes */}
+      <Route element={<ProtectedRoute allowedRoles={['doctor']} />}>
+        <Route index element={<DoctorPage />} />
+        <Route path="dashboard" element={<DoctorPage />} />
+        <Route path="doctor-landing" element={<Landing />} />
+        <Route path="doctor-details" element={<DoctorForm />} />
+        <Route path="settings" element={<DoctorSettings />} />
+        <Route path="change-password" element={<PasswordChange />} />
+        <Route path="consultation-form" element={<DoctorConsultationForm />} />
+      </Route>
 
-      <Route path="change-password" element={
-        <ApprovedDoctorRoute>
-          <PasswordChange/>
-        </ApprovedDoctorRoute>
-      } />
-      
-      <Route path='consultation-form' element={
-        <ApprovedDoctorRoute>
-          <DoctorConsultationForm />
-        </ApprovedDoctorRoute>
-      } />
-      
-      {/* Catch-all route for any undefined doctor routes */}
-      <Route path='*' element={
-        <Navigate to='doctor-login' replace />
-      } />
+      {/* Catch-all route */}
+      <Route path="*" element={<Navigate to="doctor-login" replace />} />
     </Routes>
   );
 }
 
 export default DoctorRoutes;
-

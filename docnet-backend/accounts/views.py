@@ -426,6 +426,7 @@ class GoogleLoginView(APIView):
                 'phone': user.phone,
                 'is_profile_complete': is_profile_complete
             })
+        
 
         except Exception as e:
             return ResponseManager.error_response(
