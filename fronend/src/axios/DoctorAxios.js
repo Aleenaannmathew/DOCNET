@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { doctorApi } from '../constants/api';
-import { logout } from '../store/authSlice';
+import { logout, updateToken } from '../store/authSlice';
 import store from '../store/store';
 
 export const doctorAxios = axios.create({
@@ -31,8 +31,7 @@ doctorAxios.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
-   
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
@@ -40,12 +39,10 @@ doctorAxios.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         
         if (!refreshToken) {
-         
           store.dispatch(logout());
           return Promise.reject(error);
         }
-        
-       
+
         const response = await axios.post(
           `${doctorApi}/token/refresh/`, 
           { refresh: refreshToken },
@@ -54,10 +51,7 @@ doctorAxios.interceptors.response.use(
         
         const { access } = response.data;
         
-    
-        localStorage.setItem('token', access);
-        
-       
+        store.dispatch(updateToken({access}));
         originalRequest.headers.Authorization = `Bearer ${access}`;
         return axios(originalRequest);
       } catch (refreshError) {

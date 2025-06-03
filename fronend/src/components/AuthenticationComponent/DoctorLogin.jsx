@@ -83,6 +83,7 @@ export default function DoctorLogin() {
         // Store auth data in Redux
         dispatch(login({
           token: response.data.access,
+          refreshToken: response.data.refresh,
           user: {
             id: response.data.user_id,
             username: response.data.username,

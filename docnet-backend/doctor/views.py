@@ -8,6 +8,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 import random, re,requests
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
@@ -46,7 +48,6 @@ class DoctorRegistrationView(APIView):
         return ResponseManager.validation_error_response(serializer.errors)
 
 class DoctorLoginView(APIView):
-
     def post(self, request):
         serializer = DoctorLoginSerializer(data=request.data)
         if serializer.is_valid():
@@ -316,5 +317,56 @@ class GoogleLoginView(APIView):
         except Exception as e:
             return ResponseManager.error_response(
                 f'Authentication failed: {str(e)}',
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class DoctorLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get('refresh_token')
+
+            if not refresh_token:
+                return ResponseManager.error_response(
+                    'Refresh token is required',
+                    status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                token = RefreshToken(refresh_token)
+                if token.payload.get('user_id') != request.user.id:
+                    return ResponseManager.error_response(
+                        'Invalid token ownership',
+                        status.HTTP_403_FORBIDDEN
+                    )
+                
+                token.blacklist()
+
+                if hasattr(request, 'auth'):
+                    try:
+                        from rest_framework_simplejwt.token_blacklist.models import (
+                            BlacklistedToken, OutstandingToken
+                        )
+                        outstanding = OutstandingToken.objects.get(token=request.auth)
+                        BlacklistedToken.objects.create(token=outstanding)
+                    except OutstandingToken.DoesNotExist:
+                        pass
+
+                return ResponseManager.success_response(
+                    data={'logout': True},
+                    message='Successfully logged out',
+                    status_code=status.HTTP_205_RESET_CONTENT
+                )
+
+            except TokenError as e:
+                return ResponseManager.error_response(
+                    'Invalid or expired refresh token',
+                    status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            return ResponseManager.error_response(
+                f'Logout failed: {str(e)}',
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
+import { Formik, Form, Field, ErrorMessage, prepareDataForValidation } from 'formik';
 import * as Yup from 'yup';
 import { logout, updateUser } from '../../store/authSlice';
 import { userAxios } from '../../axios/UserAxios';
@@ -342,6 +342,11 @@ const UserProfile = () => {
 
   // Profile image URL
   const profileImageUrl = previewImage || (user?.profile_image || "/api/placeholder/80/80");
+  const getProfileImageUrl = () => {
+    if (previewImage) return previewImage;
+    if (user?.profile_image) return user.profile_image;
+    return `https://ui-avatars.com/api/?name=${user?.username?.charAt(0) || 'U'}&background=random&color=fff&size=128`;
+  };
 
   if (!user) {
     return (
@@ -397,11 +402,19 @@ const UserProfile = () => {
       <div className="flex justify-center mt-20 px-4">
         <div className="flex flex-col sm:flex-row items-center justify-between bg-gray-100 p-4 sm:p-6 w-full max-w-5xl rounded-md shadow-sm">
           <div className="flex flex-col sm:flex-row items-center mb-4 sm:mb-0">
-            <img 
-              src={profileImageUrl} 
-              alt={user.username} 
-              className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover mr-0 sm:mr-4 mb-2 sm:mb-0"
-            />
+            {user?.profile_image || previewImage ? (
+    <img 
+      src={getProfileImageUrl()} 
+      alt={user.username} 
+      className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover mr-0 sm:mr-4 mb-2 sm:mb-0"
+    />
+  ) : (
+    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-0 sm:mr-4 mb-2 sm:mb-0">
+      <span className="text-2xl font-bold text-white">
+        {user?.username?.charAt(0).toUpperCase() || 'U'}
+      </span>
+    </div>
+  )}
             <div className="text-center sm:text-left">
               <div className="font-bold text-lg">{user.username}</div>
               <div className="text-sm text-gray-800">{user.email}</div>
@@ -464,11 +477,19 @@ const UserProfile = () => {
           <div className="flex-1 bg-gray-100 p-6 rounded-md shadow-sm relative">
             {/* Profile Image in Corner */}
             <div className="absolute top-0 right-6 transform -translate-y-1/2">
-              <img 
-                src={profileImageUrl} 
-                alt={user.username} 
-                className="w-16 h-16 rounded-full border-4 border-white object-cover"
-              />
+              {user?.profile_image || previewImage ? (
+    <img 
+      src={getProfileImageUrl()} 
+      alt={user.username} 
+      className="w-16 h-16 rounded-full border-4 border-white object-cover"
+    />
+  ) : (
+    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border-4 border-white flex items-center justify-center">
+      <span className="text-xl font-bold text-white">
+        {user?.username?.charAt(0).toUpperCase() || 'U'}
+      </span>
+    </div>
+  )}
             </div>
 
             {/* Formik Form */}

@@ -322,10 +322,19 @@ const Settings = () => {
     }
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
+  const handleLogout = async () => {
+    try{
+      const refreshToken = localStorage.getItem('refreshToken');
+      console.log('Refresh token: ', refreshToken);
+      await doctorAxios.post('/doctor-logout/', {
+        refresh_token: refreshToken
+      });
+      dispatch(logout());
+      navigate('/doctor-login/');
+    } catch (error) {
+      console.error('Logout error: ', error);
+    }
+  }
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
@@ -341,7 +350,11 @@ const Settings = () => {
   };
 
   const profileImageUrl = previewImage || (user?.profile_image || "/api/placeholder/80/80");
-
+  const getProfileImageUrl = () => {
+  if (previewImage) return previewImage;
+  if (user?.profile_image) return user.profile_image;
+  return `https://ui-avatars.com/api/?name=Dr+${user?.username?.split(' ').join('+') || 'D'}&background=random&color=fff&size=128`;
+};
   if (!user) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-white">
@@ -404,13 +417,21 @@ const Settings = () => {
           </div>
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex items-center space-x-2">
-              <span className="text-gray-700 font-medium">Dr. {user.username}</span>
-              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                <span className="text-sm font-medium text-blue-600">
-                  {user.username.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            </div>
+  <span className="text-gray-700 font-medium">Dr. {user.username}</span>
+  {user?.profile_image ? (
+    <img 
+      src={user.profile_image} 
+      alt={user.username} 
+      className="h-8 w-8 rounded-full object-cover"
+    />
+  ) : (
+    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+      <span className="text-xs font-medium text-white">
+        {user?.username?.charAt(0).toUpperCase() || 'D'}
+      </span>
+    </div>
+  )}
+</div>
           </div>
         </div>
       </header>
@@ -434,13 +455,21 @@ const Settings = () => {
             <div className="p-6 border-b">
               <div className="flex items-center space-x-4">
                 <div className="relative">
-                  <img 
-                    src={profileImageUrl} 
-                    alt={user.username} 
-                    className="w-12 h-12 rounded-full object-cover border-2 border-blue-100"
-                  />
-                  <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
+  {user?.profile_image ? (
+    <img 
+      src={user.profile_image} 
+      alt={user.username} 
+      className="w-12 h-12 rounded-full object-cover border-2 border-blue-100"
+    />
+  ) : (
+    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-blue-100">
+      <span className="text-lg font-bold text-white">
+        {user?.username?.charAt(0).toUpperCase() || 'D'}
+      </span>
+    </div>
+  )}
+  <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white"></div>
+</div>
                 <div>
                   <h3 className="font-medium text-gray-900">Dr. {user.username}</h3>
                   <p className="text-sm text-gray-500">{user.email}</p>
@@ -486,11 +515,19 @@ const Settings = () => {
               <div className="flex flex-col sm:flex-row items-center justify-between">
                 <div className="flex items-center mb-4 sm:mb-0">
                   <div className="relative mr-4">
-                    <img 
-                      src={profileImageUrl} 
-                      alt={user.username} 
-                      className="w-16 h-16 rounded-full object-cover border-2 border-blue-100"
-                    />
+                    {user?.profile_image || previewImage ? (
+    <img 
+      src={getProfileImageUrl()} 
+      alt={user.username} 
+      className="w-16 h-16 rounded-full object-cover border-2 border-blue-100"
+    />
+  ) : (
+    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-blue-100">
+      <span className="text-2xl font-bold text-white">
+        {user?.username?.charAt(0).toUpperCase() || 'D'}
+      </span>
+    </div>
+  )}
                     {isEditing && (
                       <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1 rounded-full cursor-pointer">
                         <Camera size={16} />

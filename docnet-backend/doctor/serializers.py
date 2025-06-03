@@ -126,13 +126,11 @@ class DoctorLoginSerializer(serializers.Serializer):
             if user.role != 'doctor':
                 raise serializers.ValidationError('This login is for doctors only.')
             
+            refresh = RefreshToken.for_user(user)
             try:
                 doctor_profile = DoctorProfile.objects.get(user=user)
-                
-               
                 if doctor_profile.is_approved is None:
                     raise serializers.ValidationError('Your account is pending approval from admin.')
-                
                 if doctor_profile.is_approved is False:
                     raise serializers.ValidationError('Your account registration has been rejected. Please contact support.')
                 
