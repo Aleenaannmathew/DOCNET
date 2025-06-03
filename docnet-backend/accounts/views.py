@@ -6,6 +6,7 @@ from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from .models import OTPVerification, PatientProfile
+import logging
 from .serializers import (
     UserRegistrationSerializer, 
     UserLoginSerializer, 
@@ -20,6 +21,8 @@ from core.utils import (
     UserManager, 
     ResponseManager
 )
+user_logger = logging.getLogger('accounts')
+auth_logger = logging.getLogger('authentication')
 
 User = get_user_model()
 
@@ -40,11 +43,12 @@ class UserRegistrationView(APIView):
             with transaction.atomic():
                 user = serializer.save()
                 otp = OTPManager.create_otp_verification(user)
-                print(f"OTP generated for user {user.id}: {otp}")
+                user_logger.info(f"OTP generated for user {user.id}")
+                user_logger.debug(f"User registration - User ID: {user.id}, Email: {user.email}")
 
                 email_sent = EmailManager.send_registration_otp(user.email, otp, 'patient')
                 if not email_sent:
-                    print(f"Failed to send OTP email to {user.email}")
+                    user_logger.error(f"Failed to send OTP email to {user.email}")
 
                 return ResponseManager.success_response(
                     data={
@@ -62,6 +66,7 @@ class UserLoginView(APIView):
     def post(self, request):
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid():
+            auth_logger.info(f"User logged in: {serializer.validated_data.get('username')}")
             return ResponseManager.success_response(serializer.validated_data)
         return ResponseManager.validation_error_response(serializer.errors)
 
@@ -112,10 +117,10 @@ class ResendOTPView(APIView):
         
         try:
             user = User.objects.get(id=user_id)
+            auth_logger.info(f"Resending OTP for user {user_id}")
             
-            # Generate new OTP
             otp = OTPManager.create_otp_verification(user)
-            print(f"New OTP generated for user {user.id}: {otp}")
+            auth_logger.debug(f"New OTP generated for user {user.id}")
             
             # Send email
             email_sent = EmailManager.send_registration_otp(user.email, otp, 'patient')

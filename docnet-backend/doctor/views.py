@@ -16,10 +16,12 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework.permissions import IsAuthenticated
 from accounts.models import OTPVerification
 from django.utils import timezone
+import logging
 from .models import DoctorProfile
 from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
-
+doctor_logger = logging.getLogger('doctor')
+auth_logger = logging.getLogger('authentication')
 User = get_user_model()
 
 class DoctorRegistrationView(APIView):
@@ -30,11 +32,11 @@ class DoctorRegistrationView(APIView):
             with transaction.atomic():
                 user = serializer.save()
                 otp = OTPManager.create_otp_verification(user)
-                print(f"OTP generated for doctor {user.id}: {otp}")
+                doctor_logger.info(f"New doctor user created - ID: {user.id}, Email: {user.email}")
 
                 email_sent = EmailManager.send_registration_otp(user.email, otp, 'doctor')
                 if not email_sent:
-                    print(f"Failed to send OTP email to {user.email}")
+                    doctor_logger.error(f"Failed to send OTP email to {user.email}")
 
                 return ResponseManager.success_response(
                     data={
