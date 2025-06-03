@@ -16,6 +16,7 @@ from accounts.models import OTPVerification
 from django.utils import timezone
 from .models import DoctorProfile
 from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer
+from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 
 User = get_user_model()
 
@@ -25,35 +26,24 @@ class DoctorRegistrationView(APIView):
         
         if serializer.is_valid():
             with transaction.atomic():
-              
                 user = serializer.save()
-                
-                otp = str(random.randint(100000, 999999))
-                OTPVerification.objects.update_or_create(
-                    user=user,
-                    defaults={'otp': otp, 'created_at': timezone.now()}
-                )
+                otp = OTPManager.create_otp_verification(user)
                 print(f"OTP generated for doctor {user.id}: {otp}")
 
-             
-                try:
-                    send_mail(
-                        'DOCNET - Doctor Email Verification',
-                        f'Your OTP for DOCNET registration is: {otp}',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [user.email],
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    print(f"Failed to send OTP email: {str(e)}")
+                email_sent = EmailManager.send_registration_otp(user.email, otp, 'doctor')
+                if not email_sent:
+                    print(f"Failed to send OTP email to {user.email}")
 
-                return Response({
-                    'user_id': user.id,
-                    'email': user.email,
-                    'message': 'Registration successful. Please verify your email with the OTP sent.'
-                }, status=status.HTTP_201_CREATED)
+                return ResponseManager.success_response(
+                    data={
+                        'user_id': user.id,
+                        'email': user.email,
+                    },
+                    message='Registration successful. Please verify your email with the OTP sent.',
+                    status_code=status.HTTP_201_CREATED
+                )
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return ResponseManager.validation_error_response(serializer.errors)
 
 class DoctorLoginView(APIView):
 
@@ -64,30 +54,28 @@ class DoctorLoginView(APIView):
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
     
     
-class DoctorProfileRetrieveUpdateView(APIView):
-  
+class DoctorProfileRetrieveUpdateView(APIView): 
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
         try:
             doctor_profile = DoctorProfile.objects.get(user=request.user)
             serializer = DoctorProfileSerializer(doctor_profile)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return ResponseManager.success_response(serializer.data)
         except DoctorProfile.DoesNotExist:
-            return Response(
-                {"detail": "Doctor profile not found"}, 
-                status=status.HTTP_404_NOT_FOUND
+            return ResponseManager.error_response(
+                "Doctor Profile not found",
+                status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            return Response(
-                {"detail": f"Error retrieving profile: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            return ResponseManager.error_response(
+                f"Error retrieving profile: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-class DoctorProfileUpdateView(APIView):
-    
-    permission_classes = [IsAuthenticated]
 
+class DoctorProfileUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
     def put(self, request):
         try:
             user = request.user
@@ -101,15 +89,16 @@ class DoctorProfileUpdateView(APIView):
             
             if serializer.is_valid():
                 updated_data = serializer.save()
-                return Response(updated_data, status=status.HTTP_200_OK)
+                return ResponseManager.success_response(updated_data)
             
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return ResponseManager.validation_error_response(serializer.errors)
             
         except Exception as e:
-            return Response(
-                {"detail": f"Error updating profile: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            return ResponseManager.error_response(
+                f"Error updating profile: {str(e)}",
+                status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
         
 class DoctorChangePasswordView(APIView):
@@ -118,231 +107,167 @@ class DoctorChangePasswordView(APIView):
     def post(self, request):
         # Check if user is a doctor
         if request.user.role != 'doctor':
-            return Response(
-                {'error': 'This endpoint is only for doctors'},
-                status=status.HTTP_403_FORBIDDEN
+            return ResponseManager.error_response(
+                'This endpoint is only for doctors',
+                status.HTTP_403_FORBIDDEN
             )
 
         old_password = request.data.get('old_password')
         new_password = request.data.get('new_password')
         
         if not old_password or not new_password:
-            return Response(
-                {'error': 'Both old and new passwords are required'},
-                status=status.HTTP_400_BAD_REQUEST
+            return ResponseManager.error_response(
+                'Both old and new passwords are required'
             )
         
-        # Verify old password
-        if not check_password(old_password, request.user.password):
-            return Response(
-                {'error': 'Current password is incorrect'},
-                status=status.HTTP_400_BAD_REQUEST
+        result = PasswordManager.change_password(request.user, old_password, new_password)
+        
+        if result['success']:
+            return ResponseManager.success_response(
+                data={'success': True},
+                message=result['message']
             )
-        
-        # Validate new password
-        try:
-            validate_password(new_password, request.user)
-        except ValidationError as e:
-            return Response(
-                {'error': e.messages},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Set new password
-        request.user.set_password(new_password)
-        request.user.save()
-        
-        return Response({
-            'success': True,
-            'message': 'Password changed successfully'
-        }, status=status.HTTP_200_OK)
-
+        else:
+            return ResponseManager.error_response(result['error'])
 
 class DoctorCheckEmailView(APIView):
     def post(self, request):
         email = request.data.get('email', '').strip()
         
-        if not email or not re.match(r'^\S+@\S+\.\S+$', email):
-            return Response(
-                {'exists': False, 'message': 'Please enter a valid email address'},
-                status=status.HTTP_400_BAD_REQUEST
+        if not ValidationManager.validate_email(email):
+            return ResponseManager.error_response(
+                'Please enter a valid email address'
             )
        
-        exists = User.objects.filter(email=email, role='doctor').exists()
+        exists = UserManager.check_user_exists(email, 'doctor')
         
         if exists:
-            return Response({'exists': True}, status=status.HTTP_200_OK)
+            return ResponseManager.success_response({'exists': True})
         else:
-            return Response(
-                {'exists': False, 'message': 'No doctor account found with this email address'},
-                status=status.HTTP_400_BAD_REQUEST
+            return ResponseManager.error_response(
+                'No doctor account found with this email address'
             )
 
 class DoctorSendPasswordResetOTPView(APIView):
     def post(self, request):
         email = request.data.get('email', '').strip()
         
-        if not email or not re.match(r'^\S+@\S+\.\S+$', email):
-            return Response(
-                {'success': False, 'message': 'Please enter a valid email address'},
-                status=status.HTTP_400_BAD_REQUEST
+        if not ValidationManager.validate_email(email):
+            return ResponseManager.error_response(
+                'Please enter a valid email address'
             )
         
         try:
-            user = User.objects.get(email=email, role='doctor')         
-            OTPVerification.objects.filter(user=user).delete()
-            otp = str(random.randint(100000, 999999))
+            user = UserManager.get_user_by_email_and_role(email, 'doctor')
+            if not user:
+                return ResponseManager.error_response(
+                    'No doctor account found with this email address'
+                )
             
-            OTPVerification.objects.create(
-                user=user,
-                otp=otp,
-                created_at=timezone.now(),
-                purpose='password_reset'
-            )
-         
-            send_mail(
-                'DOCNET Doctor Password Reset OTP',
-                f'Your OTP for password reset is: {otp}',
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False,
+            # Generate and send password reset OTP
+            otp = OTPManager.create_otp_verification(user, 'password_reset')
+            
+            email_sent = EmailManager.send_password_reset_otp(user.email, otp, 'doctor')
+            if not email_sent:
+                return ResponseManager.error_response(
+                    'Failed to send OTP email',
+                    status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            return ResponseManager.success_response(
+                data={'user_id': user.id},
+                message='OTP sent successfully'
             )
             
-            return Response({
-                'success': True,
-                'message': 'OTP sent successfully',
-                'user_id': user.id
-            }, status=status.HTTP_200_OK)
-            
-        except User.DoesNotExist:
-            return Response(
-                {'success': False, 'message': 'No doctor account found with this email address'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         except Exception as e:
-            return Response(
-                {'success': False, 'message': f'An error occurred: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            return ResponseManager.error_response(
+                f'An error occurred: {str(e)}',
+                status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        
 class DoctorVerifyPasswordResetOTPView(APIView):
     def post(self, request):
         email = request.data.get('email')
         entered_otp = request.data.get('otp')
         
         if not email or not entered_otp:
-            return Response(
-                {'error': 'Missing email or OTP'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return ResponseManager.error_response('Missing email or OTP')
         
         try:
-            user = User.objects.get(email=email, role='doctor')
-            try:
-                otp_verification = OTPVerification.objects.get(
-                    user=user, 
-                    purpose='password_reset'
+            user = UserManager.get_user_by_email_and_role(email, 'doctor')
+            if not user:
+                return ResponseManager.error_response(
+                    'Doctor not found', 
+                    status.HTTP_404_NOT_FOUND
                 )
+            
+            # Verify OTP using utility
+            result = OTPManager.verify_otp(user, entered_otp, 'password_reset')
+            
+            if result['success']:
+                return ResponseManager.success_response(
+                    data={'reset_token': 'generate_a_token_here_if_needed'},
+                    message='OTP verified successfully'
+                )
+            else:
+                return ResponseManager.error_response(result['error'])
                 
-                if timezone.now() > otp_verification.created_at + timezone.timedelta(minutes=5):
-                    return Response(
-                        {'error': 'OTP expired, please request a new one'}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                if str(otp_verification.otp) != str(entered_otp):
-                    return Response(
-                        {'error': 'Invalid OTP'}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                return Response({
-                    'success': True,
-                    'message': 'OTP verified successfully',
-                    'reset_token': 'generate_a_token_here_if_needed'
-                })
-                
-            except OTPVerification.DoesNotExist:
-                exists = OTPVerification.objects.filter(user=user).exists()
-                return Response({
-                    'error': 'No password reset OTP found for this user',
-                    'details': {
-                        'user_exists': True,
-                        'any_otp_exists': exists,
-                        'suggestion': 'Please request a new OTP'
-                    }
-                }, status=status.HTTP_400_BAD_REQUEST)
-                
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Doctor not found'}, 
-                status=status.HTTP_404_NOT_FOUND
+        except Exception as e:
+            return ResponseManager.error_response(
+                str(e),
+                status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class DoctorResetPasswordView(APIView):
     def post(self, request):
         email = request.data.get('email')
         new_password = request.data.get('new_password')
-       
         
         if not email or not new_password:
-            return Response(
-                {'error': 'Email and new password are required'},
-                status=status.HTTP_400_BAD_REQUEST
+            return ResponseManager.error_response(
+                'Email and new password are required'
             )
         
         try:
-            user = User.objects.get(email=email, role='doctor')
-          
-            
-            try:
-                validate_password(new_password, user)
-            except ValidationError as e:
-                return Response(
-                    {'error': e.messages},
-                    status=status.HTTP_400_BAD_REQUEST
+            user = UserManager.get_user_by_email_and_role(email, 'doctor')
+            if not user:
+                return ResponseManager.error_response(
+                    'No doctor account found with this email',
+                    status.HTTP_404_NOT_FOUND
                 )
             
-            user.password = make_password(new_password)
-            user.save()
+            # Reset password using utility
+            result = PasswordManager.reset_password(user, new_password)
             
-            OTPVerification.objects.filter(user=user, purpose='password_reset').delete()
+            if result['success']:
+                return ResponseManager.success_response(
+                    data={'success': True},
+                    message=result['message']
+                )
+            else:
+                return ResponseManager.error_response(result['error'])
             
-            return Response({
-                'success': True,
-                'message': 'Password reset successfully'
-            })
-            
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'No doctor account found with this email'},
-                status=status.HTTP_404_NOT_FOUND
-            )
         except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            return ResponseManager.error_response(
+                str(e),
+                status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
+
 class GoogleLoginView(APIView):
     def post(self, request):
         access_token = request.data.get('token')
 
         if not access_token:
-            return Response({
-                'error':'Access token is required',
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return ResponseManager.error_response('Access token is required')
         
         try:
-            userinfo = requests.get(
-                'https://www.googleapis.com/oauth2/v3/userinfo',
-                headers={'Authorization': f'Bearer {access_token}'}
-            ).json()
-
-            if 'error' in userinfo:
-                raise ValueError(userinfo['error'])
+            # Get user info from Google
+            google_result = GoogleAuthManager.get_user_info(access_token)
+            if not google_result['success']:
+                return ResponseManager.error_response(google_result['error'])
             
-            email = userinfo['email']
+            email = google_result['userinfo']['email']
 
             try:
                 user = User.objects.get(email=email)
@@ -352,19 +277,14 @@ class GoogleLoginView(APIView):
                     user.save()
 
                 if user.role != 'doctor':
-                    return Response({
-                        'error': 'This login is for doctors only'
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    return ResponseManager.error_response(
+                        'This login is for doctors only'
+                    )
 
             except User.DoesNotExist:
-                username = email.split('@')[0]
-                base_username = username
-                counter = 1
-
-                while User.objects.filter(username=username).exists():
-                    username = f"{base_username}{counter}"
-                    counter +=1
-
+                # Create new doctor user
+                username = GoogleAuthManager.generate_unique_username(email)
+                
                 user = User.objects.create(
                     username=username,
                     email=email,
@@ -374,28 +294,27 @@ class GoogleLoginView(APIView):
 
                 DoctorProfile.objects.create(user=user)
 
-            refresh = RefreshToken.for_user(user)
+            # Generate JWT tokens
+            tokens = GoogleAuthManager.create_jwt_tokens(user)
 
+            # Check if profile is complete
             try:
                 doctor_profile = DoctorProfile.objects.get(user=user)
                 is_profile_complete = doctor_profile.age is not None
             except DoctorProfile.DoesNotExist:
                 is_profile_complete = False
 
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
+            return ResponseManager.success_response({
+                'access': tokens['access'],
+                'refresh': tokens['refresh'],
                 'username': user.username,
                 'email': user.email,
                 'phone': user.phone,
                 'is_profile_complete': is_profile_complete
-            }, status=status.HTTP_200_OK)
+            })
 
-        except ValueError as e:
-            return Response({
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({
-                'error': f'Authentication failed: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)                  
+            return ResponseManager.error_response(
+                f'Authentication failed: {str(e)}',
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

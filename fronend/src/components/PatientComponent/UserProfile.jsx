@@ -12,7 +12,6 @@ import Footer from './Footer';
 import DocnetLoading from '../Constants/Loading';
 import { CheckCircle } from 'lucide-react';
 
-// Validation Schema using Yup
 const validationSchema = Yup.object({
   username: Yup.string()
     .trim()
@@ -314,10 +313,18 @@ const UserProfile = () => {
     }
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
+  const handleLogout = async () => {
+    try{
+      const refreshToken = localStorage.getItem('refreshToken');
+      await userAxios.post('/logout/', {
+        refresh_token : refreshToken
+      });
+      dispatch(logout());
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  }
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
