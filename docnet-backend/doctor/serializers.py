@@ -172,7 +172,7 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoctorProfile
         fields = [
-            'user_id', 'username', 'email', 'phone', 'profile_image',
+            'user_id', 'slug' ,'username', 'email', 'phone', 'profile_image',
             'registration_id', 'hospital','specialization' ,'languages', 'age', 'gender',
             'experience', 'is_approved', 'is_verified', 'role'
         ]

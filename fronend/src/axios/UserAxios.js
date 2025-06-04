@@ -1,4 +1,3 @@
-// userAxios.js - frontend fix
 import axios from 'axios';
 import { userApi } from '../constants/api';
 import { logout } from '../store/authSlice';
@@ -25,7 +24,7 @@ userAxios.interceptors.request.use(
   }
 );
 
-// Combined response interceptor to handle all authentication issues
+
 userAxios.interceptors.response.use(
   (response) => {
     return response;
@@ -33,7 +32,7 @@ userAxios.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // Handle blocked user - look for either 403 OR 401 with specific message
+   
     if (
       error.response?.status === 403 || 
       (error.response?.status === 401 && 
@@ -52,10 +51,11 @@ userAxios.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         
         if (!refreshToken) {
+          console.log('No refresh token available');
           store.dispatch(logout());
           return Promise.reject(error);
         }
-        
+        console.log('Attempting token refresh...');
         const response = await axios.post(
           `${userApi}/token/refresh/`, 
           { refresh: refreshToken },
@@ -63,8 +63,9 @@ userAxios.interceptors.response.use(
         );
         
         const { access } = response.data;
-        localStorage.setItem('token', access);
+        store.dispatch(updateToken({ access }));
         originalRequest.headers.Authorization = `Bearer ${access}`;
+        console.log('Token refreshed successfully');
         return axios(originalRequest);
       } catch (refreshError) {
         store.dispatch(logout());

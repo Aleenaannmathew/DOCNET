@@ -316,7 +316,10 @@ const Settings = () => {
         },
         replace: true
       });
-    } else {
+    } else if (tab === 'Availability'){
+      navigate('/doctor/slots');
+    }
+    else {
       setActiveTab(tab);
       setMobileSidebarOpen(false);
     }

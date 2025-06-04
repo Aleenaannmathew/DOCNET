@@ -1,0 +1,534 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  ArrowLeft, 
+  Star, 
+  MapPin, 
+  Calendar, 
+  Phone, 
+  Mail, 
+  Clock, 
+  User, 
+  Heart,
+  Award,
+  Stethoscope,
+  X,
+  Check
+} from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { userAxios } from '../../axios/UserAxios';
+
+
+
+function AppointmentModal({ isOpen, onClose, doctor, timeSlots }) {
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [appointmentType, setAppointmentType] = useState('consultation');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleBookAppointment = async () => {
+    if (!selectedDate || !selectedTime) {
+      alert('Please select both date and time');
+      return;
+    }
+
+    setLoading(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      alert('Appointment booked successfully!');
+      setLoading(false);
+      onClose();
+    }, 2000);
+  };
+
+  if (!isOpen) return null;
+
+  const availableDates = Object.keys(timeSlots);
+  const availableTimes = selectedDate ? timeSlots[selectedDate] || [] : [];
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Book Appointment</h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="mb-4">
+            <h4 className="font-medium mb-2">Dr. {doctor.username}</h4>
+            <p className="text-sm text-gray-600">{doctor.specialization}</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Appointment Type</label>
+              <select 
+                value={appointmentType} 
+                onChange={(e) => setAppointmentType(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="consultation">Consultation</option>
+                <option value="followup">Follow-up</option>
+                <option value="checkup">Check-up</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Select Date</label>
+              <select 
+                value={selectedDate} 
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="">Choose a date</option>
+                {availableDates.map(date => (
+                  <option key={date} value={date}>
+                    {new Date(date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedDate && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Time</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {availableTimes.map(time => (
+                    <button
+                      key={time}
+                      onClick={() => setSelectedTime(time)}
+                      className={`p-2 text-sm border rounded-md transition-colors ${
+                        selectedTime === time 
+                          ? 'bg-teal-600 text-white border-teal-600' 
+                          : 'border-gray-300 hover:border-teal-300'
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Additional Notes (Optional)</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                rows="3"
+                placeholder="Describe your symptoms or concerns..."
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2 px-4 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBookAppointment}
+              disabled={loading}
+              className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
+            >
+              {loading ? 'Booking...' : 'Book Appointment'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DoctorDetailPage() {
+    const { slug } = useParams();
+    const [doctor, setDoctor] = useState(null);
+    const [reviews, setReviews] = useState([]);
+    const [timeSlots, setTimeSlots] = useState({});
+    const [activeTab, setActiveTab] = useState('overview');
+    const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+  
+  
+  useEffect(() => {
+  console.log('Doctor ID from URL params:', slug); // Should show the actual ID
+  const fetchDoctorDetails = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching doctor details for ID:', slug);
+      const response = await userAxios.get(`/doctor-details/${slug}/`);
+      console.log('API response:', response);
+      setDoctor(response.data);
+    } catch (error) {
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response,
+        config: error.config
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchDoctorDetails();
+}, [slug]);
+
+  
+
+  const renderStars = (rating) => {
+    return [...Array(5)].map((_, i) => (
+      <Star
+        key={i}
+        size={16}
+        className={i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}
+      />
+    ));
+  };
+
+  const getWeeklySchedule = () => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const schedule = [
+      { day: 'Monday', time: '9:00 AM - 5:00 PM', available: true },
+      { day: 'Tuesday', time: '9:00 AM - 5:00 PM', available: true },
+      { day: 'Wednesday', time: '10:00 AM - 6:00 PM', available: true },
+      { day: 'Thursday', time: '9:00 AM - 5:00 PM', available: true },
+      { day: 'Friday', time: '9:00 AM - 4:00 PM', available: true },
+      { day: 'Saturday', time: '10:00 AM - 2:00 PM', available: true },
+      { day: 'Sunday', time: 'Closed', available: false }
+    ];
+    return schedule;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading doctor details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!doctor) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Doctor not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <button className="flex items-center text-teal-600 hover:text-teal-700 mb-4">
+            <ArrowLeft size={20} className="mr-2" />
+            Back to Doctors
+          </button>
+          
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Doctor Image */}
+            <div className="flex-shrink-0">
+              <div className="w-32 h-32 bg-gradient-to-br from-teal-100 to-teal-200 rounded-full flex items-center justify-center">
+                {doctor.profile_image ? (
+                  <img 
+                    src={doctor.profile_image} 
+                    alt={`Dr. ${doctor.username}`}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <span className="text-teal-700 font-bold text-4xl">
+                    {doctor.username.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Doctor Info */}
+            <div className="flex-1">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    Dr. {doctor.username}
+                  </h1>
+                  <p className="text-xl text-teal-600 font-medium mb-2">
+                    {doctor.specialization}
+                  </p>
+                  <p className="text-gray-600 mb-3">{doctor.hospital}</p>
+                  
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="flex items-center">
+                      {renderStars(Math.floor(doctor.rating))}
+                      <span className="ml-2 text-sm font-medium">
+                        {doctor.rating} ({doctor.totalReviews} reviews)
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Award size={16} className="mr-1" />
+                      {doctor.experience} years experience
+                    </div>
+                  </div>
+                </div>
+                
+                <button className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+                  <Heart size={20} className="text-gray-600" />
+                </button>
+              </div>
+              
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setIsAppointmentModalOpen(true)}
+                  className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition-colors"
+                >
+                  Book Appointment
+                </button>
+                <button className="border border-teal-600 text-teal-600 px-6 py-2 rounded-lg hover:bg-teal-50 transition-colors">
+                  Contact Doctor
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4">
+          <nav className="flex space-x-8">
+            {['overview', 'experience', 'reviews', 'location', 'timings'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab
+                    ? 'border-teal-600 text-teal-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2">
+            {activeTab === 'overview' && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4">About Dr. {doctor.username}</h2>
+                <p className="text-gray-700 mb-4">{doctor.about}</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <h3 className="font-medium mb-2">Specialization</h3>
+                    <p className="text-gray-600">{doctor.specialization}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium mb-2">Languages</h3>
+                    <p className="text-gray-600">{doctor.languages}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium mb-2">Experience</h3>
+                    <p className="text-gray-600">{doctor.experience} years</p>
+                  </div>
+                  <div>
+                    <h3 className="font-medium mb-2">Registration ID</h3>
+                    <p className="text-gray-600">{doctor.registration_id}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'experience' && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4">Education & Experience</h2>
+                
+                <div className="mb-6">
+                  <h3 className="font-medium mb-3">Education</h3>
+                  <ul className="space-y-2">
+                    {doctor.education.map((edu, index) => (
+                      <li key={index} className="flex items-start">
+                        <Award size={16} className="mr-2 mt-1 text-teal-600" />
+                        <span className="text-gray-700">{edu}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-medium mb-3">Certifications</h3>
+                  <ul className="space-y-2">
+                    {doctor.certifications.map((cert, index) => (
+                      <li key={index} className="flex items-start">
+                        <Check size={16} className="mr-2 mt-1 text-green-600" />
+                        <span className="text-gray-700">{cert}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'reviews' && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4">Patient Reviews</h2>
+                
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b pb-4 last:border-b-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <span className="font-medium mr-2">{review.patientName}</span>
+                          <div className="flex">
+                            {renderStars(review.rating)}
+                          </div>
+                        </div>
+                        <span className="text-sm text-gray-500">{review.date}</span>
+                      </div>
+                      <p className="text-gray-700">{review.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'location' && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4">Location & Contact</h2>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start">
+                    <MapPin size={20} className="mr-3 mt-1 text-teal-600" />
+                    <div>
+                      <h3 className="font-medium mb-1">Address</h3>
+                      <p className="text-gray-700">
+                        {doctor.location.address}<br/>
+                        {doctor.location.city}, {doctor.location.state} {doctor.location.zipCode}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Phone size={20} className="mr-3 text-teal-600" />
+                    <div>
+                      <h3 className="font-medium mb-1">Phone</h3>
+                      <p className="text-gray-700">{doctor.phone}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Mail size={20} className="mr-3 text-teal-600" />
+                    <div>
+                      <h3 className="font-medium mb-1">Email</h3>
+                      <p className="text-gray-700">{doctor.email}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'timings' && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-4">Weekly Schedule</h2>
+                
+                <div className="space-y-3">
+                  {getWeeklySchedule().map((schedule, index) => (
+                    <div key={index} className="flex items-center justify-between py-2 border-b last:border-b-0">
+                      <span className="font-medium">{schedule.day}</span>
+                      <span className={`${schedule.available ? 'text-green-600' : 'text-red-500'}`}>
+                        {schedule.time}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Info */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="font-semibold mb-4">Quick Info</h3>
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <Stethoscope size={16} className="mr-2 text-teal-600" />
+                  <span className="text-sm">{doctor.specialization}</span>
+                </div>
+                <div className="flex items-center">
+                  <MapPin size={16} className="mr-2 text-teal-600" />
+                  <span className="text-sm">{doctor.hospital}</span>
+                </div>
+                <div className="flex items-center">
+                  <Calendar size={16} className="mr-2 text-teal-600" />
+                  <span className="text-sm">{doctor.experience} years experience</span>
+                </div>
+                <div className="flex items-center">
+                  <User size={16} className="mr-2 text-teal-600" />
+                  <span className="text-sm">{doctor.gender}, {doctor.age} years</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Available Time Slots */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h3 className="font-semibold mb-4">Available This Week</h3>
+              <div className="space-y-2">
+                {Object.entries(timeSlots).slice(0, 3).map(([date, slots]) => (
+                  <div key={date} className="text-sm">
+                    <div className="font-medium text-gray-700 mb-1">
+                      {new Date(date).toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </div>
+                    <div className="text-gray-600">
+                      {slots.length} slots available
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setIsAppointmentModalOpen(true)}
+                className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition-colors mt-4"
+              >
+                View All Slots
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Appointment Modal */}
+      <AppointmentModal
+        isOpen={isAppointmentModalOpen}
+        onClose={() => setIsAppointmentModalOpen(false)}
+        doctor={doctor}
+        timeSlots={timeSlots}
+      />
+    </div>
+  );
+}
+
+export default DoctorDetailPage;

@@ -6,6 +6,13 @@ from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from .models import OTPVerification, PatientProfile
+from doctor.models import DoctorProfile
+from doctor.serializers import DoctorProfileSerializer
+from rest_framework import generics, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
+from doctor.models import DoctorProfile
+from doctor.serializers import DoctorProfileSerializer
 import logging
 from .serializers import (
     UserRegistrationSerializer, 
@@ -448,7 +455,6 @@ class UserLogoutView(APIView):
                 )
             
             try:
-                # Validate token ownership
                 token = RefreshToken(refresh_token)
                 if token.payload.get('user_id') != request.user.id:
                     return ResponseManager.error_response(
@@ -485,3 +491,41 @@ class UserLogoutView(APIView):
                 f'Logout failed: {str(e)}',
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class DoctorListView(generics.ListAPIView):
+    serializer_class = DoctorProfileSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['specialization', 'gender', 'experience']
+    search_fields = ['user__first_name', 'user__last_name', 'specialization', 'hospital']  # Fixed typo: search_fileds -> search_fields
+    ordering_fields = ['experience', 'created_at']
+    ordering = ['-experience']
+
+    def get_queryset(self):
+        queryset = DoctorProfile.objects.filter(
+            is_approved=True,
+            user__is_active=True 
+        ).select_related('user')
+
+        search_query = self.request.query_params.get('search', None)
+        if search_query:
+            queryset = queryset.filter(
+                Q(user__first_name__icontains=search_query) |
+                Q(user__last_name__icontains=search_query) |
+                Q(specialization__icontains=search_query) |
+                Q(hospital__icontains=search_query)
+            )
+        
+        country = self.request.query_params.get('country', None)
+        if country:
+            pass
+            
+        return queryset     
+
+class DoctorDetailView(APIView):
+    def get(self, request, slug):
+        try:
+            doctor =   DoctorProfile.objects.get(slug=slug, is_approved = True)
+            serializer = DoctorProfileSerializer(doctor)
+            return ResponseManager.success_response(data=serializer.data)
+        except DoctorProfile.DoesNotExist:
+            return ResponseManager.error_response(error_message="Doctor not found", status_code=404)

@@ -55,7 +55,6 @@ INSTALLED_APPS = [
     'accounts',
     'core',
     'doctor',
-    'patient',
     'django.contrib.sites',
     'allauth',
     'allauth.account',
@@ -65,6 +64,7 @@ INSTALLED_APPS = [
     'dj_rest_auth.registration',
     'cloudinary',
     'cloudinary_storage',
+    'django_filters',
 
 ]
 
@@ -164,7 +164,12 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20
 }
 
 REST_USE_JWT = True

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils.text import slugify
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 
 User = get_user_model()
@@ -28,7 +29,7 @@ class DoctorProfile(models.Model):
     is_approved = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
-    
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     class Meta:
         verbose_name = "Doctor Profile"
         verbose_name_plural = "Doctor Profiles"
@@ -39,6 +40,10 @@ class DoctorProfile(models.Model):
             models.Index(fields=['experience']),
             
         ]
-    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(f"{self.user.username}-{self.registration_id}")
+        super().save(*args,**kwargs)
+
     def __str__(self):
         return f"Dr. {self.user.username} - {self.registration_id}"

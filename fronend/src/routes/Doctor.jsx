@@ -2,7 +2,6 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import DoctorPage from '../pages/DoctorPages/DoctorDashboard';
 import DoctorForm from '../pages/DoctorPages/DoctorForm';
-import DoctorConsultationForm from '../pages/DoctorPages/DoctorConsultationForm';
 import DoctorRegister from '../pages/DoctorPages/DoctorRegister';
 import PendingApproval from '../pages/DoctorPages/Approval';
 import DoctorSignIn from '../pages/DoctorPages/DoctorSignIn';
@@ -15,38 +14,39 @@ import VerifyOtp from '../pages/PatientPages/VerifyOtp';
 import OtpVerify from '../pages/DoctorPages/OtpVerify';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
+import Slots from '../pages/DoctorPages/Slots';
 
 function DoctorRoutes() {
   return (
     <Routes>
       {/* Public Doctor Routes */}
       <Route path="doctor-login" element={
-        <PublicRoute redirectPath="/doctor/dashboard">
+        <PublicRoute redirectPath="/doctor/doctor-landing">
           <DoctorSignIn />
         </PublicRoute>
       } />
       <Route path="doctor-verify-otp" element={
-        <PublicRoute redirectPath="/doctor/dashboard">
+        <PublicRoute redirectPath="/doctor/doctor-landing">
           <OtpVerify />
         </PublicRoute>
       } />
       <Route path="doctor-register" element={
-        <PublicRoute redirectPath="/doctor/dashboard">
+        <PublicRoute redirectPath="/doctor/doctor-landing">
           <DoctorRegister />
         </PublicRoute>
       } />
       <Route path="password-request" element={
-        <PublicRoute redirectPath="/doctor/dashboard">
+        <PublicRoute redirectPath="/doctor/doctor-landing">
           <PassChange />
         </PublicRoute>
       } />
       <Route path="reset-password" element={
-        <PublicRoute redirectPath="/doctor/dashboard">
+        <PublicRoute redirectPath="/doctor/doctor-landing">
           <DoctorReset />
         </PublicRoute>
       } />
       <Route path="verify-otp" element={
-        <PublicRoute redirectPath="/doctor/dashboard">
+        <PublicRoute redirectPath="/doctor/doctor-landing">
           <VerifyOtp />
         </PublicRoute>
       } />
@@ -66,7 +66,7 @@ function DoctorRoutes() {
         <Route path="doctor-details" element={<DoctorForm />} />
         <Route path="settings" element={<DoctorSettings />} />
         <Route path="change-password" element={<PasswordChange />} />
-        <Route path="consultation-form" element={<DoctorConsultationForm />} />
+        <Route path="slots" element={<Slots />} />
       </Route>
 
       {/* Catch-all route */}

@@ -12,8 +12,22 @@ function DoctorListingPage() {
     specialization: '',
     country: '',
     rating: '',
-    availability: ''
+    availability: '',
+    gender: '',
+    experience: ''
   });
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setActiveFilters({
+      specialization: '',
+      country: '',
+      rating: '',
+      availability: '',
+      gender: '',
+      experience: ''
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,9 +41,13 @@ function DoctorListingPage() {
         <FilterSection 
           activeFilters={activeFilters}
           setActiveFilters={setActiveFilters}
+          onResetFilters={handleResetFilters}
         />
         
-        <DoctorsList activeFilters={activeFilters} />
+        <DoctorsList 
+          activeFilters={activeFilters} 
+          searchQuery={searchQuery}
+        />
       </main>
       <Footer />
     </div>

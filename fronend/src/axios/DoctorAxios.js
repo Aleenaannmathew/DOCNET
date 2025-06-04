@@ -39,6 +39,7 @@ doctorAxios.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         
         if (!refreshToken) {
+          console.log('No refresh token available');
           store.dispatch(logout());
           return Promise.reject(error);
         }
@@ -46,16 +47,19 @@ doctorAxios.interceptors.response.use(
         const response = await axios.post(
           `${doctorApi}/token/refresh/`, 
           { refresh: refreshToken },
-          { skipAuthRefresh: true } 
+          { skipAuthRefresh: true,
+            timeout: 50000
+           } 
         );
         
         const { access } = response.data;
         
         store.dispatch(updateToken({access}));
         originalRequest.headers.Authorization = `Bearer ${access}`;
+        console.log('Token refreshed successfully')
         return axios(originalRequest);
       } catch (refreshError) {
-      
+        console.error('Token refresh failed: ', refreshError)
         store.dispatch(logout());
         return Promise.reject(refreshError);
       }
