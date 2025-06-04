@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User,  PatientProfile
-from doctor.models import DoctorProfile
+from .models import User,  PatientProfile, Appointment
+from doctor.models import DoctorProfile, DoctorSlot
 from cloudinary.uploader import upload 
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.password_validation import validate_password
@@ -206,4 +206,54 @@ class UserProfileUpdateSerializer(serializers.Serializer):
             'is_verified': user.is_verified
         }
 
+
+class DoctorSlotViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DoctorSlot
+        fields = '__all__'
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    patient_name = serializers.SerializerMethodField()
+    doctor_name = serializers.SerializerMethodField()
+    slot_details = serializers.SerializerMethodField()
+    class Meta:
+        model = Appointment
+        fields = [
+           'id',
+            'patient',
+            'patient_name',
+            'doctor',
+            'doctor_name',
+            'slot',
+            'slot_details',
+            'notes',
+            'status',
+            'created_at',
+            'updated_at' 
+        ]
+        read_only_fields = ['status', 'created_at', 'updated_at']
+    
+    def get_patient_name(self, obj):
+        return obj.patient.get_full_name() or obj.patient.username
+    
+    def get_doctor_name(self, obj):
+        return f"Dr. {obj.doctor.user.get_full_name() or obj.doctor.user.username}"
+    
+    def get_slot_details(self, obj):
+        slot = obj.slot
+        return {
+            'date': slot.date,
+            'start_time': slot.start_time.strftime('%I:%M %p'),
+            'duration': slot.duration,
+            'consultation_type': slot.get_consultation_type_display()
+        }
+    
+    def validate(self, data):
+        if data['slot'].is_booked:
+            raise serializers.ValidationError("This slot is already booked")
+        
+        if data['slot'].doctor_id != data['doctor'].id:
+            raise serializers.ValidationError("Selected slot doesn't belong to this doctor")
+        
+        return data
 

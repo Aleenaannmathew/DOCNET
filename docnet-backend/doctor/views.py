@@ -17,8 +17,8 @@ from rest_framework.permissions import IsAuthenticated
 from accounts.models import OTPVerification
 from django.utils import timezone
 import logging
-from .models import DoctorProfile
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer
+from .models import DoctorProfile, DoctorSlot
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
@@ -372,3 +372,43 @@ class DoctorLogoutView(APIView):
                 f'Logout failed: {str(e)}',
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class DoctorSlotCreate(generics.ListCreateAPIView):
+    serializer_class = DoctorSlotSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        doctor_profile = self.request.user.doctor_profile
+        return DoctorSlot.objects.filter(doctor=doctor_profile).order_by('date', 'start_time')
+
+    def perform_create(self,serializer):
+        doctor_profile = self.request.user.doctor_profile
+        serializer.save(doctor=doctor_profile)
+
+class DoctorSlotUpdate(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = DoctorSlotSerializer
+    permission_classes =[permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        doctor_profile = self.request.user.doctor_profile
+        return DoctorSlot.objects.filter(doctor=doctor_profile)
+
+class AvailableSlotsView(generics.ListAPIView):
+    serializer_class = DoctorSlotSerializer
+
+    def get_queryset(self):
+        date = self.request.query_params.get('date', None)
+        doctor_id = self.request.query_params.get('doctor_id', None)
+
+        queryset = DoctorSlot.objects.filter(
+            is_booked = False,
+            date__gte=timezone.now().date()
+        )
+
+        if date:
+            queryset = queryset.filter(date=date)
+        if doctor_id:
+            queryset = queryset.filter(doctor_id=doctor_id)
+
+            return queryset.order_by('date','start_time')    
+                          

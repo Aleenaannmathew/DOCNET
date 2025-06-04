@@ -3,21 +3,26 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
+from rest_framework.response import Response
+from datetime import timedelta
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from .models import OTPVerification, PatientProfile
+from .models import OTPVerification, PatientProfile, Appointment
 from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
-from doctor.models import DoctorProfile
+from doctor.models import DoctorProfile, DoctorSlot
 from doctor.serializers import DoctorProfileSerializer
 import logging
 from .serializers import (
     UserRegistrationSerializer, 
     UserLoginSerializer, 
-    UserProfileUpdateSerializer
+    UserProfileUpdateSerializer,
+    DoctorSlotViewSerializer,
+    AppointmentSerializer
 )
 from core.utils import (
     OTPManager, 
@@ -529,3 +534,69 @@ class DoctorDetailView(APIView):
             return ResponseManager.success_response(data=serializer.data)
         except DoctorProfile.DoesNotExist:
             return ResponseManager.error_response(error_message="Doctor not found", status_code=404)
+        
+class DoctorSlotsView(APIView):
+    def get(self, request, slug):  # slug = username of the doctor
+        print("slug (username):", slug)
+        today = timezone.now().date()
+
+        slots = DoctorSlot.objects.filter(
+            doctor__user__username=slug,  # match username of linked user
+            date__gte=today,
+            is_booked=False
+        ).order_by('date', 'start_time')
+
+        print("slots:", slots)
+
+        slots_by_date = {}
+        for slot in slots:
+            date_str = slot.date.strftime('%Y-%m-%d')
+            if date_str not in slots_by_date:
+                slots_by_date[date_str] = []
+
+            time_str = slot.start_time.strftime('%I:%M %p')
+            slots_by_date[date_str].append({
+                'id': slot.id,
+                'time': time_str,
+                'duration': slot.duration,
+                'type': slot.get_consultation_type_display(),
+                'max_patients': slot.max_patients
+            })
+
+        return Response({
+            'success': True,
+            'data': slots_by_date,
+            'message': 'Slots fetched successfully'
+        }, status=status.HTTP_200_OK)
+        
+class BookAppointmentView(APIView):
+    def post(self, request):
+        slot_id = request.data.get('slot_id')
+        doctor_id = request.data.get('doctor_id')
+        notes = request.data.get('notes', '')
+        
+        try:
+            slot = DoctorSlot.objects.get(id=slot_id, is_booked=False)
+        except DoctorSlot.DoesNotExist:
+            return ResponseManager.error_response(
+                {'error': 'Slot not available or already booked'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create the appointment
+        appointment = Appointment.objects.create(
+            patient=request.user,
+            doctor_id=doctor_id,
+            slot=slot,
+            notes=notes,
+            status='scheduled'
+        )
+        
+        # Mark the slot as booked
+        slot.is_booked = True
+        slot.save()
+        
+        return ResponseManager.success_response(
+            AppointmentSerializer(appointment).data,
+            status=status.HTTP_201_CREATED
+        )    

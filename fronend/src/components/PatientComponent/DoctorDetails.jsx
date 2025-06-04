@@ -17,175 +17,81 @@ import {
 import { useParams } from 'react-router-dom';
 import { userAxios } from '../../axios/UserAxios';
 
-
-
-function AppointmentModal({ isOpen, onClose, doctor, timeSlots }) {
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
-  const [appointmentType, setAppointmentType] = useState('consultation');
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleBookAppointment = async () => {
-    if (!selectedDate || !selectedTime) {
-      alert('Please select both date and time');
-      return;
-    }
-
-    setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      alert('Appointment booked successfully!');
-      setLoading(false);
-      onClose();
-    }, 2000);
-  };
-
-  if (!isOpen) return null;
-
-  const availableDates = Object.keys(timeSlots);
-  const availableTimes = selectedDate ? timeSlots[selectedDate] || [] : [];
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Book Appointment</h3>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <X size={24} />
-            </button>
-          </div>
-
-          <div className="mb-4">
-            <h4 className="font-medium mb-2">Dr. {doctor.username}</h4>
-            <p className="text-sm text-gray-600">{doctor.specialization}</p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Appointment Type</label>
-              <select 
-                value={appointmentType} 
-                onChange={(e) => setAppointmentType(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              >
-                <option value="consultation">Consultation</option>
-                <option value="followup">Follow-up</option>
-                <option value="checkup">Check-up</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Select Date</label>
-              <select 
-                value={selectedDate} 
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              >
-                <option value="">Choose a date</option>
-                {availableDates.map(date => (
-                  <option key={date} value={date}>
-                    {new Date(date).toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedDate && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Select Time</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {availableTimes.map(time => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`p-2 text-sm border rounded-md transition-colors ${
-                        selectedTime === time 
-                          ? 'bg-teal-600 text-white border-teal-600' 
-                          : 'border-gray-300 hover:border-teal-300'
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Additional Notes (Optional)</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                rows="3"
-                placeholder="Describe your symptoms or concerns..."
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2 px-4 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleBookAppointment}
-              disabled={loading}
-              className="flex-1 py-2 px-4 bg-teal-600 text-white rounded-md hover:bg-teal-700 disabled:opacity-50"
-            >
-              {loading ? 'Booking...' : 'Book Appointment'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DoctorDetailPage() {
     const { slug } = useParams();
     const [doctor, setDoctor] = useState(null);
     const [reviews, setReviews] = useState([]);
     const [timeSlots, setTimeSlots] = useState({});
+    const [availableSlots, setAvailableSlots] = useState([]);
     const [activeTab, setActiveTab] = useState('overview');
     const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
-  
-  
-  useEffect(() => {
-  console.log('Doctor ID from URL params:', slug); // Should show the actual ID
-  const fetchDoctorDetails = async () => {
+    const [slotsLoading, setSlotsLoading] = useState(false);
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [slug1, setSlug1] = useState(null);
+
+  const fetchDoctorSlots = async () => {
+    if (!doctor?.username) return;
+    
     try {
-      setLoading(true);
-      console.log('Fetching doctor details for ID:', slug);
-      const response = await userAxios.get(`/doctor-details/${slug}/`);
-      console.log('API response:', response);
-      setDoctor(response.data);
+      setSlotsLoading(true);
+      const response = await userAxios.get(`/doctor-slots/${doctor.username}/`);
+      console.log("Available slots:", response.data);
+      
+      // Handle the API response structure
+      if (response.data.success && response.data.data) {
+        const slotsData = response.data.data;
+        // Convert the date-grouped slots into a flat array with date information
+        const flattenedSlots = [];
+        Object.keys(slotsData).forEach(date => {
+          slotsData[date].forEach(slot => {
+            flattenedSlots.push({
+              ...slot,
+              date: date
+            });
+          });
+        });
+        setAvailableSlots(flattenedSlots);
+      } else {
+        setAvailableSlots([]);
+      }
     } catch (error) {
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response,
-        config: error.config
-      });
+      console.error('Error fetching slots:', error);
+      alert('Failed to fetch available slots');
+      setAvailableSlots([]);
     } finally {
-      setLoading(false);
+      setSlotsLoading(false);
     }
   };
-  
-  fetchDoctorDetails();
-}, [slug]);
 
-  
+  const handleBookAppointment = () => {
+    setIsAppointmentModalOpen(true);
+    fetchDoctorSlots();
+  };
+
+  useEffect(() => {
+    console.log('Doctor ID from URL params:', slug); 
+    const fetchDoctorDetails = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching doctor details for ID:', slug);
+        const response = await userAxios.get(`/doctor-details/${slug}/`);
+        console.log('API response:', response);
+        setDoctor(response.data);
+        setSlug1(response.data.username);
+      } catch (error) {
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response,
+          config: error.config
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDoctorDetails();
+  }, [slug]);
 
   const renderStars = (rating) => {
     return [...Array(5)].map((_, i) => (
@@ -198,17 +104,139 @@ function DoctorDetailPage() {
   };
 
   const getWeeklySchedule = () => {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const schedule = [
+    // Mock schedule - replace with actual data from your API
+    return [
       { day: 'Monday', time: '9:00 AM - 5:00 PM', available: true },
       { day: 'Tuesday', time: '9:00 AM - 5:00 PM', available: true },
-      { day: 'Wednesday', time: '10:00 AM - 6:00 PM', available: true },
+      { day: 'Wednesday', time: '9:00 AM - 5:00 PM', available: true },
       { day: 'Thursday', time: '9:00 AM - 5:00 PM', available: true },
-      { day: 'Friday', time: '9:00 AM - 4:00 PM', available: true },
-      { day: 'Saturday', time: '10:00 AM - 2:00 PM', available: true },
-      { day: 'Sunday', time: 'Closed', available: false }
+      { day: 'Friday', time: '9:00 AM - 5:00 PM', available: true },
+      { day: 'Saturday', time: '9:00 AM - 1:00 PM', available: true },
+      { day: 'Sunday', time: 'Closed', available: false },
     ];
-    return schedule;
+  };
+
+  const formatSlotTime = (slot) => {
+    // Use the time field directly from your API response
+    return slot.time || 'Time not specified';
+  };
+
+  const formatSlotDate = (slot) => {
+    // Format the date field from your API response
+    if (slot.date) {
+      return new Date(slot.date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+    return 'Date not specified';
+  };
+
+  const AppointmentModal = () => {
+    if (!isAppointmentModalOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-xl font-semibold">Book Appointment with Dr. {doctor?.username}</h2>
+            <button
+              onClick={() => {
+                setIsAppointmentModalOpen(false);
+                setSelectedSlot(null);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-full"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="p-6">
+            {slotsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading available slots...</p>
+              </div>
+            ) : availableSlots.length > 0 ? (
+              <div>
+                <h3 className="font-medium mb-4">Available Time Slots</h3>
+                <div className="space-y-4">
+                  {availableSlots.map((slot, index) => (
+                    <div
+                      key={slot.id || index}
+                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                        selectedSlot?.id === slot.id
+                          ? 'border-teal-600 bg-teal-50'
+                          : 'border-gray-200 hover:border-teal-300'
+                      }`}
+                      onClick={() => setSelectedSlot(slot)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {formatSlotDate(slot)}
+                          </div>
+                          <div className="text-teal-600 font-medium text-lg">
+                            {formatSlotTime(slot)}
+                          </div>
+                          <div className="flex items-center gap-4 mt-2">
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Type:</span> {slot.type}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Duration:</span> {slot.duration} min
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <span className="font-medium">Max Patients:</span> {slot.max_patients}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock size={16} className="text-gray-400 mr-2" />
+                          <span className="text-sm text-gray-600">
+                            Available
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedSlot && (
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium mb-2">Selected Appointment</h4>
+                    <div className="space-y-2 mb-4">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Date & Time:</span> {formatSlotDate(selectedSlot)} at {formatSlotTime(selectedSlot)}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Type:</span> {selectedSlot.type}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Duration:</span> {selectedSlot.duration} minutes
+                      </p>
+                    </div>
+                    <button className="w-full bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">
+                      Confirm Appointment
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 mb-2">No available slots found</p>
+                <p className="text-sm text-gray-500">
+                  Please try again later or contact the doctor directly.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -274,9 +302,9 @@ function DoctorDetailPage() {
                   
                   <div className="flex items-center gap-4 mb-3">
                     <div className="flex items-center">
-                      {renderStars(Math.floor(doctor.rating))}
+                      {renderStars(Math.floor(doctor.rating || 0))}
                       <span className="ml-2 text-sm font-medium">
-                        {doctor.rating} ({doctor.totalReviews} reviews)
+                        {doctor.rating || 0} ({doctor.totalReviews || 0} reviews)
                       </span>
                     </div>
                     <div className="flex items-center text-sm text-gray-600">
@@ -293,7 +321,7 @@ function DoctorDetailPage() {
               
               <div className="flex gap-3 mt-4">
                 <button
-                  onClick={() => setIsAppointmentModalOpen(true)}
+                  onClick={handleBookAppointment}
                   className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition-colors"
                 >
                   Book Appointment
@@ -366,24 +394,24 @@ function DoctorDetailPage() {
                 <div className="mb-6">
                   <h3 className="font-medium mb-3">Education</h3>
                   <ul className="space-y-2">
-                    {doctor.education.map((edu, index) => (
+                    {doctor.education?.map((edu, index) => (
                       <li key={index} className="flex items-start">
                         <Award size={16} className="mr-2 mt-1 text-teal-600" />
                         <span className="text-gray-700">{edu}</span>
                       </li>
-                    ))}
+                    )) || <li className="text-gray-500">No education data available</li>}
                   </ul>
                 </div>
 
                 <div>
                   <h3 className="font-medium mb-3">Certifications</h3>
                   <ul className="space-y-2">
-                    {doctor.certifications.map((cert, index) => (
+                    {doctor.certifications?.map((cert, index) => (
                       <li key={index} className="flex items-start">
                         <Check size={16} className="mr-2 mt-1 text-green-600" />
                         <span className="text-gray-700">{cert}</span>
                       </li>
-                    ))}
+                    )) || <li className="text-gray-500">No certifications data available</li>}
                   </ul>
                 </div>
               </div>
@@ -394,7 +422,7 @@ function DoctorDetailPage() {
                 <h2 className="text-xl font-semibold mb-4">Patient Reviews</h2>
                 
                 <div className="space-y-4">
-                  {reviews.map((review) => (
+                  {reviews.length > 0 ? reviews.map((review) => (
                     <div key={review.id} className="border-b pb-4 last:border-b-0">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center">
@@ -407,7 +435,9 @@ function DoctorDetailPage() {
                       </div>
                       <p className="text-gray-700">{review.comment}</p>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-gray-500">No reviews available</p>
+                  )}
                 </div>
               </div>
             )}
@@ -422,8 +452,8 @@ function DoctorDetailPage() {
                     <div>
                       <h3 className="font-medium mb-1">Address</h3>
                       <p className="text-gray-700">
-                        {doctor.location.address}<br/>
-                        {doctor.location.city}, {doctor.location.state} {doctor.location.zipCode}
+                        {doctor.location?.address || 'Address not available'}<br/>
+                        {doctor.location?.city}, {doctor.location?.state} {doctor.location?.zipCode}
                       </p>
                     </div>
                   </div>
@@ -432,7 +462,7 @@ function DoctorDetailPage() {
                     <Phone size={20} className="mr-3 text-teal-600" />
                     <div>
                       <h3 className="font-medium mb-1">Phone</h3>
-                      <p className="text-gray-700">{doctor.phone}</p>
+                      <p className="text-gray-700">{doctor.phone || 'Phone not available'}</p>
                     </div>
                   </div>
                   
@@ -440,7 +470,7 @@ function DoctorDetailPage() {
                     <Mail size={20} className="mr-3 text-teal-600" />
                     <div>
                       <h3 className="font-medium mb-1">Email</h3>
-                      <p className="text-gray-700">{doctor.email}</p>
+                      <p className="text-gray-700">{doctor.email || 'Email not available'}</p>
                     </div>
                   </div>
                 </div>
@@ -507,10 +537,12 @@ function DoctorDetailPage() {
                       {slots.length} slots available
                     </div>
                   </div>
-                ))}
+                )) || (
+                  <p className="text-sm text-gray-500">Loading availability...</p>
+                )}
               </div>
               <button
-                onClick={() => setIsAppointmentModalOpen(true)}
+                onClick={handleBookAppointment}
                 className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition-colors mt-4"
               >
                 View All Slots
@@ -521,12 +553,7 @@ function DoctorDetailPage() {
       </div>
 
       {/* Appointment Modal */}
-      <AppointmentModal
-        isOpen={isAppointmentModalOpen}
-        onClose={() => setIsAppointmentModalOpen(false)}
-        doctor={doctor}
-        timeSlots={timeSlots}
-      />
+      <AppointmentModal />
     </div>
   );
 }

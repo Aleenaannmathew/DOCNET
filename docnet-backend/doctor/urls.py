@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView
-from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView
+from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView
 
 urlpatterns = [
     path('doctor-register/', DoctorRegistrationView.as_view(), name='doctor-register'),
@@ -13,5 +13,8 @@ urlpatterns = [
     path('verify-password-reset-otp/', DoctorVerifyPasswordResetOTPView.as_view(), name='doctor-verify-password-reset-otp'),
     path('doctor-reset-password/', DoctorResetPasswordView.as_view(), name='doctor-reset-password'),
     path('google-login-doctor/', GoogleLoginView.as_view(), name='google-login-doctor'),
-    path('doctor-logout/', DoctorLogoutView.as_view(), name='doctor-logout')
+    path('doctor-logout/', DoctorLogoutView.as_view(), name='doctor-logout'),
+    path('slots/', DoctorSlotCreate.as_view(), name='doctor-slots'),
+    path('slots/<int:pk>/', DoctorSlotUpdate.as_view(), name='doctor-slot-detail'),
+    path('slots/available/', AvailableSlotsView.as_view(), name='available-slots'),
 ]

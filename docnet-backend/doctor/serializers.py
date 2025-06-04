@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DoctorProfile
+from .models import DoctorProfile, DoctorSlot
 from django.db import transaction
 import cloudinary
 import cloudinary.uploader
@@ -264,3 +264,12 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
                 'is_approved': doctor_profile.is_approved
             }
         }
+
+
+class DoctorSlotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DoctorSlot
+        fields = '__all__'
+        read_only_fields = ('doctor', 'is_booked','created_at', 'updated_at')
+    def validate(self, data):
+        return data    

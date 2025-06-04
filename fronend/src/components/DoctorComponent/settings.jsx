@@ -336,6 +336,7 @@ const Settings = () => {
       navigate('/doctor-login/');
     } catch (error) {
       console.error('Logout error: ', error);
+      
     }
   }
 

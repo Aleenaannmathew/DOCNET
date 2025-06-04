@@ -54,6 +54,24 @@ class PatientProfile(models.Model):
             models.Index(fields=['age']),
             models.Index(fields=['emergency_contact']),
         ]
+
+class Appointment(models.Model):
+    STATUS_CHOICES = (
+        ('scheduled', 'Scheduled'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+        ('no_show', 'No Show'),
+    )      
+    patient = models.OneToOneField(User, on_delete=models.CASCADE, related_name='patient_appointments')
+    doctor = models.ForeignKey('doctor.DoctorProfile', on_delete=models.CASCADE, related_name='doctor_appointments')
+    slot = models.ForeignKey('doctor.DoctorSlot', on_delete=models.CASCADE, related_name='appointments')
+    notes = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Appointment #{self.id} - {self.patient.username} with Dr. {self.doctor.user.username}"
     
 
    

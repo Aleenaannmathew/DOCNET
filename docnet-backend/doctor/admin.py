@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DoctorProfile
+from .models import DoctorProfile,DoctorSlot
 
 @admin.register(DoctorProfile)
 class DoctorProfileAdmin(admin.ModelAdmin):
@@ -30,3 +30,11 @@ class DoctorProfileAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(DoctorSlot)
+class DoctorSlotAdmin(admin.ModelAdmin):
+    list_display = ('doctor', 'date', 'start_time', 'consultation_type', 'max_patients', 'is_booked')
+    list_filter = ('doctor', 'consultation_type', 'is_booked', 'date')
+    search_fields = ('doctor__user__username', 'notes')
+    ordering = ('-date', 'start_time')
