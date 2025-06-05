@@ -269,7 +269,7 @@ class SendPasswordResetOTPView(APIView):
                 )
             
             return ResponseManager.success_response(
-                data={'user_id': user.id},
+                data={'user_id': user.id, 'success': True},
                 message='OTP sent successfully'
             )
             
@@ -301,7 +301,10 @@ class VerifyPasswordResetOTPView(APIView):
             
             if result['success']:
                 return ResponseManager.success_response(
-                    data={'reset_token': 'generate_a_token_here_if_needed'},
+                    data={
+                        'success': True,  
+                        'reset_token': 'generate_a_token_here_if_needed'
+                    },
                     message='OTP verified successfully'
                 )
             else:

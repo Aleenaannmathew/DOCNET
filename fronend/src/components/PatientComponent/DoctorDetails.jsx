@@ -12,7 +12,9 @@ import {
   Award,
   Stethoscope,
   X,
-  Check
+  Check,
+  CreditCard,
+  Loader
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { userAxios } from '../../axios/UserAxios';
@@ -29,6 +31,8 @@ function DoctorDetailPage() {
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [slug1, setSlug1] = useState(null);
+    const [paymentLoading, setPaymentLoading] = useState(false);
+    const [appointmentFee, setAppointmentFee] = useState(500); // Default fee
 
   const fetchDoctorSlots = async () => {
     if (!doctor?.username) return;
@@ -69,6 +73,124 @@ function DoctorDetailPage() {
     fetchDoctorSlots();
   };
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePayment = async () => {
+    if (!selectedSlot) {
+      alert('Please select a time slot');
+      return;
+    }
+
+    try {
+      setPaymentLoading(true);
+
+      // Load Razorpay script
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert('Failed to load payment gateway. Please try again.');
+        return;
+      }
+
+      // Create payment order
+      const orderResponse = await userAxios.post('/api/payment/create-order/', {
+        amount: appointmentFee,
+        doctor_username: doctor.username,
+        slot_id: selectedSlot.id,
+        appointment_details: {
+          doctor_name: doctor.username,
+          specialization: doctor.specialization,
+          date: selectedSlot.date,
+          time: selectedSlot.time,
+          type: selectedSlot.type,
+          duration: selectedSlot.duration
+        }
+      });
+
+      if (!orderResponse.data.success) {
+        throw new Error(orderResponse.data.message || 'Failed to create payment order');
+      }
+
+      const { order_id, amount, currency, key } = orderResponse.data.data;
+
+      // Configure Razorpay options
+      const options = {
+        key: key, // Your Razorpay key from backend
+        amount: amount,
+        currency: currency,
+        name: 'HealthCare App',
+        description: `Appointment with Dr. ${doctor.username}`,
+        order_id: order_id,
+        handler: async function (response) {
+          // Payment successful, verify payment
+          try {
+            const verifyResponse = await userAxios.post('/api/payment/verify/', {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              slot_id: selectedSlot.id,
+              doctor_username: doctor.username
+            });
+
+            if (verifyResponse.data.success) {
+              alert('Payment successful! Your appointment has been confirmed.');
+              setIsAppointmentModalOpen(false);
+              setSelectedSlot(null);
+              // Optionally redirect to appointment confirmation page
+              // window.location.href = '/appointments';
+            } else {
+              alert('Payment verification failed. Please contact support.');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            alert('Payment verification failed. Please contact support.');
+          }
+        },
+        modal: {
+          ondismiss: function() {
+            // Handle payment cancellation
+            handlePaymentCancel(order_id);
+          }
+        },
+        prefill: {
+          name: '', // You can prefill user details if available
+          email: '',
+          contact: ''
+        },
+        theme: {
+          color: '#0D9488' // Teal color to match your theme
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert(error.response?.data?.message || 'Payment failed. Please try again.');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const handlePaymentCancel = async (orderId) => {
+    try {
+      await userAxios.post('/api/payment/cancel/', {
+        order_id: orderId
+      });
+      setPaymentLoading(false);
+    } catch (error) {
+      console.error('Error canceling payment:', error);
+    }
+  };
+
   useEffect(() => {
     console.log('Doctor ID from URL params:', slug); 
     const fetchDoctorDetails = async () => {
@@ -79,6 +201,10 @@ function DoctorDetailPage() {
         console.log('API response:', response);
         setDoctor(response.data);
         setSlug1(response.data.username);
+        // Set appointment fee from doctor data if available
+        if (response.data.consultation_fee) {
+          setAppointmentFee(response.data.consultation_fee);
+        }
       } catch (error) {
         console.error('Error details:', {
           message: error.message,
@@ -148,6 +274,7 @@ function DoctorDetailPage() {
                 setSelectedSlot(null);
               }}
               className="p-2 hover:bg-gray-100 rounded-full"
+              disabled={paymentLoading}
             >
               <X size={20} />
             </button>
@@ -204,6 +331,19 @@ function DoctorDetailPage() {
                   ))}
                 </div>
 
+                {/* Consultation Fee Display */}
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-medium text-blue-900">Consultation Fee</h4>
+                      <p className="text-sm text-blue-700">One-time payment for appointment</p>
+                    </div>
+                    <div className="text-2xl font-bold text-blue-900">
+                      ₹{appointmentFee}
+                    </div>
+                  </div>
+                </div>
+
                 {selectedSlot && (
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-medium mb-2">Selected Appointment</h4>
@@ -217,10 +357,30 @@ function DoctorDetailPage() {
                       <p className="text-sm text-gray-600">
                         <span className="font-medium">Duration:</span> {selectedSlot.duration} minutes
                       </p>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Consultation Fee:</span> ₹{appointmentFee}
+                      </p>
                     </div>
-                    <button className="w-full bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">
-                      Confirm Appointment
-                    </button>
+                    
+                    <div className="space-y-3">
+                      <button 
+                        onClick={handlePayment}
+                        disabled={paymentLoading}
+                        className="w-full bg-teal-600 text-white py-3 px-4 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {paymentLoading ? (
+                          <Loader size={20} className="animate-spin" />
+                        ) : (
+                          <CreditCard size={20} />
+                        )}
+                        {paymentLoading ? 'Processing...' : `Pay ₹${appointmentFee} & Confirm Appointment`}
+                      </button>
+                      
+                      <div className="text-xs text-gray-500 text-center">
+                        <p>Secure payment powered by Razorpay</p>
+                        <p>We accept UPI, Cards, Net Banking & Wallets</p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -310,6 +470,16 @@ function DoctorDetailPage() {
                     <div className="flex items-center text-sm text-gray-600">
                       <Award size={16} className="mr-1" />
                       {doctor.experience} years experience
+                    </div>
+                  </div>
+
+                  {/* Consultation Fee Display */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 inline-block">
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={16} className="text-green-600" />
+                      <span className="text-sm font-medium text-green-800">
+                        Consultation Fee: ₹{appointmentFee}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -516,6 +686,10 @@ function DoctorDetailPage() {
                 <div className="flex items-center">
                   <User size={16} className="mr-2 text-teal-600" />
                   <span className="text-sm">{doctor.gender}, {doctor.age} years</span>
+                </div>
+                <div className="flex items-center">
+                  <CreditCard size={16} className="mr-2 text-teal-600" />
+                  <span className="text-sm font-medium">₹{appointmentFee} consultation</span>
                 </div>
               </div>
             </div>

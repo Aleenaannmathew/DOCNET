@@ -17,15 +17,15 @@ export default function OtpVerificationPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(120); // Start with 2 minutes
+  const [remainingTime, setRemainingTime] = useState(120);
   const inputRefs = useRef([]);
   const timerRef = useRef(null);
 
   useEffect(() => {
-    // Start timer on component mount
+   
     startTimer();
 
-    // Check for required state
+   
     if (!email) {
       navigate(isPasswordReset ? '/reset-password' : '/register');
     }

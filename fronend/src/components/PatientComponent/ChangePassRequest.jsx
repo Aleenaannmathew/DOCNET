@@ -25,19 +25,17 @@ const ChangePasswordRequest = ({ isDoctor = false }) => {
     setError('');
 
     try {
-      // Check if email exists in the database
       const response = await userAxios.post(`/check-email/`, {
         email: values.email,
         role: isDoctor ? 'doctor' : 'patient' 
       });
       
       if (response.data.exists) {
-        // If email exists, send OTP and navigate to verification page
         const otpResponse = await userAxios.post(`/send-password-reset-otp/`, {
           email: values.email,
           role: isDoctor ? 'doctor' : 'patient'
         });
-        
+        console.log('OTP Response:', otpResponse.data);
         if (otpResponse.data.success) {
           navigate('/verify-otp', { 
             state: { 
@@ -104,7 +102,7 @@ const ChangePasswordRequest = ({ isDoctor = false }) => {
       <main className="flex-grow flex items-center justify-center px-4 py-12 bg-gray-50">
         <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8">
           <h2 className="text-2xl font-bold text-center text-teal-700 mb-6">
-            Change Password
+            Forgot Password
           </h2>
           
           {/* General Error Message */}

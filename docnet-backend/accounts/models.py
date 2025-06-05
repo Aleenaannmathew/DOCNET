@@ -73,5 +73,6 @@ class Appointment(models.Model):
     def __str__(self):
         return f"Appointment #{self.id} - {self.patient.username} with Dr. {self.doctor.user.username}"
     
+    
 
    
