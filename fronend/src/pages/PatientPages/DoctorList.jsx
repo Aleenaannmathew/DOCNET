@@ -30,28 +30,29 @@ function DoctorListingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
+      <main>
         <SearchSection
           searchQuery={searchQuery} 
           setSearchQuery={setSearchQuery} 
         />
         
-        <FilterSection 
-          activeFilters={activeFilters}
-          setActiveFilters={setActiveFilters}
-          onResetFilters={handleResetFilters}
-        />
-        
-        <DoctorsList 
-          activeFilters={activeFilters} 
-          searchQuery={searchQuery}
-        />
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <FilterSection 
+            activeFilters={activeFilters}
+            setActiveFilters={setActiveFilters}
+            onResetFilters={handleResetFilters}
+          />
+          
+          <DoctorsList 
+            activeFilters={activeFilters} 
+            searchQuery={searchQuery}
+          />
+        </div>
       </main>
       <Footer />
     </div>
   );
 }
-
 export default DoctorListingPage;

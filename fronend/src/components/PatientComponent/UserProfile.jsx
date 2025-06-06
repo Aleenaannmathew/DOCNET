@@ -10,7 +10,26 @@ import 'react-toastify/dist/ReactToastify.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import DocnetLoading from '../Constants/Loading';
-import { CheckCircle } from 'lucide-react';
+import { 
+  CheckCircle, 
+  User, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  Heart, 
+  Shield, 
+  FileText, 
+  AlertCircle,
+  Camera,
+  Edit,
+  Save,
+  X,
+  Lock,
+  History,
+  Bell,
+  HelpCircle,
+  LogOut
+} from 'lucide-react';
 
 const validationSchema = Yup.object({
   username: Yup.string()
@@ -69,7 +88,6 @@ const validationSchema = Yup.object({
     .nullable()
 });
 
-
 const fileValidationSchema = Yup.object({
   profile_image: Yup.mixed()
     .nullable()
@@ -102,18 +120,17 @@ const UserProfile = () => {
   const [imageError, setImageError] = useState('');
 
   const sidebarItems = [
-    'Profile Information',
-    'Change Password',
-    'Booking History',
-    'Medical Records',
-    'Notifications',
-    'Help & Support',
-    'Logout'
+    { name: 'Profile Information', icon: User },
+    { name: 'Change Password', icon: Lock },
+    { name: 'Booking History', icon: History },
+    { name: 'Medical Records', icon: FileText },
+    { name: 'Notifications', icon: Bell },
+    { name: 'Help & Support', icon: HelpCircle },
+    { name: 'Logout', icon: LogOut }
   ];
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
- 
   const getInitialValues = () => ({
     username: user?.username || '',
     email: user?.email || '',
@@ -208,7 +225,6 @@ const UserProfile = () => {
     setImageError('');
     
     if (file) {
-    
       fileValidationSchema.validate({ profile_image: file })
         .then(() => {
           setProfileImage(file);
@@ -225,17 +241,14 @@ const UserProfile = () => {
     try {
       setLoading(true);
       
-     
       const profileFormData = new FormData();
       
-   
       Object.keys(values).forEach(key => {
         if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
           profileFormData.append(key, values[key]);
         }
       });
       
-     
       if (profileImage) {
         profileFormData.append('profile_image', profileImage);
       }
@@ -255,7 +268,6 @@ const UserProfile = () => {
       console.log("Update response:", response.data);
       
       if (response.data) {
-       
         dispatch(updateUser(response.data));
         
         setShowSuccessLoader(true);
@@ -268,7 +280,6 @@ const UserProfile = () => {
         setProfileImage(null);
         setImageError('');
         
-      
         setTimeout(() => {
           setShowSuccessLoader(false);
           setIsEditing(false);
@@ -279,7 +290,6 @@ const UserProfile = () => {
     } catch (err) {
       console.error('Error updating profile:', err);
       
-    
       if (err.response && err.response.data) {
         const serverErrors = err.response.data;
         
@@ -338,7 +348,6 @@ const UserProfile = () => {
     setIsEditing(!isEditing);
     
     if (isEditing) {
-     
       if (previewImage) {
         URL.revokeObjectURL(previewImage);
         setPreviewImage(null);
@@ -348,8 +357,6 @@ const UserProfile = () => {
     }
   };
 
-  
-  const profileImageUrl = previewImage || (user?.profile_image || "/api/placeholder/80/80");
   const getProfileImageUrl = () => {
     if (previewImage) return previewImage;
     if (user?.profile_image) return user.profile_image;
@@ -358,12 +365,16 @@ const UserProfile = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-white">
-        <div className="text-center">
-          <p className="mb-4">Please log in to view your profile</p>
+      <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User className="text-white" size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Access Required</h2>
+          <p className="text-gray-600 mb-6">Please log in to view your profile</p>
           <button
             onClick={() => navigate('/login')}
-            className="bg-navy-800 hover:bg-navy-900 text-white px-6 py-2 rounded font-medium transition"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-full font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
           >
             Go to Login
           </button>
@@ -377,8 +388,7 @@ const UserProfile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* Toast container for notifications */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <ToastContainer
         position="top-right"
         autoClose={5000}
@@ -389,347 +399,467 @@ const UserProfile = () => {
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        className="z-50"
       />
       
       <Navbar/>
       
       {showSuccess && (
-        <div className="mb-4 rounded-md bg-green-50 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <CheckCircle className="h-5 w-5 text-green-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-green-800">{successMessage}</p>
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 max-w-md w-full mx-4">
+          <div className="bg-white/90 backdrop-blur-md border border-green-200 rounded-2xl p-4 shadow-xl">
+            <div className="flex items-center">
+              <CheckCircle className="h-6 w-6 text-green-500 mr-3" />
+              <p className="text-green-800 font-medium">{successMessage}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Profile Top Section */}
-      <div className="flex justify-center mt-20 px-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between bg-gray-100 p-4 sm:p-6 w-full max-w-5xl rounded-md shadow-sm">
-          <div className="flex flex-col sm:flex-row items-center mb-4 sm:mb-0">
-            {user?.profile_image || previewImage ? (
-    <img 
-      src={getProfileImageUrl()} 
-      alt={user.username} 
-      className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover mr-0 sm:mr-4 mb-2 sm:mb-0"
-    />
-  ) : (
-    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-0 sm:mr-4 mb-2 sm:mb-0">
-      <span className="text-2xl font-bold text-white">
-        {user?.username?.charAt(0).toUpperCase() || 'U'}
-      </span>
-    </div>
-  )}
-            <div className="text-center sm:text-left">
-              <div className="font-bold text-lg">{user.username}</div>
-              <div className="text-sm text-gray-800">{user.email}</div>
-              <div className="text-xs text-gray-800 mt-1 capitalize">Role: {user.role}</div>
+      {/* Hero Section */}
+      <div className="pt-24 pb-8 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl p-8 border border-white/20">
+            <div className="flex flex-col lg:flex-row items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-center mb-6 lg:mb-0">
+                <div className="relative mb-4 sm:mb-0 sm:mr-6">
+                  {user?.profile_image || previewImage ? (
+                    <img 
+                      src={getProfileImageUrl()} 
+                      alt={user.username} 
+                      className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-4 border-white shadow-lg">
+                      <span className="text-2xl font-bold text-white">
+                        {user?.username?.charAt(0).toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                    <div className="w-3 h-3 bg-white rounded-full"></div>
+                  </div>
+                </div>
+                <div className="text-center sm:text-left">
+                  <h1 className="text-2xl font-bold text-gray-800 mb-1">{user.username}</h1>
+                  <p className="text-gray-600 mb-2">{user.email}</p>
+                  <div className="flex items-center justify-center sm:justify-start">
+                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium capitalize">
+                      {user.role}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={toggleEditMode} 
+                className={`flex items-center space-x-2 px-6 py-3 rounded-full font-medium transition-all duration-200 transform hover:scale-105 ${
+                  isEditing 
+                    ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' 
+                    : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg'
+                }`}
+              >
+                {isEditing ? <X size={20} /> : <Edit size={20} />}
+                <span>{isEditing ? 'Cancel' : 'Edit Profile'}</span>
+              </button>
             </div>
           </div>
-          <button 
-            onClick={toggleEditMode} 
-            className="bg-indigo-800 hover:bg-indigo-800 text-white px-4 py-2 rounded font-medium text-sm transition"
-          >
-            {isEditing ? 'Cancel Editing' : 'Edit Profile'}
-          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex justify-center px-4 py-8">
-        <div className="flex flex-col md:flex-row w-full max-w-5xl gap-6">
-          
-          {/* Sidebar - Mobile Dropdown & Desktop Sidebar */}
-          <div className="w-full md:w-64 mb-6 md:mb-0">
-            {/* Mobile Dropdown */}
-            <div className="md:hidden mb-6">
-              <select 
-                className="w-full p-3 bg-gray-100 border border-gray-200 rounded-md"
-                value={activeTab}
-                onChange={(e) => {
-                  if (e.target.value === 'Logout') {
-                    handleLogout();
-                  } else if (e.target.value === 'Change Password') {
-                    navigate('/new-password');
-                  } else {
-                    setActiveTab(e.target.value);
-                  }
-                }}
-              >
-                {sidebarItems.map((item) => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-            </div>
+      <div className="px-4 pb-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             
-            {/* Desktop Sidebar */}
-            <div className="hidden md:block bg-gray-100 rounded-md overflow-hidden">
-              {sidebarItems.map((item, index) => (
-                <div 
-                  key={index} 
-                  className={`px-4 py-3 border-b border-gray-200 cursor-pointer text-sm hover:bg-gray-200 transition ${
-                    activeTab === item ? 'bg-gray-200 font-medium' : ''
-                  } ${item === 'Logout' ? 'text-red-600 hover:bg-red-50' : ''}`}
-                  onClick={() => handleTabClick(item)}
+            {/* Sidebar */}
+            <div className="lg:col-span-1">
+              {/* Mobile Dropdown */}
+              <div className="lg:hidden mb-6">
+                <select 
+                  className="w-full p-4 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={activeTab}
+                  onChange={(e) => {
+                    if (e.target.value === 'Logout') {
+                      handleLogout();
+                    } else if (e.target.value === 'Change Password') {
+                      navigate('/new-password');
+                    } else {
+                      setActiveTab(e.target.value);
+                    }
+                  }}
                 >
-                  {item}
-                </div>
-              ))}
+                  {sidebarItems.map((item) => (
+                    <option key={item.name} value={item.name}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Desktop Sidebar */}
+              <div className="hidden lg:block bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+                {sidebarItems.map((item, index) => {
+                  const Icon = item.icon;
+                  return (
+                    <div 
+                      key={index} 
+                      className={`flex items-center space-x-3 px-6 py-4 cursor-pointer transition-all duration-200 ${
+                        activeTab === item.name 
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
+                          : 'text-gray-700 hover:bg-gray-50'
+                      } ${item.name === 'Logout' ? 'border-t border-gray-200' : ''}`}
+                      onClick={() => handleTabClick(item.name)}
+                    >
+                      <Icon size={20} />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          {/* Profile Form */}
-          <div className="flex-1 bg-gray-100 p-6 rounded-md shadow-sm relative">
-            {/* Profile Image in Corner */}
-            <div className="absolute top-0 right-6 transform -translate-y-1/2">
-              {user?.profile_image || previewImage ? (
-    <img 
-      src={getProfileImageUrl()} 
-      alt={user.username} 
-      className="w-16 h-16 rounded-full border-4 border-white object-cover"
-    />
-  ) : (
-    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border-4 border-white flex items-center justify-center">
-      <span className="text-xl font-bold text-white">
-        {user?.username?.charAt(0).toUpperCase() || 'U'}
-      </span>
-    </div>
-  )}
-            </div>
+            {/* Profile Form */}
+            <div className="lg:col-span-3">
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-8">
+                <Formik
+                  enableReinitialize={true}
+                  initialValues={getInitialValues()}
+                  validationSchema={validationSchema}
+                  onSubmit={handleSubmit}
+                >
+                  {({ isSubmitting, errors, touched, values, setFieldValue }) => (
+                    <Form>
+                      {/* Basic Information */}
+                      <div className="mb-8">
+                        <div className="flex items-center space-x-3 mb-6">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <User className="text-white" size={20} />
+                          </div>
+                          <h2 className="text-xl font-bold text-gray-800">Basic Information</h2>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="flex items-center space-x-2 mb-3 font-medium text-gray-700">
+                              <User size={16} />
+                              <span>Username</span>
+                            </label>
+                            <Field
+                              type="text" 
+                              name="username"
+                              disabled={!isEditing}
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.username && touched.username 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="username" component="p" className="text-red-500 text-sm mt-1 flex items-center">
+                              <AlertCircle size={14} className="mr-1" />
+                            </ErrorMessage>
+                          </div>
 
-            {/* Formik Form */}
-            <Formik
-              enableReinitialize={true}
-              initialValues={getInitialValues()}
-              validationSchema={validationSchema}
-              onSubmit={handleSubmit}
-            >
-              {({ isSubmitting, errors, touched, values, setFieldValue }) => (
-                <Form className="mt-12">
-                  {/* Basic Info Section */}
-                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Basic Information</h3>
+                          <div>
+                            <label className="flex items-center space-x-2 mb-3 font-medium text-gray-700">
+                              <Mail size={16} />
+                              <span>Email Address</span>
+                            </label>
+                            <Field
+                              type="email" 
+                              name="email"
+                              disabled={!isEditing}
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.email && touched.email 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="email" component="p" className="text-red-500 text-sm mt-1 flex items-center">
+                              <AlertCircle size={14} className="mr-1" />
+                            </ErrorMessage>
+                          </div>
+
+                          <div>
+                            <label className="flex items-center space-x-2 mb-3 font-medium text-gray-700">
+                              <Phone size={16} />
+                              <span>Phone Number</span>
+                            </label>
+                            <Field
+                              type="tel" 
+                              name="phone"
+                              disabled={!isEditing}
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.phone && touched.phone 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="phone" component="p" className="text-red-500 text-sm mt-1 flex items-center">
+                              <AlertCircle size={14} className="mr-1" />
+                            </ErrorMessage>
+                          </div>
+
+                          <div>
+                            <label className="flex items-center space-x-2 mb-3 font-medium text-gray-700">
+                              <Calendar size={16} />
+                              <span>Age</span>
+                            </label>
+                            <Field
+                              type="number" 
+                              name="age"
+                              disabled={!isEditing}
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.age && touched.age 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="age" component="p" className="text-red-500 text-sm mt-1 flex items-center">
+                              <AlertCircle size={14} className="mr-1" />
+                            </ErrorMessage>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Health Information */}
+                      <div className="mb-8">
+                        <div className="flex items-center space-x-3 mb-6">
+                          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl flex items-center justify-center">
+                            <Heart className="text-white" size={20} />
+                          </div>
+                          <h2 className="text-xl font-bold text-gray-800">Health Information</h2>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div>
+                            <label className="block mb-3 font-medium text-gray-700">Blood Group</label>
+                            <Field
+                              as="select"
+                              name="blood_group"
+                              disabled={!isEditing}
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                isEditing ? 'border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'border-gray-200 bg-gray-50 cursor-not-allowed'
+                              }`}
+                            >
+                              <option value="">Select Blood Group</option>
+                              {bloodGroups.map(group => (
+                                <option key={group} value={group}>{group}</option>
+                              ))}
+                            </Field>
+                            <ErrorMessage name="blood_group" component="p" className="text-red-500 text-sm mt-1" />
+                          </div>
+
+                          <div>
+                            <label className="block mb-3 font-medium text-gray-700">Height (cm)</label>
+                            <Field
+                              type="number" 
+                              name="height"
+                              disabled={!isEditing}
+                              step="0.01"
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.height && touched.height 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="height" component="p" className="text-red-500 text-sm mt-1" />
+                          </div>
+
+                          <div>
+                            <label className="block mb-3 font-medium text-gray-700">Weight (kg)</label>
+                            <Field
+                              type="number" 
+                              name="weight"
+                              disabled={!isEditing}
+                              step="0.01"
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.weight && touched.weight 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="weight" component="p" className="text-red-500 text-sm mt-1" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Medical Information */}
+                      <div className="mb-8">
+                        <div className="flex items-center space-x-3 mb-6">
+                          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                            <Shield className="text-white" size={20} />
+                          </div>
+                          <h2 className="text-xl font-bold text-gray-800">Medical Information</h2>
+                        </div>
+                        
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block mb-3 font-medium text-gray-700">Allergies</label>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Username</label>
-                      <Field
-                        type="text" 
-                        name="username"
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border ${
-                          errors.username && touched.username ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="username" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
+                              <Field
+                              as="textarea"
+                              name="allergies"
+                              disabled={!isEditing}
+                              rows={3}
+                              placeholder="List any allergies you have..."
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 resize-none ${
+                                errors.allergies && touched.allergies 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="allergies" component="p" className="text-red-500 text-sm mt-1" />
+                          </div>
 
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Email Address</label>
-                      <Field
-                        type="email" 
-                        name="email"
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border ${
-                          errors.email && touched.email ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="email" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
+                          <div>
+                            <label className="block mb-3 font-medium text-gray-700">Chronic Conditions</label>
+                            <Field
+                              as="textarea"
+                              name="chronic_conditions"
+                              disabled={!isEditing}
+                              rows={3}
+                              placeholder="List any chronic conditions..."
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 resize-none ${
+                                errors.chronic_conditions && touched.chronic_conditions 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="chronic_conditions" component="p" className="text-red-500 text-sm mt-1" />
+                          </div>
+                        </div>
+                      </div>
 
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Phone Number</label>
-                      <Field
-                        type="tel" 
-                        name="phone"
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border ${
-                          errors.phone && touched.phone ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="phone" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
+                      {/* Emergency Contact */}
+                      <div className="mb-8">
+                        <div className="flex items-center space-x-3 mb-6">
+                          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                            <AlertCircle className="text-white" size={20} />
+                          </div>
+                          <h2 className="text-xl font-bold text-gray-800">Emergency Contact</h2>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block mb-3 font-medium text-gray-700">Contact Name</label>
+                            <Field
+                              type="text" 
+                              name="emergency_contact_name"
+                              disabled={!isEditing}
+                              placeholder="Emergency contact name"
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.emergency_contact_name && touched.emergency_contact_name 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="emergency_contact_name" component="p" className="text-red-500 text-sm mt-1" />
+                          </div>
 
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Age</label>
-                      <Field
-                        type="number" 
-                        name="age"
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border ${
-                          errors.age && touched.age ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="age" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
-                  </div>
+                          <div>
+                            <label className="block mb-3 font-medium text-gray-700">Contact Number</label>
+                            <Field
+                              type="tel" 
+                              name="emergency_contact"
+                              disabled={!isEditing}
+                              placeholder="Emergency contact number"
+                              className={`w-full px-4 py-3 border-2 rounded-xl transition-all duration-200 ${
+                                errors.emergency_contact && touched.emergency_contact 
+                                  ? 'border-red-300 bg-red-50' 
+                                  : 'border-gray-200 bg-gray-50'
+                              } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'cursor-not-allowed'}`}
+                            />
+                            <ErrorMessage name="emergency_contact" component="p" className="text-red-500 text-sm mt-1" />
+                          </div>
+                        </div>
+                      </div>
 
-                  {/* Health Information Section */}
-                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Health Information</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Blood Group</label>
-                      <Field
-                        as="select"
-                        name="blood_group"
-                        disabled={!isEditing}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500"
-                      >
-                        <option value="">Select Blood Group</option>
-                        {bloodGroups.map(group => (
-                          <option key={group} value={group}>{group}</option>
-                        ))}
-                      </Field>
-                      <ErrorMessage name="blood_group" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
-
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Height (cm)</label>
-                      <Field
-                        type="number" 
-                        name="height"
-                        disabled={!isEditing}
-                        step="0.01"
-                        className={`w-full px-3 py-2 border ${
-                          errors.height && touched.height ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="height" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
-
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Weight (kg)</label>
-                      <Field
-                        type="number" 
-                        name="weight"
-                        disabled={!isEditing}
-                        step="0.01"
-                        className={`w-full px-3 py-2 border ${
-                          errors.weight && touched.weight ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="weight" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
-                  </div>
-
-                  {/* Medical Information */}
-                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Medical Information</h3>
-                  
-                  <div className="mb-4">
-                    <label className="block mb-1 font-bold text-sm">Allergies</label>
-                    <Field
-                      as="textarea"
-                      name="allergies"
-                      disabled={!isEditing}
-                      rows={3}
-                      placeholder="List any allergies here"
-                      className={`w-full px-3 py-2 border ${
-                        errors.allergies && touched.allergies ? 'border-red-500' : 'border-gray-300'
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                    />
-                    <ErrorMessage name="allergies" component="p" className="text-red-500 text-xs mt-1" />
-                  </div>
-
-                  <div className="mb-6">
-                    <label className="block mb-1 font-bold text-sm">Chronic Conditions</label>
-                    <Field
-                      as="textarea"
-                      name="chronic_conditions"
-                      disabled={!isEditing}
-                      rows={3}
-                      placeholder="List any chronic health conditions here"
-                      className={`w-full px-3 py-2 border ${
-                        errors.chronic_conditions && touched.chronic_conditions ? 'border-red-500' : 'border-gray-300'
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                    />
-                    <ErrorMessage name="chronic_conditions" component="p" className="text-red-500 text-xs mt-1" />
-                  </div>
-
-                  {/* Emergency Contact */}
-                  <h3 className="text-lg font-semibold mb-3 text-navy-800">Emergency Contact</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Contact Name</label>
-                      <Field
-                        type="text" 
-                        name="emergency_contact_name"
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border ${
-                          errors.emergency_contact_name && touched.emergency_contact_name ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="emergency_contact_name" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
-
-                    <div>
-                      <label className="block mb-1 font-bold text-sm">Contact Number</label>
-                      <Field
-                        type="tel" 
-                        name="emergency_contact"
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border ${
-                          errors.emergency_contact && touched.emergency_contact ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:text-gray-500`}
-                      />
-                      <ErrorMessage name="emergency_contact" component="p" className="text-red-500 text-xs mt-1" />
-                    </div>
-                  </div>
-
-                  {/* Profile Picture Upload */}
-                  {isEditing && (
-                    <div className="mb-6">
-                      <label className="block mb-1 font-bold text-sm">Profile Picture</label>
-                      <input 
-                        type="file" 
-                        name="profile_image"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className={`w-full px-3 py-2 border ${
-                          imageError ? 'border-red-500' : 'border-gray-300'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500`}
-                      />
-                      {imageError && (
-                        <p className="text-red-500 text-xs mt-1">{imageError}</p>
+                      {/* Profile Image Upload */}
+                      {isEditing && (
+                        <div className="mb-8">
+                          <div className="flex items-center space-x-3 mb-6">
+                            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                              <Camera className="text-white" size={20} />
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-800">Profile Picture</h2>
+                          </div>
+                          
+                          <div className="flex flex-col items-center space-y-4">
+                            <div className="relative">
+                              <img 
+                                src={getProfileImageUrl()} 
+                                alt="Profile Preview" 
+                                className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                              />
+                              <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full cursor-pointer transition-colors duration-200">
+                                <Camera size={16} />
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleImageChange}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                            
+                            {imageError && (
+                              <p className="text-red-500 text-sm flex items-center">
+                                <AlertCircle size={14} className="mr-1" />
+                                {imageError}
+                              </p>
+                            )}
+                            
+                            <p className="text-sm text-gray-600 text-center">
+                              Click the camera icon to upload a new profile picture
+                              <br />
+                              <span className="text-xs text-gray-500">
+                                Supported formats: JPEG, PNG, GIF (max 5MB)
+                              </span>
+                            </p>
+                          </div>
+                        </div>
                       )}
-                      <p className="text-xs text-gray-500 mt-1">Upload a new profile picture (JPEG, PNG, or GIF, max 5MB)</p>
-                    </div>
-                  )}
 
-                  {isEditing && (
-                    <div className="flex justify-center mt-8 space-x-4">
-                      <button 
-                        type="submit" 
-                        className={`px-6 py-2 rounded font-medium transition ${
-                          isSubmitting || loading
-                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                            : 'bg-indigo-800 hover:bg-indigo-900 text-white'
-                        }`}
-                        disabled={isSubmitting || loading}
-                      >
-                        {isSubmitting || loading ? 'Saving...' : 'Save Changes'}
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={toggleEditMode}
-                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded font-medium transition"
-                        disabled={isSubmitting || loading}
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                      {/* Submit Button */}
+                      {isEditing && (
+                        <div className="flex justify-end space-x-4">
+                          <button
+                            type="button"
+                            onClick={toggleEditMode}
+                            className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all duration-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isSubmitting || loading}
+                            className={`flex items-center space-x-2 px-8 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 ${
+                              isSubmitting || loading
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg'
+                            } text-white`}
+                          >
+                            {isSubmitting || loading ? (
+                              <>
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span>Updating...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Save size={20} />
+                                <span>Save Changes</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </Form>
                   )}
-                </Form>
-              )}
-            </Formik>
+                </Formik>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <Footer/>
+      <Footer />
     </div>
   );
 };
