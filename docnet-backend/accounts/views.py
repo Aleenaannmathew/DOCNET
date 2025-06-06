@@ -35,6 +35,8 @@ from core.utils import (
 )
 user_logger = logging.getLogger('accounts')
 auth_logger = logging.getLogger('authentication')
+logger = logging.getLogger(__name__)
+
 
 User = get_user_model()
 
@@ -335,7 +337,6 @@ class ResetPasswordView(APIView):
                     status.HTTP_404_NOT_FOUND
                 )
             
-            # Reset password using utility
             result = PasswordManager.reset_password(user, new_password)
             
             if result['success']:
@@ -454,57 +455,39 @@ class UserLogoutView(APIView):
 
     def post(self, request):
         try:
-            refresh_token = request.data.get('refresh_token')
+            refresh_token = request.data.get('refresh')
 
-            if not refresh_token:
-                return ResponseManager.error_response(
-                    'Refresh token is required',
-                    status.HTTP_400_BAD_REQUEST
-                )
+            if refresh_token:
+                try:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                except TokenError:    
+                    pass
+                except Exception as e:
+                    logger.error(f'Error blacklisting token: {str(e)}')
+                    pass
             
-            try:
-                token = RefreshToken(refresh_token)
-                if token.payload.get('user_id') != request.user.id:
-                    return ResponseManager.error_response(
-                        'Invalid token ownership',
-                        status.HTTP_403_FORBIDDEN
-                    )
-                
-                token.blacklist()
-
-                if hasattr(request, 'auth'):
-                    try:
-                        from rest_framework_simplejwt.token_blacklist.models import (
-                            BlacklistedToken, OutstandingToken
-                        )
-                        outstanding = OutstandingToken.objects.get(token=request.auth)
-                        BlacklistedToken.objects.create(token=outstanding)
-                    except OutstandingToken.DoesNotExist:
-                        pass
-
-                return ResponseManager.success_response(
-                    data={'logout': True},
-                    message='Successfully logged out',
-                    status_code=status.HTTP_205_RESET_CONTENT
-                )
-
-            except TokenError as e:
-                return ResponseManager.error_response(
-                    'Invalid or expired refresh token',
-                    status.HTTP_400_BAD_REQUEST
-                )
-
-        except Exception as e:
-            return ResponseManager.error_response(
-                f'Logout failed: {str(e)}',
-                status.HTTP_500_INTERNAL_SERVER_ERROR
+            return ResponseManager.success_response(
+                data={'logout': True},
+                message='Successfully logged out',
+                status_code=status.HTTP_200_OK
             )
+        
+        except Exception as e:
+            logger.error(f'Logout error: {str(e)}')
+            return ResponseManager.success_response(
+                data={'logout': True},
+                message='Logged out with warnings',
+                status_code=status.HTTP_200_OK
+            )
+                
+              
         
 class DoctorListView(generics.ListAPIView):
     serializer_class = DoctorProfileSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['specialization', 'gender', 'experience']
-    search_fields = ['user__first_name', 'user__last_name', 'specialization', 'hospital']  # Fixed typo: search_fileds -> search_fields
+    search_fields = ['user__first_name', 'user__last_name', 'specialization', 'hospital']  
     ordering_fields = ['experience', 'created_at']
     ordering = ['-experience']
 
@@ -539,17 +522,15 @@ class DoctorDetailView(APIView):
             return ResponseManager.error_response(error_message="Doctor not found", status_code=404)
         
 class DoctorSlotsView(APIView):
-    def get(self, request, slug):  # slug = username of the doctor
-        print("slug (username):", slug)
+    def get(self, request, slug): 
         today = timezone.now().date()
 
         slots = DoctorSlot.objects.filter(
-            doctor__user__username=slug,  # match username of linked user
+            doctor__user__username=slug,
             date__gte=today,
             is_booked=False
         ).order_by('date', 'start_time')
 
-        print("slots:", slots)
 
         slots_by_date = {}
         for slot in slots:
@@ -586,7 +567,7 @@ class BookAppointmentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Create the appointment
+       
         appointment = Appointment.objects.create(
             patient=request.user,
             doctor_id=doctor_id,
@@ -595,7 +576,6 @@ class BookAppointmentView(APIView):
             status='scheduled'
         )
         
-        # Mark the slot as booked
         slot.is_booked = True
         slot.save()
         

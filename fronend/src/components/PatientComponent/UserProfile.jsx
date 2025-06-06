@@ -69,7 +69,7 @@ const validationSchema = Yup.object({
     .nullable()
 });
 
-// File validation schema (separate since it's handled differently)
+
 const fileValidationSchema = Yup.object({
   profile_image: Yup.mixed()
     .nullable()
@@ -113,7 +113,7 @@ const UserProfile = () => {
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  // Initial form values
+ 
   const getInitialValues = () => ({
     username: user?.username || '',
     email: user?.email || '',
@@ -208,7 +208,7 @@ const UserProfile = () => {
     setImageError('');
     
     if (file) {
-      // Validate file
+    
       fileValidationSchema.validate({ profile_image: file })
         .then(() => {
           setProfileImage(file);
@@ -216,7 +216,7 @@ const UserProfile = () => {
         })
         .catch((error) => {
           setImageError(error.message);
-          e.target.value = ''; // Clear the input
+          e.target.value = ''; 
         });
     }
   };
@@ -225,17 +225,17 @@ const UserProfile = () => {
     try {
       setLoading(true);
       
-      // Create FormData for multipart request
+     
       const profileFormData = new FormData();
       
-      // Append all form values
+   
       Object.keys(values).forEach(key => {
         if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
           profileFormData.append(key, values[key]);
         }
       });
       
-      // Append profile image if selected
+     
       if (profileImage) {
         profileFormData.append('profile_image', profileImage);
       }
@@ -255,13 +255,12 @@ const UserProfile = () => {
       console.log("Update response:", response.data);
       
       if (response.data) {
-        // Update Redux store
+       
         dispatch(updateUser(response.data));
         
         setShowSuccessLoader(true);
         toast.success('Profile updated successfully!');
    
-        // Clean up image preview
         if (previewImage) {
           URL.revokeObjectURL(previewImage);
           setPreviewImage(null);
@@ -269,7 +268,7 @@ const UserProfile = () => {
         setProfileImage(null);
         setImageError('');
         
-        // Exit editing mode after successful update
+      
         setTimeout(() => {
           setShowSuccessLoader(false);
           setIsEditing(false);
@@ -280,7 +279,7 @@ const UserProfile = () => {
     } catch (err) {
       console.error('Error updating profile:', err);
       
-      // Handle field-specific errors from server
+    
       if (err.response && err.response.data) {
         const serverErrors = err.response.data;
         
@@ -316,13 +315,22 @@ const UserProfile = () => {
   const handleLogout = async () => {
     try{
       const refreshToken = localStorage.getItem('refreshToken');
-      await userAxios.post('/logout/', {
-        refresh_token : refreshToken
-      });
+      if (refreshToken) {
+        await userAxios.post('/logout/', {
+          refresh: refreshToken
+        });
+      }
       dispatch(logout());
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
+
+      dispatch(logout());
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      navigate('/login')
     }
   }
 
@@ -330,7 +338,7 @@ const UserProfile = () => {
     setIsEditing(!isEditing);
     
     if (isEditing) {
-      // Clean up when canceling edit
+     
       if (previewImage) {
         URL.revokeObjectURL(previewImage);
         setPreviewImage(null);
@@ -340,7 +348,7 @@ const UserProfile = () => {
     }
   };
 
-  // Profile image URL
+  
   const profileImageUrl = previewImage || (user?.profile_image || "/api/placeholder/80/80");
   const getProfileImageUrl = () => {
     if (previewImage) return previewImage;

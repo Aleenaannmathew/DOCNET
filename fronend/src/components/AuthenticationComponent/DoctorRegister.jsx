@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
+import { 
+  Lock, 
+  Mail, 
+  Phone, 
+  User, 
+  Stethoscope, 
+  GraduationCap, 
+  Building,
+  Shield, 
+  Calendar, 
+  Globe,
+  FileText
+} from 'lucide-react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
-import { Lock, Mail, Phone, User, FileText, Building, Globe } from 'lucide-react';
-import docImg from '../../assets/doctor1.png';
 import { doctorAxios } from '../../axios/DoctorAxios';
 import { useNavigate } from 'react-router-dom';
 import DocnetLoading from '../Constants/Loading';
@@ -30,6 +41,15 @@ const languageOptions = [
   'Zulu'
 ];
 
+const specializations = [
+  'General Practice', 'Cardiology', 'Dermatology', 'Endocrinology', 'Gastroenterology',
+  'Neurology', 'Oncology', 'Orthopedics', 'Pediatrics', 'Psychiatry', 'Radiology',
+  'Surgery', 'Urology', 'Gynecology', 'Ophthalmology', 'ENT', 'Anesthesiology',
+  'Emergency Medicine', 'Internal Medicine', 'Pathology', 'Other'
+];
+
+const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
+
 const LanguageSelect = ({ field, form, ...props }) => {
   const [selectedLanguages, setSelectedLanguages] = useState(field.value || []);
   const [isOpen, setIsOpen] = useState(false);
@@ -45,7 +65,8 @@ const LanguageSelect = ({ field, form, ...props }) => {
     form.setFieldValue(field.name, updatedLanguages);
   };
 
-  const removeLanguage = (languageToRemove) => {
+  const removeLanguage = (languageToRemove, e) => {
+    e.stopPropagation();
     const updatedLanguages = selectedLanguages.filter(lang => lang !== languageToRemove);
     setSelectedLanguages(updatedLanguages);
     form.setFieldValue(field.name, updatedLanguages);
@@ -60,7 +81,7 @@ const LanguageSelect = ({ field, form, ...props }) => {
       <div
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full pl-12 pr-4 py-3 rounded-lg border ${
-          form.errors.languages && form.touched.languages 
+          form.errors[field.name] && form.touched[field.name]
             ? 'border-red-500 focus:ring-red-500' 
             : 'border-gray-300 focus:ring-teal-500'
         } focus:ring-2 focus:border-transparent outline-none cursor-pointer min-h-[48px] flex flex-wrap items-center gap-2`}
@@ -76,10 +97,7 @@ const LanguageSelect = ({ field, form, ...props }) => {
               {language}
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeLanguage(language);
-                }}
+                onClick={(e) => removeLanguage(language, e)}
                 className="text-teal-600 hover:text-teal-800 ml-1"
               >
                 ×
@@ -119,6 +137,53 @@ const LanguageSelect = ({ field, form, ...props }) => {
     </div>
   );
 };
+
+const CustomField = ({ icon: Icon, name, type, placeholder, error, touched }) => (
+  <div className="mb-4">
+    <div className="relative">
+      <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+        <Icon size={18} />
+      </div>
+      <Field
+        name={name}
+        type={type}
+        placeholder={placeholder}
+        className={`w-full pl-12 pr-4 py-3 rounded-xl border ${
+          error && touched
+            ? 'border-red-400 focus:ring-red-400' 
+            : 'border-gray-200 focus:ring-blue-500'
+        } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
+      />
+    </div>
+    <ErrorMessage 
+      name={name} 
+      component="p" 
+      className="text-red-500 text-sm mt-1 ml-1" 
+    />
+  </div>
+);
+
+const CustomFieldNoIcon = ({ name, type, placeholder, error, touched, min, max }) => (
+  <div className="mb-4">
+    <Field
+      name={name}
+      type={type}
+      placeholder={placeholder}
+      min={min}
+      max={max}
+      className={`w-full px-4 py-3 rounded-xl border ${
+        error && touched
+          ? 'border-red-400 focus:ring-red-400' 
+          : 'border-gray-200 focus:ring-blue-500'
+      } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
+    />
+    <ErrorMessage 
+      name={name} 
+      component="p" 
+      className="text-red-500 text-sm mt-1 ml-1" 
+    />
+  </div>
+);
 
 const validationSchema = Yup.object({
   username: Yup.string()
@@ -168,7 +233,11 @@ const validationSchema = Yup.object({
   
   agreeToTerms: Yup.boolean()
     .oneOf([true], 'You must agree to the terms and conditions')
-    .required('You must agree to the terms and conditions')
+    .required('You must agree to the terms and conditions'),
+  
+  medicalEthics: Yup.boolean()
+    .oneOf([true], 'You must commit to medical ethics')
+    .required('You must commit to medical ethics')
 });
 
 const initialValues = {
@@ -184,46 +253,16 @@ const initialValues = {
   age: '',
   gender: '',
   experience: '',
-  agreeToTerms: false
+  agreeToTerms: false,
+  medicalEthics: false
 };
 
-const CustomField = ({ icon: Icon, error, touched, ...props }) => (
-  <div className="relative mb-4">
-    <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-      <Icon size={18} />
-    </div>
-    <Field
-      {...props}
-      className={`w-full pl-12 pr-4 py-3 rounded-lg border ${
-        error && touched 
-          ? 'border-red-500 focus:ring-red-500' 
-          : 'border-gray-300 focus:ring-teal-500'
-      } focus:ring-2 focus:border-transparent outline-none`}
-    />
-    <ErrorMessage name={props.name} component="p" className="text-red-500 text-sm mt-1" />
-  </div>
-);
-
-const CustomFieldNoIcon = ({ error, touched, ...props }) => (
-  <div className="mb-4">
-    <Field
-      {...props}
-      className={`w-full px-4 py-3 rounded-lg border ${
-        error && touched 
-          ? 'border-red-500 focus:ring-red-500' 
-          : 'border-gray-300 focus:ring-teal-500'
-      } focus:ring-2 focus:border-transparent outline-none`}
-    />
-    <ErrorMessage name={props.name} component="p" className="text-red-500 text-sm mt-1" />
-  </div>
-);
-
-export default function DoctorRegistration() {
+export default function DoctorRegister() {
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (values, { setErrors, setFieldError }) => {
+  const handleSubmit = async (values, { setErrors }) => {
     setIsLoading(true);
     setGeneralError('');
     
@@ -238,17 +277,18 @@ export default function DoctorRegistration() {
       data.append('registration_id', values.registration_id);
       data.append('hospital', values.hospital);
       data.append('specialization', values.specialization);
-      data.append('languages', Array.isArray(values.languages) ? values.languages.join(', ') : values.languages);
+      data.append('languages', values.languages.join(', '));
       data.append('age', values.age);
       data.append('gender', values.gender);
       data.append('experience', values.experience);
-      
+      data.append('agreeToTerms', values.agreeToTerms);
+      data.append('medicalEthics', values.medicalEthics);
+
       console.log("Sending doctor registration request...");
       const response = await doctorAxios.post('/doctor-register/', data);
       console.log("Registration response", response.data);
 
       if (response.data && response.data.user_id) {
-        console.log("Navigating to OTP page...");
         navigate('/doctor/doctor-verify-otp', { 
           state: {
             userId: response.data.user_id, 
@@ -287,139 +327,119 @@ export default function DoctorRegistration() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
-      <div className="hidden lg:flex lg:w-1/2 bg-white p-8 flex-col">
-        <div className="mb-8">
-          <h1 className="text-teal-700 font-bold text-3xl">DOCNET</h1>
-          <h2 className="text-gray-800 font-medium text-2xl mt-4">
-            Join our network of trusted<br />
-            healthcare professionals.
-          </h2>
-          <p className="text-gray-600 mt-2">Your expertise, our platform</p>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <img
-            src={docImg}
-            alt="Medical professional"
-            className="w-4/5 max-w-lg h-auto"
-          />
-        </div>
-      </div>
-
-      <div className="w-full lg:w-1/2 bg-gray-50 p-6 md:p-10 flex justify-center items-center">
-        <div className="w-full max-w-md">
-          <div className="block lg:hidden mb-8">
-            <h1 className="text-teal-700 font-bold text-3xl">DOCNET</h1>
-            <h2 className="text-gray-800 font-medium text-xl mt-4">
-              Join our network of trusted healthcare professionals.
-            </h2>
-            <p className="text-gray-600 mt-2">Your expertise, our platform</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="flex flex-col lg:flex-row min-h-screen">
+        {/* Left Section - Professional Medical Branding */}
+        <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-blue-600 to-blue-800 p-8 flex-col text-white relative overflow-hidden">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-10 left-10 w-20 h-20 border-2 border-white rounded-full"></div>
+            <div className="absolute top-32 right-16 w-16 h-16 border-2 border-white rounded-full"></div>
+            <div className="absolute bottom-32 left-16 w-12 h-12 border-2 border-white rounded-full"></div>
+            <div className="absolute bottom-16 right-20 w-24 h-24 border-2 border-white rounded-full"></div>
           </div>
-
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-1">Doctor Registration</h2>
-          <p className="text-gray-600 mb-8">
-            Sign up as a healthcare professional and connect with patients.
-          </p>
-
-          {generalError && (
-            <div className="mb-4 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded">
-              {generalError}
+          
+          <div className="relative z-10">
+            <div className="flex items-center mb-8">
+              <Stethoscope className="mr-3" size={32} />
+              <h1 className="font-bold text-3xl">DOCNET</h1>
             </div>
-          )}
+            <div className="mb-12">
+              <h2 className="font-semibold text-3xl mb-4 leading-tight">
+                Join Our Elite Network of<br />
+                <span className="text-blue-200">Medical Professionals</span>
+              </h2>
+              <p className="text-blue-100 text-lg leading-relaxed">
+                Connect with patients, collaborate with peers, and advance your medical practice in a trusted digital ecosystem.
+              </p>
+            </div>
+            
+            {/* Professional Features */}
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <Shield className="mr-3 text-blue-200" size={20} />
+                <span className="text-blue-100">HIPAA Compliant & Secure</span>
+              </div>
+              <div className="flex items-center">
+                <FileText className="mr-3 text-blue-200" size={20} />
+                <span className="text-blue-100">Digital Health Records</span>
+              </div>
+              <div className="flex items-center">
+                <Calendar className="mr-3 text-blue-200" size={20} />
+                <span className="text-blue-100">Smart Appointment Management</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <Formik
-            initialValues={initialValues}
-            validationSchema={validationSchema}
-            onSubmit={handleSubmit}
-          >
-            {({ errors, touched, isSubmitting }) => (
-              <Form className="flex flex-col space-y-4">
-                <div className="border-b border-gray-200 pb-4 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
-                  
-                  <CustomField
-                    icon={User}
-                    name="username"
-                    type="text"
-                    placeholder="User Name"
-                    error={errors.username}
-                    touched={touched.username}
-                  />
+        {/* Right Section - Registration Form */}
+        <div className="w-full lg:w-3/5 p-6 md:p-12 flex justify-center items-center">
+          <div className="w-full max-w-2xl">
+            {/* Mobile Header */}
+            <div className="block lg:hidden mb-8 text-center">
+              <div className="flex items-center justify-center mb-4">
+                <Stethoscope className="mr-3 text-blue-600" size={32} />
+                <h1 className="font-bold text-3xl text-blue-600">DOCNET</h1>
+              </div>
+              <h2 className="font-semibold text-xl text-gray-800">
+                Join Our Medical Professional Network
+              </h2>
+            </div>
 
-                  <CustomField
-                    icon={Mail}
-                    name="email"
-                    type="email"
-                    placeholder="Email Address"
-                    error={errors.email}
-                    touched={touched.email}
-                  />
+            {/* Form Header */}
+            <div className="text-center lg:text-left mb-8">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+                Doctor Registration
+              </h2>
+              <p className="text-gray-600 text-lg">
+                Create your professional profile to start connecting with patients
+              </p>
+            </div>
 
-                  <CustomField
-                    icon={Phone}
-                    name="phone"
-                    type="tel"
-                    placeholder="Phone Number"
-                    error={errors.phone}
-                    touched={touched.phone}
-                  />
+            {generalError && (
+              <div className="mb-4 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded">
+                {generalError}
+              </div>
+            )}
 
-                  <CustomField
-                    icon={Lock}
-                    name="password"
-                    type="password"
-                    placeholder="Password"
-                    error={errors.password}
-                    touched={touched.password}
-                  />
-
-                  <CustomField
-                    icon={Lock}
-                    name="password2"
-                    type="password"
-                    placeholder="Confirm Password"
-                    error={errors.password2}
-                    touched={touched.password2}
-                  />
-                </div>
-
-                <div className="pb-4">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Professional Information</h3>
-                  
-                  <CustomField
-                    icon={FileText}
-                    name="registration_id"
-                    type="text"
-                    placeholder="Registration ID"
-                    error={errors.registration_id}
-                    touched={touched.registration_id}
-                  />
-
-                  <CustomField
-                    icon={Building}
-                    name="hospital"
-                    type="text"
-                    placeholder="Hospital Name (Optional)"
-                    error={errors.hospital}
-                    touched={touched.hospital}
-                  />
-
-                  <CustomField
-                    icon={User}
-                    name="specialization"
-                    type="text"
-                    placeholder="Specialization"
-                    error={errors.specialization}
-                    touched={touched.specialization}
-                  />
-
-                  <div className="mb-4">
-                    <Field name="languages" component={LanguageSelect} />
-                    <ErrorMessage name="languages" component="p" className="text-red-500 text-sm mt-1" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
+            <Formik
+              initialValues={initialValues}
+              validationSchema={validationSchema}
+              onSubmit={handleSubmit}
+            >
+              {({ errors, touched, isSubmitting }) => (
+                <Form className="space-y-6">
+                  {/* Personal Information Section */}
+                  <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                      <User className="mr-2 text-blue-600" size={20} />
+                      Personal Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <CustomField
+                        icon={User}
+                        name="username"
+                        type="text"
+                        placeholder="User Name"
+                        error={errors.username}
+                        touched={touched.username}
+                      />
+                      <CustomField
+                        icon={Mail}
+                        name="email"
+                        type="email"
+                        placeholder="Email Address"
+                        error={errors.email}
+                        touched={touched.email}
+                      />
+                      <CustomField
+                        icon={Phone}
+                        name="phone"
+                        type="tel"
+                        placeholder="Phone Number"
+                        error={errors.phone}
+                        touched={touched.phone}
+                      />
                       <CustomFieldNoIcon
                         name="age"
                         type="number"
@@ -429,69 +449,193 @@ export default function DoctorRegistration() {
                         error={errors.age}
                         touched={touched.age}
                       />
-                    </div>
-                    <div>
-                      <Field
-                        as="select"
-                        name="gender"
-                        className={`w-full px-4 py-3 rounded-lg border ${
-                          errors.gender && touched.gender
-                            ? 'border-red-500 focus:ring-red-500' 
-                            : 'border-gray-300 focus:ring-teal-500'
-                        } focus:ring-2 focus:border-transparent outline-none`}
-                      >
-                        <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </Field>
-                      <ErrorMessage name="gender" component="p" className="text-red-500 text-sm mt-1" />
+                      <div className="mb-4">
+                        <Field
+                          as="select"
+                          name="gender"
+                          className={`w-full px-4 py-3 rounded-lg border ${
+                            errors.gender && touched.gender
+                              ? 'border-red-500 focus:ring-red-500' 
+                              : 'border-gray-300 focus:ring-teal-500'
+                          } focus:ring-2 focus:border-transparent outline-none`}
+                        >
+                          <option value="">Select Gender</option>
+                          {genderOptions.map(option => (
+                            <option key={option} value={option.toLowerCase()}>{option}</option>
+                          ))}
+                        </Field>
+                        <ErrorMessage 
+                          name="gender" 
+                          component="p" 
+                          className="text-red-500 text-sm mt-1" 
+                        />
+                      </div>
+                      <CustomField
+                        icon={Building}
+                        name="hospital"
+                        type="text"
+                        placeholder="Hospital Name (Optional)"
+                        error={errors.hospital}
+                        touched={touched.hospital}
+                      />
                     </div>
                   </div>
 
-                  <CustomFieldNoIcon
-                    name="experience"
-                    type="number"
-                    placeholder="Years of Experience"
-                    min="0"
-                    error={errors.experience}
-                    touched={touched.experience}
-                  />
-                </div>
+                  {/* Professional Information Section */}
+                  <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                      <Stethoscope className="mr-2 text-blue-600" size={20} />
+                      Professional Details
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="mb-4">
+                        <div className="relative">
+                          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                            <GraduationCap size={18} />
+                          </div>
+                          <Field
+                            as="select"
+                            name="specialization"
+                            className={`w-full pl-12 pr-4 py-3 rounded-lg border ${
+                              errors.specialization && touched.specialization
+                                ? 'border-red-500 focus:ring-red-500' 
+                                : 'border-gray-300 focus:ring-teal-500'
+                            } focus:ring-2 focus:border-transparent outline-none`}
+                          >
+                            <option value="">Select Specialization</option>
+                            {specializations.map(spec => (
+                              <option key={spec} value={spec}>{spec}</option>
+                            ))}
+                          </Field>
+                        </div>
+                        <ErrorMessage 
+                          name="specialization" 
+                          component="p" 
+                          className="text-red-500 text-sm mt-1" 
+                        />
+                      </div>
+                      <CustomFieldNoIcon
+                        name="experience"
+                        type="number"
+                        placeholder="Years of Experience"
+                        min="0"
+                        error={errors.experience}
+                        touched={touched.experience}
+                      />
+                      <CustomField
+                        icon={FileText}
+                        name="registration_id"
+                        type="text"
+                        placeholder="Registration ID"
+                        error={errors.registration_id}
+                        touched={touched.registration_id}
+                      />
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Languages Spoken</label>
+                        <Field name="languages" component={LanguageSelect} />
+                        <ErrorMessage name="languages" component="p" className="text-red-500 text-sm mt-1" />
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="flex items-center mb-4">
-                  <Field
-                    type="checkbox"
-                    name="agreeToTerms"
-                    id="agreeToTerms"
-                    className="mr-2"
-                  />
-                  <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
-                    I agree to the <span className="text-teal-500">Terms of Use</span> and <span className="text-teal-500">Privacy Policy</span>
-                  </label>
-                </div>
-                <ErrorMessage name="agreeToTerms" component="p" className="text-red-500 text-sm mt-1" />
+                  {/* Security Section */}
+                  <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                      <Lock className="mr-2 text-blue-600" size={20} />
+                      Account Security
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <CustomField
+                        icon={Lock}
+                        name="password"
+                        type="password"
+                        placeholder="Password"
+                        error={errors.password}
+                        touched={touched.password}
+                      />
+                      <CustomField
+                        icon={Lock}
+                        name="password2"
+                        type="password"
+                        placeholder="Confirm Password"
+                        error={errors.password2}
+                        touched={touched.password2}
+                      />
+                    </div>
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-teal-700 text-white font-medium py-3 px-4 rounded-lg hover:bg-teal-800 transition-colors disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Creating Account...' : 'Create Doctor Account'}
-                </button>
+                  {/* Agreement Section */}
+                  <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
+                    <div className="space-y-4">
+                      <div className="flex items-start">
+                        <Field
+                          type="checkbox"
+                          name="agreeToTerms"
+                          id="agreeToTerms"
+                          className="mt-1 mr-2"
+                        />
+                        <div className="flex flex-col">
+                          <label htmlFor="agreeToTerms" className="text-sm text-gray-700 leading-relaxed">
+                            I agree to the <span className="text-blue-600 font-medium hover:underline cursor-pointer">Terms of Service</span> and <span className="text-blue-600 font-medium hover:underline cursor-pointer">Privacy Policy</span>
+                          </label>
+                          <ErrorMessage 
+                            name="agreeToTerms" 
+                            component="p" 
+                            className="text-red-500 text-sm mt-1" 
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <Field
+                          type="checkbox"
+                          name="medicalEthics"
+                          id="medicalEthics"
+                          className="mt-1 mr-2"
+                        />
+                        <div className="flex flex-col">
+                          <label htmlFor="medicalEthics" className="text-sm text-gray-700 leading-relaxed">
+                            I commit to upholding medical ethics and professional standards
+                          </label>
+                          <ErrorMessage 
+                            name="medicalEthics" 
+                            component="p" 
+                            className="text-red-500 text-sm mt-1" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                <div className="text-center text-gray-600">
-                  Already have an account?{' '}
-                  <span 
-                    className="text-teal-500 cursor-pointer"
-                    onClick={() => navigate('/login')}
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-4 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-300"
                   >
-                    Sign In
-                  </span>
-                </div>
-              </Form>
-            )}
-          </Formik>
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Creating Professional Account...
+                      </div>
+                    ) : (
+                      'Create Doctor Account'
+                    )}
+                  </button>
+
+                  {/* Sign In Link */}
+                  <div className="text-center text-gray-600 pt-4">
+                    Already have an account?{' '}
+                    <span 
+                      className="text-blue-600 font-medium cursor-pointer hover:underline transition-colors duration-200"
+                      onClick={() => navigate('/login')}
+                    >
+                      Sign In Here
+                    </span>
+                  </div>
+                </Form>
+              )}
+            </Formik>
+          </div>
         </div>
       </div>
     </div>

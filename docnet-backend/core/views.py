@@ -103,9 +103,7 @@ class DoctorDetailView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class DoctorApprovalView(APIView):
-    """
-    API endpoint for approving or rejecting doctor accounts
-    """
+  
     permission_classes = [IsAuthenticated, IsAdminUser]
     
     def patch(self, request, doctor_id):

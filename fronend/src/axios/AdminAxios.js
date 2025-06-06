@@ -3,7 +3,6 @@ import { adminApi } from '../constants/api';
 
 export const adminAxios = axios.create({
   baseURL: adminApi,
-  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   }

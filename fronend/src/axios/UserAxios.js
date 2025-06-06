@@ -1,11 +1,10 @@
 import axios from 'axios';
 import { userApi } from '../constants/api';
-import { logout } from '../store/authSlice';
+import { logout, updateToken } from '../store/authSlice';
 import store from '../store/store';
 
 export const userAxios = axios.create({
   baseURL: userApi,
-  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   }
@@ -45,6 +44,9 @@ userAxios.interceptors.response.use(
 
     // Handle expired token scenario
     if (error.response?.status === 401 && !originalRequest._retry) {
+      if (originalRequest.url.includes('logout')) {
+        return Promise.reject(error);
+      }
       originalRequest._retry = true;
       
       try {
@@ -59,14 +61,18 @@ userAxios.interceptors.response.use(
         const response = await axios.post(
           `${userApi}/token/refresh/`, 
           { refresh: refreshToken },
-          { skipAuthRefresh: true } 
+          { 
+            headers: { 'Content-Type': 'application/json' },
+            skipAuthRefresh: true 
+          }
         );
         
         const { access } = response.data;
         store.dispatch(updateToken({ access }));
+        localStorage.setItem('token', access);
         originalRequest.headers.Authorization = `Bearer ${access}`;
         console.log('Token refreshed successfully');
-        return axios(originalRequest);
+        return userAxios(originalRequest);
       } catch (refreshError) {
         store.dispatch(logout());
         return Promise.reject(refreshError);

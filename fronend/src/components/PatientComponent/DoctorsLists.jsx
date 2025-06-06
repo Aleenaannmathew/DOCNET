@@ -3,7 +3,7 @@ import { Filter, Loader } from 'lucide-react';
 import DoctorCard from './DoctorCard';
 import { userAxios } from '../../axios/UserAxios';
 
-function DoctorsList({ activeFilters, searchQuery }) { // Added searchQuery prop
+function DoctorsList({ activeFilters, searchQuery }) {  
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,15 +59,15 @@ function DoctorsList({ activeFilters, searchQuery }) { // Added searchQuery prop
 
   // Client-side filtering for complex filters like rating
   const filteredDoctors = doctors.filter(doctor => {
-    // Rating filter (if you have rating data)
+    // Rating filter 
     if (activeFilters.rating) {
       const requiredRating = parseInt(activeFilters.rating.split(' ')[0]);
       if (doctor.rating && doctor.rating < requiredRating) return false;
     }
     
-    // Availability filter (implement based on your availability logic)
+   
     if (activeFilters.availability) {
-      // Add your availability logic here
+     
       return true;
     }
     
@@ -79,7 +79,7 @@ function DoctorsList({ activeFilters, searchQuery }) { // Added searchQuery prop
   };
 
   const resetFilters = () => {
-    // This should be handled by parent component
+   
     if (window.confirm('Reset all filters?')) {
       window.location.reload();
     }

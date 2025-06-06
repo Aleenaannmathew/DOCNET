@@ -57,24 +57,24 @@ const authSlice = createSlice({
     },
 
     updateUser: (state, action) => {
-      // Update user profile details
+   
       state.user = {
         ...state.user,
         ...action.payload
       };
       
-      // Update localStorage
+    
       localStorage.setItem('user', JSON.stringify(state.user));
     },
     
     updateProfileComplete: (state, action) => {
-      // Update is_profile_complete status
+     
       state.user = {
         ...state.user,
         is_profile_complete: action.payload
       };
       
-      // Update localStorage
+    
       localStorage.setItem('user', JSON.stringify(state.user));
     }
   }

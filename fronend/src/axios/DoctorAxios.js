@@ -5,7 +5,6 @@ import store from '../store/store';
 
 export const doctorAxios = axios.create({
   baseURL: doctorApi,
-  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   }

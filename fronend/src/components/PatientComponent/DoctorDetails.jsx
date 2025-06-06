@@ -32,7 +32,7 @@ function DoctorDetailPage() {
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [slug1, setSlug1] = useState(null);
     const [paymentLoading, setPaymentLoading] = useState(false);
-    const [appointmentFee, setAppointmentFee] = useState(500); // Default fee
+    const [appointmentFee, setAppointmentFee] = useState(500);
 
   const fetchDoctorSlots = async () => {
     if (!doctor?.username) return;
@@ -42,10 +42,9 @@ function DoctorDetailPage() {
       const response = await userAxios.get(`/doctor-slots/${doctor.username}/`);
       console.log("Available slots:", response.data);
       
-      // Handle the API response structure
+     
       if (response.data.success && response.data.data) {
         const slotsData = response.data.data;
-        // Convert the date-grouped slots into a flat array with date information
         const flattenedSlots = [];
         Object.keys(slotsData).forEach(date => {
           slotsData[date].forEach(slot => {
@@ -92,14 +91,13 @@ function DoctorDetailPage() {
     try {
       setPaymentLoading(true);
 
-      // Load Razorpay script
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
         alert('Failed to load payment gateway. Please try again.');
         return;
       }
 
-      // Create payment order
+    
       const orderResponse = await userAxios.post('/api/payment/create-order/', {
         amount: appointmentFee,
         doctor_username: doctor.username,
@@ -120,16 +118,16 @@ function DoctorDetailPage() {
 
       const { order_id, amount, currency, key } = orderResponse.data.data;
 
-      // Configure Razorpay options
+   
       const options = {
-        key: key, // Your Razorpay key from backend
+        key: key, 
         amount: amount,
         currency: currency,
-        name: 'HealthCare App',
+        name: 'DOCNET',
         description: `Appointment with Dr. ${doctor.username}`,
         order_id: order_id,
         handler: async function (response) {
-          // Payment successful, verify payment
+         
           try {
             const verifyResponse = await userAxios.post('/api/payment/verify/', {
               razorpay_payment_id: response.razorpay_payment_id,
@@ -143,8 +141,7 @@ function DoctorDetailPage() {
               alert('Payment successful! Your appointment has been confirmed.');
               setIsAppointmentModalOpen(false);
               setSelectedSlot(null);
-              // Optionally redirect to appointment confirmation page
-              // window.location.href = '/appointments';
+            
             } else {
               alert('Payment verification failed. Please contact support.');
             }
@@ -155,17 +152,17 @@ function DoctorDetailPage() {
         },
         modal: {
           ondismiss: function() {
-            // Handle payment cancellation
+            
             handlePaymentCancel(order_id);
           }
         },
         prefill: {
-          name: '', // You can prefill user details if available
+          name: '', 
           email: '',
           contact: ''
         },
         theme: {
-          color: '#0D9488' // Teal color to match your theme
+          color: '#0D9488'
         }
       };
 
@@ -201,7 +198,6 @@ function DoctorDetailPage() {
         console.log('API response:', response);
         setDoctor(response.data);
         setSlug1(response.data.username);
-        // Set appointment fee from doctor data if available
         if (response.data.consultation_fee) {
           setAppointmentFee(response.data.consultation_fee);
         }
@@ -230,7 +226,7 @@ function DoctorDetailPage() {
   };
 
   const getWeeklySchedule = () => {
-    // Mock schedule - replace with actual data from your API
+    
     return [
       { day: 'Monday', time: '9:00 AM - 5:00 PM', available: true },
       { day: 'Tuesday', time: '9:00 AM - 5:00 PM', available: true },
@@ -243,12 +239,11 @@ function DoctorDetailPage() {
   };
 
   const formatSlotTime = (slot) => {
-    // Use the time field directly from your API response
     return slot.time || 'Time not specified';
   };
 
   const formatSlotDate = (slot) => {
-    // Format the date field from your API response
+   
     if (slot.date) {
       return new Date(slot.date).toLocaleDateString('en-US', {
         weekday: 'long',
