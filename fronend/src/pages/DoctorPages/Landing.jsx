@@ -3,10 +3,9 @@ import Nav from '../../components/DoctorComponent/Nav'
 import HeroSection from '../../components/DoctorComponent/Hero'
 import AboutSection from '../../components/DoctorComponent/About'
 import BenefitsSection from '../../components/DoctorComponent/Benefit'
-import FeatureSection from '../../components/DoctorComponent/Feature'
 import TestimonialsSection from '../../components/DoctorComponent/Testimonials'
-import FAQSection from '../../components/DoctorComponent/FAQ'
 import Footer from '../../components/DoctorComponent/Footer'
+import ProfessionalFAQSection from '../../components/DoctorComponent/FAQ'
 
 
 function Landing() {
@@ -16,9 +15,8 @@ function Landing() {
       <HeroSection/>
       <AboutSection/>
       <BenefitsSection/>
-      <FeatureSection/>
       <TestimonialsSection/>
-      <FAQSection/>
+      <ProfessionalFAQSection/>
       <Footer/>
     </div>
   )

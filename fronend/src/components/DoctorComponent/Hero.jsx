@@ -1,59 +1,80 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { FaArrowRight, FaCalendarCheck } from 'react-icons/fa'
+import { FaArrowRight, FaCalendarCheck, FaStethoscope } from 'react-icons/fa'
 
-const HeroSection = () => {
+const ProfessionalHero = () => {
   return (
-    <section className="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-      <div className="absolute inset-0 bg-[url('/doctor-hero-bg.jpg')] bg-cover bg-center opacity-20"></div>
+    <section className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 text-white overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-emerald-400/5 rounded-full blur-2xl animate-ping"></div>
+      </div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28 relative z-10">
-        <div className="flex flex-col md:flex-row items-center justify-between">
-          <div className="md:w-1/2 mb-10 md:mb-0">
-            <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-4">
-              Expand Your Practice With Telehealth Excellence
-            </h1>
-            <p className="text-lg md:text-xl mb-8 text-blue-100">
-              Join DOCNET's network of verified specialists and grow your practice through our state-of-the-art telehealth platform.
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
+          <div className="lg:w-1/2 space-y-8">
+            <div className="space-y-4">
+              <div className="inline-block px-4 py-2 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 rounded-full border border-emerald-500/30">
+                <span className="text-emerald-300 font-medium">Advance Your Medical Career</span>
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold leading-tight">
+                <span className="bg-gradient-to-r from-white via-emerald-200 to-blue-200 bg-clip-text text-transparent">
+                  Transform Healthcare
+                </span>
+                <br />
+                <span className="text-white">Through Innovation</span>
+              </h1>
+            </div>
+            
+            <p className="text-xl text-slate-300 leading-relaxed max-w-2xl">
+              Join DOCNET's elite network of healthcare professionals and revolutionize patient care through our cutting-edge telehealth platform designed for medical excellence.
             </p>
-            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-              <Link
-                to="/doctor/register"
-                className="bg-white text-blue-600 font-medium px-6 py-3 rounded-lg hover:bg-blue-50 transition duration-300 flex items-center justify-center"
-              >
-                Join as Doctor <FaArrowRight className="ml-2" />
-              </Link>
-              <Link
-                to="/doctor/demo"
-                className="bg-transparent border-2 border-white text-white font-medium px-6 py-3 rounded-lg hover:bg-white hover:bg-opacity-10 transition duration-300 flex items-center justify-center"
-              >
-                Request Demo <FaCalendarCheck className="ml-2" />
-              </Link>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <a href="/doctor/register" className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 via-emerald-500 to-blue-600 text-white rounded-xl font-semibold shadow-2xl hover:shadow-emerald-500/25 transition-all duration-300 flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                <span className="relative z-10 mr-2">Join as Professional</span>
+                <FaArrowRight className="relative z-10 group-hover:translate-x-1 transition-transform" />
+              </a>
+              <a href="/doctor/demo" className="group px-8 py-4 bg-slate-800/50 backdrop-blur-sm border border-emerald-500/30 text-white rounded-xl font-semibold hover:bg-slate-700/50 transition-all duration-300 flex items-center justify-center">
+                <FaCalendarCheck className="mr-2" />
+                Request Demo
+              </a>
             </div>
           </div>
-          <div className="md:w-1/2 flex justify-center">
-            <div className="bg-white p-4 rounded-lg shadow-xl max-w-md">
-              <div className="bg-blue-50 p-6 rounded-lg text-blue-800">
-                <div className="text-center mb-6">
-                  <h3 className="font-bold text-2xl">DOCNET Platform</h3>
-                  <p className="text-blue-600">For Medical Professionals</p>
+          
+          <div className="lg:w-1/2 flex justify-center">
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500 via-blue-500 to-emerald-500 rounded-2xl blur-xl opacity-30 animate-pulse"></div>
+              <div className="relative bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 p-8 rounded-2xl shadow-2xl border border-emerald-500/20 backdrop-blur-sm">
+                <div className="bg-gradient-to-br from-emerald-50 to-blue-50 p-6 rounded-xl text-slate-800">
+                  <div className="text-center mb-6">
+                    <div className="inline-block p-3 bg-gradient-to-r from-emerald-500 to-blue-600 rounded-full mb-4">
+                      <FaStethoscope className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="font-bold text-2xl bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                      DOCNET PROFESSIONAL
+                    </h3>
+                    <p className="text-slate-600 font-medium">Advanced Healthcare Platform</p>
+                  </div>
+                  <div className="space-y-4">
+                    {[
+                      'Global Patient Network Access',
+                      'AI-Powered Clinical Tools',
+                      'Seamless EHR Integration',
+                      'Advanced Telemedicine Suite',
+                      'Professional Development Hub',
+                      'Specialized Consultation Tools'
+                    ].map((item, index) => (
+                      <div key={index} className="flex items-center group">
+                        <div className="w-2 h-2 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full mr-3 group-hover:scale-150 transition-transform"></div>
+                        <span className="text-slate-700 font-medium">{item}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <ul className="space-y-3">
-                  {[
-                    'Serve patients nationwide',
-                    'Flexible scheduling on your terms',
-                    'Secure HIPAA-compliant platform',
-                    'Streamlined documentation',
-                    'Transparent compensation model',
-                    'Professional community access'
-                  ].map((item, index) => (
-                    <li key={index} className="flex items-start">
-                      <svg className="h-5 w-5 text-blue-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             </div>
           </div>
@@ -63,4 +84,4 @@ const HeroSection = () => {
   )
 }
 
-export default HeroSection
+export default ProfessionalHero

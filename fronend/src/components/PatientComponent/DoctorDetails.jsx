@@ -14,35 +14,79 @@ import {
   X,
   Check,
   CreditCard,
-  Loader
+  Loader,
+  MessageCircle,
+  Shield,
+  BadgeCheck,
+  GraduationCap,
+  Building2,
+  Languages,
+  ChevronRight
 } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { userAxios } from '../../axios/UserAxios';
 
 function DoctorDetailPage() {
-    const { slug } = useParams();
-    const [doctor, setDoctor] = useState(null);
-    const [reviews, setReviews] = useState([]);
-    const [timeSlots, setTimeSlots] = useState({});
-    const [availableSlots, setAvailableSlots] = useState([]);
-    const [activeTab, setActiveTab] = useState('overview');
-    const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [slotsLoading, setSlotsLoading] = useState(false);
-    const [selectedSlot, setSelectedSlot] = useState(null);
-    const [slug1, setSlug1] = useState(null);
-    const [paymentLoading, setPaymentLoading] = useState(false);
-    const [appointmentFee, setAppointmentFee] = useState(500);
+  const { slug } = useParams();
+  const navigate = useNavigate();
+  const [doctor, setDoctor] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
+  // Fetch doctor details
+  useEffect(() => {
+    const fetchDoctorDetails = async () => {
+      try {
+        setLoading(true);
+        const response = await userAxios.get(`/doctor-details/${slug}/`);
+        setDoctor(response.data);
+        
+        // Check if doctor is in favorites
+        const favoritesResponse = await userAxios.get('/user/favorites/');
+        if (favoritesResponse.data.some(fav => fav.doctor === response.data.id)) {
+          setIsFavorite(true);
+        }
+      } catch (error) {
+        console.error('Error fetching doctor details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctorDetails();
+  }, [slug]);
+
+  // Fetch doctor reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!doctor) return;
+      
+      try {
+        const response = await userAxios.get(`/doctor-reviews/${doctor.username}/`);
+        setReviews(response.data);
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+      }
+    };
+
+    fetchReviews();
+  }, [doctor]);
+
+  // Fetch available time slots
   const fetchDoctorSlots = async () => {
     if (!doctor?.username) return;
     
     try {
       setSlotsLoading(true);
       const response = await userAxios.get(`/doctor-slots/${doctor.username}/`);
-      console.log("Available slots:", response.data);
       
-     
       if (response.data.success && response.data.data) {
         const slotsData = response.data.data;
         const flattenedSlots = [];
@@ -97,9 +141,8 @@ function DoctorDetailPage() {
         return;
       }
 
-    
       const orderResponse = await userAxios.post('/api/payment/create-order/', {
-        amount: appointmentFee,
+        amount: doctor.consultation_fee * 100, // Convert to paise
         doctor_username: doctor.username,
         slot_id: selectedSlot.id,
         appointment_details: {
@@ -118,7 +161,6 @@ function DoctorDetailPage() {
 
       const { order_id, amount, currency, key } = orderResponse.data.data;
 
-   
       const options = {
         key: key, 
         amount: amount,
@@ -127,7 +169,6 @@ function DoctorDetailPage() {
         description: `Appointment with Dr. ${doctor.username}`,
         order_id: order_id,
         handler: async function (response) {
-         
           try {
             const verifyResponse = await userAxios.post('/api/payment/verify/', {
               razorpay_payment_id: response.razorpay_payment_id,
@@ -141,7 +182,8 @@ function DoctorDetailPage() {
               alert('Payment successful! Your appointment has been confirmed.');
               setIsAppointmentModalOpen(false);
               setSelectedSlot(null);
-            
+              // Refresh available slots
+              fetchDoctorSlots();
             } else {
               alert('Payment verification failed. Please contact support.');
             }
@@ -152,7 +194,6 @@ function DoctorDetailPage() {
         },
         modal: {
           ondismiss: function() {
-            
             handlePaymentCancel(order_id);
           }
         },
@@ -188,45 +229,30 @@ function DoctorDetailPage() {
     }
   };
 
-  useEffect(() => {
-    console.log('Doctor ID from URL params:', slug); 
-    const fetchDoctorDetails = async () => {
-      try {
-        setLoading(true);
-        console.log('Fetching doctor details for ID:', slug);
-        const response = await userAxios.get(`/doctor-details/${slug}/`);
-        console.log('API response:', response);
-        setDoctor(response.data);
-        setSlug1(response.data.username);
-        if (response.data.consultation_fee) {
-          setAppointmentFee(response.data.consultation_fee);
-        }
-      } catch (error) {
-        console.error('Error details:', {
-          message: error.message,
-          response: error.response,
-          config: error.config
-        });
-      } finally {
-        setLoading(false);
+  const toggleFavorite = async () => {
+    try {
+      if (isFavorite) {
+        await userAxios.delete(`/user/favorites/${doctor.id}/`);
+      } else {
+        await userAxios.post('/user/favorites/', { doctor_id: doctor.id });
       }
-    };
-    
-    fetchDoctorDetails();
-  }, [slug]);
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.error('Error updating favorite:', error);
+    }
+  };
 
   const renderStars = (rating) => {
     return [...Array(5)].map((_, i) => (
       <Star
         key={i}
         size={16}
-        className={i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}
+        className={i < rating ? 'text-amber-400 fill-current' : 'text-gray-300'}
       />
     ));
   };
 
   const getWeeklySchedule = () => {
-    
     return [
       { day: 'Monday', time: '9:00 AM - 5:00 PM', available: true },
       { day: 'Tuesday', time: '9:00 AM - 5:00 PM', available: true },
@@ -243,7 +269,6 @@ function DoctorDetailPage() {
   };
 
   const formatSlotDate = (slot) => {
-   
     if (slot.date) {
       return new Date(slot.date).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -259,16 +284,19 @@ function DoctorDetailPage() {
     if (!isAppointmentModalOpen) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-semibold">Book Appointment with Dr. {doctor?.username}</h2>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="flex items-center justify-between p-6 border-b border-gray-100">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Book Appointment</h2>
+              <p className="text-gray-600 mt-1">with Dr. {doctor?.username}</p>
+            </div>
             <button
               onClick={() => {
                 setIsAppointmentModalOpen(false);
                 setSelectedSlot(null);
               }}
-              className="p-2 hover:bg-gray-100 rounded-full"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               disabled={paymentLoading}
             >
               <X size={20} />
@@ -277,49 +305,49 @@ function DoctorDetailPage() {
 
           <div className="p-6">
             {slotsLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading available slots...</p>
               </div>
             ) : availableSlots.length > 0 ? (
               <div>
-                <h3 className="font-medium mb-4">Available Time Slots</h3>
-                <div className="space-y-4">
+                <h3 className="text-lg font-semibold mb-6 text-gray-900">Available Time Slots</h3>
+                <div className="space-y-3 mb-8">
                   {availableSlots.map((slot, index) => (
                     <div
                       key={slot.id || index}
-                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                      className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${
                         selectedSlot?.id === slot.id
-                          ? 'border-teal-600 bg-teal-50'
-                          : 'border-gray-200 hover:border-teal-300'
+                          ? 'border-blue-500 bg-blue-50 shadow-md'
+                          : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
                       }`}
                       onClick={() => setSelectedSlot(slot)}
                     >
                       <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-gray-900">
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900 mb-1">
                             {formatSlotDate(slot)}
                           </div>
-                          <div className="text-teal-600 font-medium text-lg">
+                          <div className="text-blue-600 font-bold text-xl mb-2">
                             {formatSlotTime(slot)}
                           </div>
-                          <div className="flex items-center gap-4 mt-2">
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">Type:</span> {slot.type}
+                          <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <span className={`w-2 h-2 rounded-full ${slot.type === 'Video Call' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
+                              {slot.type}
                             </div>
                             <div className="text-sm text-gray-600">
-                              <span className="font-medium">Duration:</span> {slot.duration} min
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium">Max Patients:</span> {slot.max_patients}
+                              {slot.duration} min
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center">
-                          <Clock size={16} className="text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-600">
-                            Available
-                          </span>
+                          {selectedSlot?.id === slot.id && (
+                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                              <Check size={14} className="text-white" />
+                            </div>
+                          )}
+                          <Clock size={18} className="text-gray-400" />
                         </div>
                       </div>
                     </div>
@@ -327,62 +355,60 @@ function DoctorDetailPage() {
                 </div>
 
                 {/* Consultation Fee Display */}
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border border-blue-100">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-blue-900">Consultation Fee</h4>
-                      <p className="text-sm text-blue-700">One-time payment for appointment</p>
+                      <h4 className="font-semibold text-blue-900 text-lg">Consultation Fee</h4>
+                      <p className="text-blue-700 mt-1">Secure one-time payment</p>
                     </div>
-                    <div className="text-2xl font-bold text-blue-900">
-                      ₹{appointmentFee}
+                    <div className="text-3xl font-bold text-blue-900">
+                      ₹{doctor.consultation_fee}
                     </div>
                   </div>
                 </div>
 
                 {selectedSlot && (
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-medium mb-2">Selected Appointment</h4>
-                    <div className="space-y-2 mb-4">
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Date & Time:</span> {formatSlotDate(selectedSlot)} at {formatSlotTime(selectedSlot)}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Type:</span> {selectedSlot.type}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Duration:</span> {selectedSlot.duration} minutes
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">Consultation Fee:</span> ₹{appointmentFee}
-                      </p>
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                    <h4 className="font-semibold mb-4 text-gray-900 text-lg">Appointment Summary</h4>
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">DATE & TIME</p>
+                        <p className="text-gray-900">{formatSlotDate(selectedSlot)}</p>
+                        <p className="text-blue-600 font-semibold">{formatSlotTime(selectedSlot)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">CONSULTATION</p>
+                        <p className="text-gray-900">{selectedSlot.type}</p>
+                        <p className="text-gray-600">{selectedSlot.duration} minutes</p>
+                      </div>
                     </div>
                     
                     <div className="space-y-3">
                       <button 
                         onClick={handlePayment}
                         disabled={paymentLoading}
-                        className="w-full bg-teal-600 text-white py-3 px-4 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-semibold"
                       >
                         {paymentLoading ? (
                           <Loader size={20} className="animate-spin" />
                         ) : (
                           <CreditCard size={20} />
                         )}
-                        {paymentLoading ? 'Processing...' : `Pay ₹${appointmentFee} & Confirm Appointment`}
+                        {paymentLoading ? 'Processing Payment...' : `Pay ₹${doctor.consultation_fee} & Confirm`}
                       </button>
                       
-                      <div className="text-xs text-gray-500 text-center">
-                        <p>Secure payment powered by Razorpay</p>
-                        <p>We accept UPI, Cards, Net Banking & Wallets</p>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500">🔐 Secure payment powered by Razorpay</p>
+                        <p className="text-xs text-gray-500 mt-1">UPI • Cards • Net Banking • Wallets</p>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-600 mb-2">No available slots found</p>
+              <div className="text-center py-12">
+                <Calendar size={64} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-600 mb-2 text-lg">No available slots</p>
                 <p className="text-sm text-gray-500">
                   Please try again later or contact the doctor directly.
                 </p>
@@ -398,7 +424,7 @@ function DoctorDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-teal-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading doctor details...</p>
         </div>
       </div>
@@ -410,6 +436,13 @@ function DoctorDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Doctor not found</p>
+          <button 
+            onClick={() => navigate(-1)}
+            className="mt-4 text-blue-600 hover:text-blue-700 flex items-center justify-center mx-auto"
+          >
+            <ArrowLeft size={16} className="mr-2" />
+            Back to Doctors
+          </button>
         </div>
       </div>
     );
@@ -418,81 +451,104 @@ function DoctorDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <button className="flex items-center text-teal-600 hover:text-teal-700 mb-4">
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="container mx-auto px-6 py-6">
+          <button 
+            onClick={() => navigate(-1)}
+            className="flex items-center text-blue-600 hover:text-blue-700 mb-6 transition-colors"
+          >
             <ArrowLeft size={20} className="mr-2" />
-            Back to Doctors
+            <span className="font-medium">Back to Doctors</span>
           </button>
           
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col lg:flex-row gap-8">
             {/* Doctor Image */}
             <div className="flex-shrink-0">
-              <div className="w-32 h-32 bg-gradient-to-br from-teal-100 to-teal-200 rounded-full flex items-center justify-center">
-                {doctor.profile_image ? (
-                  <img 
-                    src={doctor.profile_image} 
-                    alt={`Dr. ${doctor.username}`}
-                    className="w-full h-full object-cover rounded-full"
-                  />
-                ) : (
-                  <span className="text-teal-700 font-bold text-4xl">
-                    {doctor.username.charAt(0).toUpperCase()}
-                  </span>
-                )}
+              <div className="relative">
+                <div className="w-40 h-40 rounded-2xl overflow-hidden shadow-lg">
+                  {doctor.profile_image ? (
+                    <img 
+                      src={doctor.profile_image} 
+                      alt={`Dr. ${doctor.username}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-200 flex items-center justify-center">
+                      <span className="text-blue-700 font-bold text-5xl">
+                        {doctor.username.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-4 border-white flex items-center justify-center">
+                  <div className="w-3 h-3 bg-white rounded-full"></div>
+                </div>
               </div>
             </div>
 
             {/* Doctor Info */}
             <div className="flex-1">
               <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Dr. {doctor.username}
-                  </h1>
-                  <p className="text-xl text-teal-600 font-medium mb-2">
-                    {doctor.specialization}
-                  </p>
-                  <p className="text-gray-600 mb-3">{doctor.hospital}</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h1 className="text-4xl font-bold text-gray-900">
+                      Dr. {doctor.username}
+                    </h1>
+                    <BadgeCheck className="text-blue-500" size={24} />
+                  </div>
                   
                   <div className="flex items-center gap-4 mb-3">
-                    <div className="flex items-center">
+                    <span className="text-xl text-blue-600 font-semibold">
+                      {doctor.specialization}
+                    </span>
+                    <span className="text-gray-400">•</span>
+                    <div className="flex items-center gap-1">
+                      <Building2 size={16} className="text-gray-500" />
+                      <span className="text-gray-600">{doctor.hospital}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-6 mb-4">
+                    <div className="flex items-center gap-2">
                       {renderStars(Math.floor(doctor.rating || 0))}
-                      <span className="ml-2 text-sm font-medium">
-                        {doctor.rating || 0} ({doctor.totalReviews || 0} reviews)
+                      <span className="font-semibold text-gray-900">
+                        {doctor.rating}
+                      </span>
+                      <span className="text-gray-500">
+                        ({doctor.totalReviews} reviews)
                       </span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className="flex items-center text-gray-600">
                       <Award size={16} className="mr-1" />
-                      {doctor.experience} years experience
+                      <span className="font-medium">{doctor.experience} years exp.</span>
                     </div>
                   </div>
 
-                  {/* Consultation Fee Display */}
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 inline-block">
-                    <div className="flex items-center gap-2">
-                      <CreditCard size={16} className="text-green-600" />
-                      <span className="text-sm font-medium text-green-800">
-                        Consultation Fee: ₹{appointmentFee}
-                      </span>
-                    </div>
+                  {/* Consultation Fee Badge */}
+                  <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full mb-4">
+                    <CreditCard size={16} />
+                    <span className="font-semibold">₹{doctor.consultation_fee} consultation</span>
                   </div>
                 </div>
                 
-                <button className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
-                  <Heart size={20} className="text-gray-600" />
+                <button 
+                  onClick={toggleFavorite}
+                  className={`p-3 rounded-full transition-colors ${isFavorite ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  <Heart size={22} className={isFavorite ? 'fill-current' : ''} />
                 </button>
               </div>
               
-              <div className="flex gap-3 mt-4">
+              <div className="flex gap-4 mt-6">
                 <button
                   onClick={handleBookAppointment}
-                  className="bg-teal-600 text-white px-6 py-2 rounded-lg hover:bg-teal-700 transition-colors"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold shadow-lg"
                 >
                   Book Appointment
                 </button>
-                <button className="border border-teal-600 text-teal-600 px-6 py-2 rounded-lg hover:bg-teal-50 transition-colors">
-                  Contact Doctor
+                <button className="border-2 border-blue-600 text-blue-600 px-8 py-3 rounded-xl hover:bg-blue-50 transition-colors font-semibold">
+                  <MessageCircle size={18} className="inline mr-2" />
+                  Chat Now
                 </button>
               </div>
             </div>
@@ -501,141 +557,182 @@ function DoctorDetailPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="container mx-auto px-6">
           <nav className="flex space-x-8">
-            {['overview', 'experience', 'reviews', 'location', 'timings'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab
-                    ? 'border-teal-600 text-teal-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
+            {[
+              { key: 'overview', label: 'Overview', icon: User },
+              { key: 'experience', label: 'Experience', icon: GraduationCap },
+              { key: 'reviews', label: 'Reviews', icon: Star },
+              { key: 'location', label: 'Location', icon: MapPin },
+              { key: 'timings', label: 'Schedule', icon: Clock }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex items-center gap-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                    activeTab === tab.key
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {tab.label}
+                </button>
+              );
+            })}
           </nav>
         </div>
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
             {activeTab === 'overview' && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-4">About Dr. {doctor.username}</h2>
-                <p className="text-gray-700 mb-4">{doctor.about}</p>
+              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+                <h2 className="text-2xl font-bold mb-6 text-gray-900">About Dr. {doctor.username}</h2>
+                <p className="text-gray-700 mb-8 text-lg leading-relaxed">{doctor.about}</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <h3 className="font-medium mb-2">Specialization</h3>
-                    <p className="text-gray-600">{doctor.specialization}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Stethoscope className="text-blue-600" size={20} />
+                      <h3 className="font-semibold text-gray-900">Specialization</h3>
+                    </div>
+                    <p className="text-gray-700 font-medium">{doctor.specialization}</p>
                   </div>
-                  <div>
-                    <h3 className="font-medium mb-2">Languages</h3>
-                    <p className="text-gray-600">{doctor.languages}</p>
+                  
+                  <div className="bg-green-50 rounded-xl p-6 border border-green-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Languages className="text-green-600" size={20} />
+                      <h3 className="font-semibold text-gray-900">Languages</h3>
+                    </div>
+                    <p className="text-gray-700 font-medium">{doctor.languages}</p>
                   </div>
-                  <div>
-                    <h3 className="font-medium mb-2">Experience</h3>
-                    <p className="text-gray-600">{doctor.experience} years</p>
+                  
+                  <div className="bg-purple-50 rounded-xl p-6 border border-purple-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Award className="text-purple-600" size={20} />
+                      <h3 className="font-semibold text-gray-900">Experience</h3>
+                    </div>
+                    <p className="text-gray-700 font-medium">{doctor.experience} years</p>
                   </div>
-                  <div>
-                    <h3 className="font-medium mb-2">Registration ID</h3>
-                    <p className="text-gray-600">{doctor.registration_id}</p>
+                  
+                  <div className="bg-orange-50 rounded-xl p-6 border border-orange-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Shield className="text-orange-600" size={20} />
+                      <h3 className="font-semibold text-gray-900">License ID</h3>
+                    </div>
+                    <p className="text-gray-700 font-medium">{doctor.registration_id}</p>
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'experience' && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-4">Education & Experience</h2>
+              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+                <h2 className="text-2xl font-bold mb-8 text-gray-900">Education & Experience</h2>
                 
-                <div className="mb-6">
-                  <h3 className="font-medium mb-3">Education</h3>
-                  <ul className="space-y-2">
+                <div className="mb-10">
+                  <h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+                    <GraduationCap className="text-blue-600" size={24} />
+                    Education
+                  </h3>
+                  <div className="space-y-4">
                     {doctor.education?.map((edu, index) => (
-                      <li key={index} className="flex items-start">
-                        <Award size={16} className="mr-2 mt-1 text-teal-600" />
-                        <span className="text-gray-700">{edu}</span>
-                      </li>
-                    )) || <li className="text-gray-500">No education data available</li>}
-                  </ul>
+                      <div key={index} className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-3 flex-shrink-0"></div>
+                        <span className="text-gray-800 font-medium">{edu}</span>
+                      </div>
+                    )) || <p className="text-gray-500">No education data available</p>}
+                  </div>
                 </div>
 
                 <div>
-                  <h3 className="font-medium mb-3">Certifications</h3>
-                  <ul className="space-y-2">
+                  <h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
+                    <BadgeCheck className="text-green-600" size={24} />
+                    Certifications
+                  </h3>
+                  <div className="space-y-4">
                     {doctor.certifications?.map((cert, index) => (
-                      <li key={index} className="flex items-start">
-                        <Check size={16} className="mr-2 mt-1 text-green-600" />
-                        <span className="text-gray-700">{cert}</span>
-                      </li>
-                    )) || <li className="text-gray-500">No certifications data available</li>}
-                  </ul>
+                      <div key={index} className="flex items-start gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
+                        <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-800 font-medium">{cert}</span>
+                      </div>
+                    )) || <p className="text-gray-500">No certifications data available</p>}
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'reviews' && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-4">Patient Reviews</h2>
+              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+                <h2 className="text-2xl font-bold mb-8 text-gray-900">Patient Reviews</h2>
                 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {reviews.length > 0 ? reviews.map((review) => (
-                    <div key={review.id} className="border-b pb-4 last:border-b-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center">
-                          <span className="font-medium mr-2">{review.patientName}</span>
-                          <div className="flex">
-                            {renderStars(review.rating)}
+                    <div key={review.id} className="p-6 bg-gray-50 rounded-xl border border-gray-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                              {review.patientName.charAt(0)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-gray-900">{review.patientName}</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex">
+                                {renderStars(review.rating)}
+                              </div>
+                              <span className="text-sm text-gray-500">{review.date}</span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-sm text-gray-500">{review.date}</span>
                       </div>
-                      <p className="text-gray-700">{review.comment}</p>
+                      <p className="text-gray-700 leading-relaxed">{review.comment}</p>
                     </div>
                   )) : (
-                    <p className="text-gray-500">No reviews available</p>
+                    <p className="text-gray-500 text-center py-8">No reviews available</p>
                   )}
                 </div>
               </div>
             )}
 
             {activeTab === 'location' && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-4">Location & Contact</h2>
+              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+                <h2 className="text-2xl font-bold mb-8 text-gray-900">Location & Contact</h2>
                 
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <MapPin size={20} className="mr-3 mt-1 text-teal-600" />
+                <div className="space-y-6">
+                  <div className="flex items-start gap-4 p-6 bg-blue-50 rounded-xl border border-blue-100">
+                    <MapPin size={24} className="text-blue-600 mt-1 flex-shrink-0" />
                     <div>
-                      <h3 className="font-medium mb-1">Address</h3>
-                      <p className="text-gray-700">
-                        {doctor.location?.address || 'Address not available'}<br/>
-                        {doctor.location?.city}, {doctor.location?.state} {doctor.location?.zipCode}
+                      <h3 className="font-semibold mb-2 text-gray-900">Clinic Address</h3>
+                      <p className="text-gray-700 leading-relaxed">
+                        {doctor.hospital}<br/>
+                        200 First Street SW<br/>
+                        Rochester, MN 55905
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center">
-                    <Phone size={20} className="mr-3 text-teal-600" />
+                  <div className="flex items-center gap-4 p-6 bg-green-50 rounded-xl border border-green-100">
+                    <Phone size={24} className="text-green-600 flex-shrink-0" />
                     <div>
-                      <h3 className="font-medium mb-1">Phone</h3>
-                      <p className="text-gray-700">{doctor.phone || 'Phone not available'}</p>
+                      <h3 className="font-semibold mb-1 text-gray-900">Phone</h3>
+                      <p className="text-gray-700 font-medium">{doctor.phone}</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center">
-                    <Mail size={20} className="mr-3 text-teal-600" />
+                  <div className="flex items-center gap-4 p-6 bg-purple-50 rounded-xl border border-purple-100">
+                    <Mail size={24} className="text-purple-600 flex-shrink-0" />
                     <div>
-                      <h3 className="font-medium mb-1">Email</h3>
-                      <p className="text-gray-700">{doctor.email || 'Email not available'}</p>
+                      <h3 className="font-semibold mb-1 text-gray-900">Email</h3>
+                      <p className="text-gray-700 font-medium">{doctor.email}</p>
                     </div>
                   </div>
                 </div>
@@ -643,14 +740,14 @@ function DoctorDetailPage() {
             )}
 
             {activeTab === 'timings' && (
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold mb-4">Weekly Schedule</h2>
+              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
+                <h2 className="text-2xl font-bold mb-8 text-gray-900">Weekly Schedule</h2>
                 
                 <div className="space-y-3">
                   {getWeeklySchedule().map((schedule, index) => (
-                    <div key={index} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                      <span className="font-medium">{schedule.day}</span>
-                      <span className={`${schedule.available ? 'text-green-600' : 'text-red-500'}`}>
+                    <div key={index} className="flex items-center justify-between py-4 px-6 bg-gray-50 rounded-xl border border-gray-200">
+                      <span className="font-semibold text-gray-900">{schedule.day}</span>
+                      <span className={`font-medium ${schedule.available ? 'text-green-600' : 'text-red-500'}`}>
                         {schedule.time}
                       </span>
                     </div>
@@ -662,59 +759,108 @@ function DoctorDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Quick Info */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="font-semibold mb-4">Quick Info</h3>
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <h3 className="font-bold mb-6 text-gray-900 text-lg">Quick Actions</h3>
               <div className="space-y-3">
-                <div className="flex items-center">
-                  <Stethoscope size={16} className="mr-2 text-teal-600" />
-                  <span className="text-sm">{doctor.specialization}</span>
+                <button 
+                  onClick={handleBookAppointment}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold shadow-lg"
+                >
+                  Book Appointment
+                </button>
+                <button className="w-full border-2 border-blue-600 text-blue-600 py-3 rounded-xl hover:bg-blue-50 transition-colors font-semibold">
+                  Send Message
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Info */}
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <h3 className="font-bold mb-6 text-gray-900 text-lg">Quick Info</h3>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Stethoscope size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Specialization</p>
+                    <p className="font-medium text-gray-900">{doctor.specialization}</p>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <MapPin size={16} className="mr-2 text-teal-600" />
-                  <span className="text-sm">{doctor.hospital}</span>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Building2 size={20} className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Hospital</p>
+                    <p className="font-medium text-gray-900">{doctor.hospital}</p>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <Calendar size={16} className="mr-2 text-teal-600" />
-                  <span className="text-sm">{doctor.experience} years experience</span>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Award size={20} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Experience</p>
+                    <p className="font-medium text-gray-900">{doctor.experience} years</p>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <User size={16} className="mr-2 text-teal-600" />
-                  <span className="text-sm">{doctor.gender}, {doctor.age} years</span>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <User size={20} className="text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Gender & Age</p>
+                    <p className="font-medium text-gray-900">{doctor.gender}, {doctor.age} years</p>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <CreditCard size={16} className="mr-2 text-teal-600" />
-                  <span className="text-sm font-medium">₹{appointmentFee} consultation</span>
+                
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
+                    <CreditCard size={20} className="text-teal-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Consultation Fee</p>
+                    <p className="font-medium text-gray-900">₹{doctor.consultation_fee}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Available Time Slots */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="font-semibold mb-4">Available This Week</h3>
-              <div className="space-y-2">
-                {Object.entries(timeSlots).slice(0, 3).map(([date, slots]) => (
-                  <div key={date} className="text-sm">
-                    <div className="font-medium text-gray-700 mb-1">
-                      {new Date(date).toLocaleDateString('en-US', { 
-                        weekday: 'short', 
-                        month: 'short', 
-                        day: 'numeric' 
-                      })}
+            {/* Available Slots Preview */}
+            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <h3 className="font-bold mb-6 text-gray-900 text-lg">Available This Week</h3>
+              <div className="space-y-4">
+                {availableSlots.slice(0, 3).map((slot, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {new Date(slot.date).toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
+                      </p>
+                      <p className="text-xs text-gray-500">{slot.time}</p>
                     </div>
-                    <div className="text-gray-600">
-                      {slots.length} slots available
+                    <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                      {slot.type}
                     </div>
                   </div>
-                )) || (
-                  <p className="text-sm text-gray-500">Loading availability...</p>
+                ))}
+                {availableSlots.length === 0 && (
+                  <p className="text-sm text-gray-500">No available slots this week</p>
                 )}
               </div>
               <button
                 onClick={handleBookAppointment}
-                className="w-full bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 transition-colors mt-4"
+                className="w-full mt-4 flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
               >
-                View All Slots
+                View all available slots <ChevronRight size={16} />
               </button>
             </div>
           </div>
