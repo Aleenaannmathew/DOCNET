@@ -272,4 +272,21 @@ class DoctorSlotSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('doctor', 'is_booked','created_at', 'updated_at')
     def validate(self, data):
-        return data    
+        if 'date' in data and 'start_time' in data:
+            doctor = self.context['request'].user.doctor_profile
+            existing_slots = DoctorSlot.objects.filter(
+                doctor=doctor,
+                date=data['date'],
+                start_time=data['start_time']
+            )
+            
+            # Exclude current instance if updating
+            if self.instance:
+                existing_slots = existing_slots.exclude(id=self.instance.id)
+                
+            if existing_slots.exists():
+                raise serializers.ValidationError(
+                    "A slot already exists for this date and time."
+                )
+        
+        return data

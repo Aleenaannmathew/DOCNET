@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
+import { doctorAxios } from '../../axios/DoctorAxios';
 import { Calendar, Clock, Plus, Edit, Trash2, Save, X, Video, MessageCircle, ChevronLeft, ChevronRight, Eye, DollarSign, Users, Check, Copy, Settings } from 'lucide-react';
+import { useSelector } from 'react-redux';
 
 const DoctorSlots = () => {
   const [activeTab, setActiveTab] = useState('Availability');
@@ -19,6 +21,7 @@ const DoctorSlots = () => {
   const [slots, setSlots] = useState({});
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [selectedType, setSelectedType] = useState(null);
+  const { user } = useSelector(state => state.auth)
 
   // Sidebar menu items
   const sidebarItems = [
@@ -45,14 +48,7 @@ const DoctorSlots = () => {
     { id: 'chat', label: 'Online Chat', icon: MessageCircle, color: 'bg-blue-500', lightColor: 'bg-blue-50', textColor: 'text-blue-600' },
   ];
 
-  // Mock user data for demonstration
-  const mockUser = {
-    username: 'Joyal',
-    email: 'joyal@gmail.com',
-    specialization: 'Orthopedics',
-    profile_image: null
-  };
-
+ 
   // Helper functions
   const getWeekDates = (date) => {
     const week = [];
@@ -81,6 +77,31 @@ const DoctorSlots = () => {
     return date.toISOString().split('T')[0];
   };
 
+  const formatTimeFromBackend = (timeString) => {
+  if (!timeString) return '';
+  
+  if (timeString.match(/^\d{2}:\d{2}$/)) {
+    return timeString.substring(0, 5);
+  }
+
+  if (timeString.match(/^\d{2}:\d{2}$/)) {
+    return timeString;
+  }
+
+
+  try {
+    const time = new Date(`1970-01-01T${timeString}`);
+    return time.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: false 
+    });
+  } catch (error) {
+    console.error('Invalid time string:', timeString);
+    return timeString; 
+  }
+};
+
   const weekDates = getWeekDates(currentWeek);
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -103,99 +124,141 @@ const DoctorSlots = () => {
 
   // Mock functions for demonstration
   const fetchSlotsForWeek = async () => {
-    setLoading(true);
-    // Mock delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setLoading(false);
-  };
+  setLoading(true);
+  try {
+    const weekDates = getWeekDates(currentWeek);
+    const startDate = weekDates[0].toISOString().split('T')[0];
+    const endDate = weekDates[6].toISOString().split('T')[0];
 
-  const createSlot = async (slotData) => {
-    const dateKey = formatDateKey(selectedDate);
-    const newSlot = {
-      id: Date.now(),
-      time: slotData.time,
-      duration: slotData.duration,
-      type: slotData.type,
-      maxPatients: slotData.maxPatients,
-      fee: slotData.fee,
-      notes: slotData.notes
-    };
+    console.log('Fetching slots for:', startDate, 'to', endDate); // Debug
 
-    setSlots(prev => ({
-      ...prev,
-      [dateKey]: {
-        ...prev[dateKey],
-        [newSlot.id]: newSlot
+    const response = await doctorAxios.get(`/slots/?start_date=${startDate}&end_date=${endDate}`);
+    console.log('API Response:', response.data); // Debug
+    
+    // Handle different response structures
+    let slotsData = [];
+    if (Array.isArray(response.data)) {
+      slotsData = response.data;
+    } else if (response.data && Array.isArray(response.data.results)) {
+      slotsData = response.data.results; // For paginated responses
+    } else if (response.data && typeof response.data === 'object') {
+      slotsData = Object.values(response.data);
+    }
+
+    console.log('Processed slots data:', slotsData); // Debug
+
+    const formattedSlots = {};
+
+    slotsData.forEach(slot => {
+      const dateKey = slot.date;
+      if (!formattedSlots[dateKey]) {
+        formattedSlots[dateKey] = {};
       }
-    }));
-    
-    alert('Slot created successfully');
-    setShowSlotModal(false);
-  };
-
-  const createBulkSlots = async (bulkData) => {
-    const dateKey = formatDateKey(selectedDate);
-    const newSlots = {};
-    
-    bulkData.selectedTimes.forEach(time => {
-      const newSlot = {
-        id: Date.now() + Math.random(),
-        time: time,
-        duration: bulkData.duration,
-        type: bulkData.type,
-        maxPatients: bulkData.maxPatients,
-        fee: bulkData.fee,
-        notes: bulkData.notes
+      formattedSlots[dateKey][slot.id] = {
+        id: slot.id,
+        time: formatTimeFromBackend(slot.start_time),
+        duration: parseInt(slot.duration) || 30,
+        type: slot.consultation_type,
+        maxPatients: parseInt(slot.max_patients) || 1,
+        fee: parseFloat(slot.fee) || 0,
+        notes: slot.notes || '',
+        isBooked: slot.is_booked || false
       };
-      newSlots[newSlot.id] = newSlot;
     });
 
-    setSlots(prev => ({
-      ...prev,
-      [dateKey]: {
-        ...prev[dateKey],
-        ...newSlots
-      }
-    }));
-    
-    alert(`${bulkData.selectedTimes.length} slots created successfully`);
-    setShowBulkSlotModal(false);
+    setSlots(formattedSlots);
+    console.log('Final formatted slots:', formattedSlots); // Debug
+  } catch (error) {
+    console.error('Error fetching slots:', error);
+    console.error('Error response:', error.response?.data); // Debug
+    setSlots({}); // Set empty slots on error
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const createSlot = async (slotData) => {
+    try {
+      const formattedData = {
+        date: selectedDate.toISOString().split('T')[0],
+        start_time: slotData.time + ':00',
+        duration: slotData.duration,
+        consultation_type: slotData.type,
+        max_patients: slotData.maxPatients,
+        fee: slotData.fee,
+        notes: slotData.notes
+      };
+      
+      await doctorAxios.post('/slots/', formattedData);
+      await fetchSlotsForWeek();
+      setShowSlotModal(false);
+      alert('Slot created successfully');
+    } catch (error) {
+      console.error('Error creating slot:', error);
+      alert('Failed to create slot');
+    }
+  };
+   
+  const createBulkSlots = async (bulkData) => {
+    try {
+      const promises = bulkData.selectedTimes.map(time => {
+        const slotData = {
+          date: selectedDate.toISOString().split('T')[0],
+          start_time: time + ':00',
+          duration: bulkData.duration,
+          consultation_type: bulkData.type,
+          max_patients: bulkData.maxPatients,
+          fee: bulkData.fee,
+          notes: bulkData.notes
+        };
+        return doctorAxios.post('/slots/', slotData);
+      });
+
+      await Promise.all(promises);
+      await fetchSlotsForWeek();
+      setShowBulkSlotModal(false);
+      alert(`${bulkData.selectedTimes.length} slots created successfully`);
+    } catch (error) {
+      console.error('Error creating bulk slots:', error);
+      alert('Failed to create some slots');
+    }
   };
 
   const updateSlot = async (slotId, slotData) => {
-    const dateKey = formatDateKey(selectedDate);
-    setSlots(prev => ({
-      ...prev,
-      [dateKey]: {
-        ...prev[dateKey],
-        [slotId]: {
-          ...prev[dateKey][slotId],
-          ...slotData
-        }
-      }
-    }));
-    
-    alert('Slot updated successfully');
-    setShowSlotModal(false);
-    setShowSlotDetailsModal(false);
+    try {
+      const formattedData = {
+        date: selectedDate.toISOString().split('T')[0],
+        start_time: slotData.time + ':00',
+        duration: slotData.duration,
+        consultation_type: slotData.type,
+        max_patients: slotData.maxPatients,
+        fee: slotData.fee,
+        notes: slotData.notes
+      };
+      
+      await doctorAxios.patch(`/slots/${slotId}/`, formattedData);
+      await fetchSlotsForWeek();
+      setShowSlotModal(false);
+      alert('Slot updated successfully');
+    } catch (error) {
+      console.error('Error updating slot:', error);
+      alert('Failed to update slot');
+    }
+  };
+   
+  const deleteSlot = async (slotId) => {
+    try {
+      await doctorAxios.delete(`/slots/${slotId}/`);
+      await fetchSlotsForWeek();
+      setShowSlotDetailsModal(false);
+      alert('Slot deleted successfully');
+    } catch (error) {
+      console.error('Error deleting slot:', error);
+      alert('Failed to delete slot');
+    }
   };
 
-  const deleteSlot = async (slotId) => {
-    const dateKey = formatDateKey(selectedDate);
-    setSlots(prev => {
-      const newSlots = { ...prev };
-      if (newSlots[dateKey]) {
-        delete newSlots[dateKey][slotId];
-        if (Object.keys(newSlots[dateKey]).length === 0) {
-          delete newSlots[dateKey];
-        }
-      }
-      return newSlots;
-    });
-    
-    alert('Slot deleted successfully');
-    setShowSlotDetailsModal(false);
-  };
 
   const getSlotsForDate = (date) => {
     const dateKey = formatDateKey(date);
@@ -252,7 +315,7 @@ const DoctorSlots = () => {
       duration: '30',
       type: 'video',
       maxPatients: '1',
-      fee: '',
+      fee: '500',
       notes: ''
     });
 
@@ -384,7 +447,7 @@ const DoctorSlots = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Consultation Fee ($)</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">Consultation Fee (Rs)</label>
                   <input
                     type="number"
                     min="0"
@@ -510,7 +573,7 @@ const DoctorSlots = () => {
                       <div>
                         <div className="font-bold text-gray-900 text-lg">{slot.time}</div>
                         <div className="text-sm text-gray-600">
-                          {slot.duration}min • ${slot.fee} • Max {slot.maxPatients} patients
+                          {slot.duration}min • Rs{slot.fee} • Max {slot.maxPatients} patients
                         </div>
                         {slot.notes && (
                           <div className="text-xs text-gray-500 mt-1 bg-white px-2 py-1 rounded-lg inline-block">
@@ -617,7 +680,7 @@ const DoctorSlots = () => {
               
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-600">Fee</span>
-                <span className="text-2xl font-bold text-emerald-600">${selectedSlot.fee}</span>
+                <span className="text-2xl font-bold text-emerald-600">Rs{selectedSlot.fee}</span>
               </div>
               
               <div className="flex justify-between items-center">
@@ -718,7 +781,7 @@ const DoctorSlots = () => {
                         <div>
                           <div className="font-bold text-gray-900 text-lg">{slot.time}</div>
                           <div className="text-sm text-gray-600">
-                            {slot.duration}min • ${slot.fee} • Max {slot.maxPatients} patients
+                            {slot.duration}min • Rs{slot.fee} • Max {slot.maxPatients} patients
                           </div>
                           {slot.notes && (
                             <div className="text-xs text-gray-500 mt-1 bg-white px-2 py-1 rounded-lg inline-block">
@@ -909,7 +972,7 @@ const DoctorSlots = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">Consultation Fee ($) *</label>
+              <label className="block text-sm font-semibold text-gray-900 mb-2">Consultation Fee (Rs) *</label>
               <input
                 type="number"
                 min="0"
@@ -1145,11 +1208,11 @@ const DoctorSlots = () => {
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-            {mockUser.username.charAt(0).toUpperCase()}
+            {user.username.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">{mockUser.username}</h3>
-            <p className="text-sm text-gray-600">{mockUser.specialization}</p>
+            <h3 className="font-semibold text-gray-900">{user.username}</h3>
+            <p className="text-sm text-gray-600">{user.specialization}</p>
           </div>
         </div>
       </div>

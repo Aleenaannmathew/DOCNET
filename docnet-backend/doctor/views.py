@@ -7,6 +7,7 @@ from django.db import transaction
 from django.core.mail import send_mail
 from django.conf import settings
 import random, re,requests
+from datetime import datetime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -379,7 +380,26 @@ class DoctorSlotCreate(generics.ListCreateAPIView):
 
     def get_queryset(self):
         doctor_profile = self.request.user.doctor_profile
-        return DoctorSlot.objects.filter(doctor=doctor_profile).order_by('date', 'start_time')
+        queryset = DoctorSlot.objects.filter(doctor=doctor_profile)
+    
+        start_date = self.request.query_params.get('start_date', None)
+        end_date = self.request.query_params.get('end_date', None)
+
+        if start_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(date__gte=start_date)
+            except ValueError:
+                pass 
+
+        if end_date:
+            try:
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                queryset = queryset.filter(date__lte=end_date)
+            except ValueError:
+                pass 
+
+        return queryset.order_by('date', 'start_time')       
 
     def perform_create(self,serializer):
         doctor_profile = self.request.user.doctor_profile
@@ -406,9 +426,15 @@ class AvailableSlotsView(generics.ListAPIView):
         )
 
         if date:
-            queryset = queryset.filter(date=date)
+            try:
+                # Parse the date string properly
+                date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+                queryset = queryset.filter(date=date_obj)
+            except ValueError:
+                pass
+                
         if doctor_id:
             queryset = queryset.filter(doctor_id=doctor_id)
 
-            return queryset.order_by('date','start_time')    
+        return queryset.order_by('date', 'start_time')  
                           

@@ -1,4 +1,5 @@
 from django.db import models
+from datetime import timezone
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
@@ -59,11 +60,16 @@ class DoctorSlot(models.Model):
     duration = models.PositiveIntegerField(validators=[MinValueValidator(15), MaxValueValidator(200)])
     consultation_type = models.CharField(max_length=10, choices=CONSULTATION_TYPES)
     max_patients = models.DecimalField(max_digits=8, decimal_places=2)
+    fee = models.DecimalField(max_digits=8, decimal_places=2, default=500.00)
     notes = models.TextField(blank=True, null=True)
     is_booked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(max_length=255, blank=True)
+
+    class Meta:
+        unique_together = ['doctor', 'date', 'start_time']  # Prevent duplicate slots
+        ordering = ['date', 'start_time']
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -72,3 +78,7 @@ class DoctorSlot(models.Model):
     
     def __str__(self):
         return f"{self.doctor.user.username}'s slot on {self.date} at {self.start_time}"
+    
+    @property
+    def is_available(self):
+        return not self.is_booked and self.date >= timezone.now().date()
