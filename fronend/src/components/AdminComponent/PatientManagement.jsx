@@ -2,8 +2,82 @@ import React, { useState, useEffect } from 'react';
 import { logout } from '../../store/authSlice';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { Menu, X, Users, UserRound, CalendarDays, CreditCard, BarChart3, FileText, Settings, LogOut, Search, AlertTriangle } from 'lucide-react';
+import { 
+  Menu, X, Users, UserRound, CalendarDays, CreditCard, BarChart3, 
+  FileText, Settings, LogOut, Search, Filter, Download, Plus,
+  Eye, Shield, ShieldOff, AlertCircle, Clock, Mail, User,
+  Calendar, ChevronLeft, ChevronRight, MoreVertical, RefreshCw
+} from 'lucide-react';
 import { adminAxios } from '../../axios/AdminAxios';
+
+// SweetAlert2 (simulated with modern modal)
+const Swal = {
+  fire: ({ title, text, icon, showCancelButton, confirmButtonText, cancelButtonText, confirmButtonColor, cancelButtonColor }) => {
+    return new Promise((resolve) => {
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+      
+      const iconColors = {
+        warning: 'text-amber-500',
+        error: 'text-red-500',
+        success: 'text-green-500',
+        info: 'text-blue-500'
+      };
+      
+      const iconBgs = {
+        warning: 'bg-amber-50',
+        error: 'bg-red-50',
+        success: 'bg-green-50',
+        info: 'bg-blue-50'
+      };
+      
+      modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transform animate-scale-in">
+          <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full ${iconBgs[icon]} mb-4">
+              <svg class="h-8 w-8 ${iconColors[icon]}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                ${icon === 'warning' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>' : ''}
+                ${icon === 'error' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>' : ''}
+                ${icon === 'success' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>' : ''}
+                ${icon === 'info' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>' : ''}
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">${title}</h3>
+            <p class="text-sm text-gray-600 mb-6">${text}</p>
+            <div class="flex ${showCancelButton ? 'justify-between' : 'justify-center'} gap-3">
+              ${showCancelButton ? `<button id="cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">${cancelButtonText}</button>` : ''}
+              <button id="confirm-btn" class="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors" style="background-color: ${confirmButtonColor}">${confirmButtonText}</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      const confirmBtn = modal.querySelector('#confirm-btn');
+      const cancelBtn = modal.querySelector('#cancel-btn');
+      
+      confirmBtn.onclick = () => {
+        document.body.removeChild(modal);
+        resolve({ isConfirmed: true });
+      };
+      
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          document.body.removeChild(modal);
+          resolve({ isConfirmed: false });
+        };
+      }
+      
+      modal.onclick = (e) => {
+        if (e.target === modal) {
+          document.body.removeChild(modal);
+          resolve({ isConfirmed: false });
+        }
+      };
+    });
+  }
+};
 
 export default function PatientsManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -11,13 +85,11 @@ export default function PatientsManagement() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [confirmDialog, setConfirmDialog] = useState({
-    isOpen: false,
-    patientId: null,
-    patientName: '',
-    currentStatus: null,
-    action: ''
-  });
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const location = useLocation();
@@ -26,10 +98,10 @@ export default function PatientsManagement() {
     { name: 'Dashboard', icon: <BarChart3 size={20} />, path: '/admin/admin-dashboard' },
     { name: 'Patients', icon: <Users size={20} />, path: '/admin/patient-list' },
     { name: 'Doctors', icon: <UserRound size={20} />, path: '/admin/doctor-list' },
-    { name: 'Appointments', icon: <CalendarDays size={20} /> },
-    { name: 'Payments', icon: <CreditCard size={20} /> },
-    { name: 'Reports', icon: <FileText size={20} /> },
-    { name: 'Settings', icon: <Settings size={20} /> }
+    { name: 'Appointments', icon: <CalendarDays size={20} />, path: '/admin/appointments' },
+    { name: 'Payments', icon: <CreditCard size={20} />, path: '/admin/payments' },
+    { name: 'Reports', icon: <FileText size={20} />, path: '/admin/reports' },
+    { name: 'Settings', icon: <Settings size={20} />, path: '/admin/settings' }
   ];
 
   // Fetch patients from API
@@ -38,7 +110,7 @@ export default function PatientsManagement() {
       try {
         setLoading(true);
         const response = await adminAxios.get('/patients/list/');
-        setPatients(response.data);
+        setPatients(response.data);    
         setError(null);
       } catch (err) {
         setError('Failed to load patients. Please try again later.');
@@ -47,86 +119,83 @@ export default function PatientsManagement() {
         setLoading(false);
       }
     };
-
+    
     fetchPatients();
   }, []);
 
-  const showConfirmDialog = (patient) => {
-    const action = patient.is_active ? 'block' : 'unblock';
-    setConfirmDialog({
-      isOpen: true,
-      patientId: patient.id,
-      patientName: patient.username,
-      currentStatus: patient.is_active,
-      action: action
-    });
-  };
-
-  const handleConfirmAction = async () => {
-    const { patientId, currentStatus } = confirmDialog;
-    
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
     try {
-      // Optimistically update UI
-      setPatients(prev =>
-        prev.map(patient =>
-          patient.id === patientId
-            ? {
-                ...patient,
-                is_active: !currentStatus,
-                status: currentStatus ? 'Blocked' : 'Allowed'
-              }
-            : patient
-        )
-      );
-      
-      // Call API to update the user's blocked status
-      await adminAxios.put(`/patients/${patientId}/toggle-status/`, {
-        is_active: !currentStatus
-      });
-      
-      // Close dialog
-      setConfirmDialog({
-        isOpen: false,
-        patientId: null,
-        patientName: '',
-        currentStatus: null,
-        action: ''
-      });
-      
-    } catch (error) {
-      console.error('Error toggling patient access:', error);
-      // Revert on error
-      setPatients(prev => [...prev]);
-      let errorMessage = 'Failed to update patient status. Please try again.';
-      if (error.response) {
-        if (error.response.status === 500) {
-          errorMessage = 'Server error occurred. Please contact support.';
-        } else if (error.response.data?.detail) {
-          errorMessage = error.response.data.detail;
-        }
-      }
-      
-      alert(errorMessage);
-      
-      // Close dialog
-      setConfirmDialog({
-        isOpen: false,
-        patientId: null,
-        patientName: '',
-        currentStatus: null,
-        action: ''
-      });
+      const response = await adminAxios.get('/patients/list/');
+      setPatients(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to refresh patients. Please try again.');
+      console.error('Error refreshing patients:', err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  const handleCancelAction = () => {
-    setConfirmDialog({
-      isOpen: false,
-      patientId: null,
-      patientName: '',
-      currentStatus: null,
-      action: ''
+  const handleToggleStatus = async (patient) => {
+    const action = patient.is_active ? 'block' : 'unblock';
+    const actionText = action === 'block' ? 'Block' : 'Unblock';
+    
+    const result = await Swal.fire({
+      title: `${actionText} Patient?`,
+      text: `Are you sure you want to ${action} ${patient.username}? ${action === 'block' ? 'They will lose access to their account.' : 'They will regain access to their account.'}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: action === 'block' ? '#dc2626' : '#16a34a',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: `Yes, ${actionText}`,
+      cancelButtonText: 'Cancel'
     });
+
+    if (result.isConfirmed) {
+      try {
+        // Optimistically update UI
+        setPatients(prev =>
+          prev.map(p =>
+            p.id === patient.id
+              ? { ...p, is_active: !patient.is_active }
+              : p
+          )
+        );
+        
+        await adminAxios.put(`/patients/${patient.id}/toggle-status/`, {
+          is_active: !patient.is_active
+        });
+        
+        await Swal.fire({
+          title: 'Success!',
+          text: `Patient has been ${action}ed successfully.`,
+          icon: 'success',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#16a34a'
+        });
+        
+      } catch (error) {
+        console.error('Error toggling patient status:', error);
+        
+        // Revert on error
+        setPatients(prev =>
+          prev.map(p =>
+            p.id === patient.id
+              ? { ...p, is_active: patient.is_active }
+              : p
+          )
+        );
+        
+        await Swal.fire({
+          title: 'Error!',
+          text: 'Failed to update patient status. Please try again.',
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#dc2626'
+        });
+      }
+    }
   };
 
   const handleLogout = () => {
@@ -134,86 +203,30 @@ export default function PatientsManagement() {
     navigate('/admin/admin-login');
   };
 
-  const filteredPatients = patients.filter(patient =>
-    patient.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter and pagination logic
+  const filteredPatients = patients.filter(patient => {
+    const matchesSearch = patient.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         patient.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === 'all' || 
+                         (selectedStatus === 'active' && patient.is_active) ||
+                         (selectedStatus === 'blocked' && !patient.is_active);
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+  const paginatedPatients = filteredPatients.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
-  return (
-    <div className="flex h-screen bg-gray-50 text-gray-800 font-sans">
-      {/* Confirmation Dialog */}
-      {confirmDialog.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center mb-4">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
-                confirmDialog.action === 'block' ? 'bg-red-100' : 'bg-green-100'
-              }`}>
-                <AlertTriangle size={24} className={
-                  confirmDialog.action === 'block' ? 'text-red-600' : 'text-green-600'
-                } />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Confirm {confirmDialog.action === 'block' ? 'Block' : 'Unblock'} Patient
-                </h3>
-                <p className="text-sm text-gray-500">
-                  This action will affect patient access
-                </p>
-              </div>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-700">
-                Are you sure you want to{' '}
-                <span className={`font-semibold ${
-                  confirmDialog.action === 'block' ? 'text-red-600' : 'text-green-600'
-                }`}>
-                  {confirmDialog.action}
-                </span>
-                {' '}patient{' '}
-                <span className="font-semibold">{confirmDialog.patientName}</span>?
-              </p>
-              
-              {confirmDialog.action === 'block' && (
-                <div className="mt-3 p-3 bg-red-50 rounded-md">
-                  <p className="text-sm text-red-800">
-                    <strong>Warning:</strong> Blocking this patient will prevent them from accessing their account and booking appointments.
-                  </p>
-                </div>
-              )}
-              
-              {confirmDialog.action === 'unblock' && (
-                <div className="mt-3 p-3 bg-green-50 rounded-md">
-                  <p className="text-sm text-green-800">
-                    <strong>Note:</strong> Unblocking this patient will restore their account access and allow them to book appointments.
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={handleCancelAction}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmAction}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md transition-colors ${
-                  confirmDialog.action === 'block' 
-                    ? 'bg-red-600 hover:bg-red-700' 
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
-              >
-                {confirmDialog.action === 'block' ? 'Block Patient' : 'Unblock Patient'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+  const stats = {
+    total: patients.length,
+    active: patients.filter(p => p.is_active).length,
+    blocked: patients.filter(p => !p.is_active).length
+  };
 
+  return (
+    <div className="flex h-screen bg-gray-50">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -224,40 +237,50 @@ export default function PatientsManagement() {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 
+        fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-10
       `}>
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-2xl font-bold text-blue-700">DOCNET</h2>
-            <button className="p-1 rounded-full hover:bg-gray-100 lg:hidden" onClick={() => setSidebarOpen(false)}>
-              <X size={24} />
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">D</span>
+              </div>
+              <h2 className="ml-2 text-xl font-bold text-gray-900">DOCNET</h2>
+            </div>
+            <button className="p-1 rounded-lg hover:bg-gray-100 lg:hidden" onClick={() => setSidebarOpen(false)}>
+              <X size={20} />
             </button>
           </div>
           
-          {menuItems.map((item, index) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={index}
-                to={item.path || '#'}
-                className={`flex items-center w-full p-3 rounded-lg transition-colors
-                  ${isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-blue-50'}
-                `}
-              >
-                <span className="mr-3">{item.icon}</span>
-                <span className="font-medium">{item.name}</span>
-              </Link>
-            );
-          })}
+          <nav className="flex-1 p-4 space-y-1">
+            {menuItems.map((item, index) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={index}
+                  to={item.path || '#'}
+                  className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                    ${isActive 
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    }
+                  `}
+                >
+                  <span className="mr-3">{item.icon}</span>
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
           
-          <div className="mt-auto p-4 border-t">
+          <div className="p-4 border-t border-gray-200">
             <button 
               onClick={handleLogout}
-              className="flex items-center w-full p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="flex items-center w-full px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
               <LogOut size={20} className="mr-3" />
-              <span className="font-medium">Logout</span>
+              <span>Logout</span>
             </button>
           </div>
         </div>
@@ -265,247 +288,469 @@ export default function PatientsManagement() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header/Topbar */}
-        <header className="bg-white shadow-sm z-10">
-          <div className="flex items-center justify-between p-4">
-            <button 
-              className="p-1 rounded-md hover:bg-gray-100 focus:outline-none lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu size={24} />
-            </button>
-            <div className="ml-4 lg:ml-0">
-              <h1 className="text-xl font-semibold">Patients Management</h1>
-            </div>
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <span className="font-medium text-blue-700">AD</span>
+              <button 
+                className="p-2 rounded-lg hover:bg-gray-100 lg:hidden mr-2"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu size={20} />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Patient Management</h1>
+                <p className="text-sm text-gray-600 mt-1">Manage and monitor patient accounts</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+              </button>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-center">
+                <span className="text-white font-medium text-sm">AD</span>
               </div>
             </div>
           </div>
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <h2 className="text-2xl font-semibold mb-4 md:mb-0">Patients</h2>
-            
-            {/* Search */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={18} className="text-gray-400" />
+        <main className="flex-1 overflow-y-auto p-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Patients</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                </div>
               </div>
-              <input
-                type="text"
-                placeholder="Search by name/email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 w-full md:w-64"
-              />
+            </div>
+            
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Active Patients</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+                  <ShieldOff className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Blocked Patients</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.blocked}</p>
+                </div>
+              </div>
             </div>
           </div>
-          
+
+          {/* Filters and Actions */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                {/* Search */}
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search patients..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  />
+                </div>
+                
+                {/* Status Filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="blocked">Blocked</option>
+                  </select>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3">
+                <button className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                  <Download size={16} className="mr-2" />
+                  Export
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Error State */}
           {error && (
-            <div className="bg-red-50 p-4 mb-6 rounded-lg border border-red-100 flex items-center text-red-700">
-              <AlertTriangle size={20} className="mr-2" />
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center text-red-700">
+              <AlertCircle size={20} className="mr-3 flex-shrink-0" />
               <p>{error}</p>
             </div>
           )}
           
           {/* Loading State */}
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+            <div className="bg-white rounded-xl border border-gray-200 p-12">
+              <div className="flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-gray-500">Loading patients...</p>
+              </div>
             </div>
           ) : (
             <>
-              {/* Table - Desktop */}
-              <div className="hidden md:block overflow-hidden bg-white shadow-sm rounded-lg">
-                <div className="overflow-x-auto">
+              {/* Patients Table */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                {/* Desktop Table */}
+                <div className="hidden lg:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          No
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Join Date
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Profile
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Email
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Age
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Gender
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Demographics</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Join Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredPatients.map((patient, index) => (
-                        <tr 
-                          key={patient.id} 
-                          className={`hover:bg-gray-50 ${!patient.is_active ? 'bg-red-50' : ''}`}
-                        >
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {index + 1}
+                      {paginatedPatients.map((patient, index) => (
+                        <tr key={patient.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {(currentPage - 1) * itemsPerPage + index + 1}
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {patient.date_joined ? new Date(patient.date_joined).toLocaleDateString() : 'N/A'}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                              {patient.profile_image ? 
-                                <img src={patient.profile_image} alt={patient.username} className="w-8 h-8 rounded-full object-cover" /> :
-                                <span>👤</span>
-                              }
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                                {patient.profile_image ? 
+                                  <img src={patient.profile_image} alt={patient.username} className="w-10 h-10 rounded-lg object-cover" /> :
+                                  patient.username.charAt(0).toUpperCase()
+                                }
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">{patient.username}</div>
+                                <div className="text-sm text-gray-500">Patient ID: #{patient.id}</div>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="font-medium text-gray-900">{patient.username}</div>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center text-sm text-gray-900">
+                              <Mail size={16} className="mr-2 text-gray-400" />
+                              {patient.email}
+                            </div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {patient.email}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <div>Age: {patient.patient_profile?.age || 'N/A'}</div>
+                            <div>Gender: {patient.patient_profile?.gender || 'N/A'}</div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {patient.patient_profile?.age || 'N/A'}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center text-sm text-gray-500">
+                              <Calendar size={16} className="mr-2" />
+                              {patient.date_joined ? new Date(patient.date_joined).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              }) : 'N/A'}
+                            </div>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {patient.patient_profile?.gender || 'N/A'}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              patient.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              patient.is_active 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
                             }`}>
-                              {patient.is_active ? 'Active' : 'Blocked'}
+                              {patient.is_active ? (
+                                <>
+                                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1"></div>
+                                  Active
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-1"></div>
+                                  Blocked
+                                </>
+                              )}
                             </span>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => showConfirmDialog(patient)}
-                              className={`px-3 py-1 text-xs font-medium rounded text-white ${
-                                patient.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-                              } transition-colors`}
-                            >
-                              {patient.is_active ? 'Block' : 'Unblock'}
-                            </button>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => handleToggleStatus(patient)}
+                                className={`flex items-center px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                  patient.is_active 
+                                    ? 'text-red-700 bg-red-50 hover:bg-red-100 border border-red-200' 
+                                    : 'text-green-700 bg-green-50 hover:bg-green-100 border border-green-200'
+                                }`}
+                              >
+                                {patient.is_active ? (
+                                  <>
+                                    <ShieldOff size={14} className="mr-1" />
+                                    Block
+                                  </>
+                                ) : (
+                                  <>
+                                    <Shield size={14} className="mr-1" />
+                                    Unblock
+                                  </>
+                                )}
+                              </button>
+                              <button 
+                                // onClick={() => navigate(`/admin/patients/${patient.id}`)}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              >
+                                <Eye size={14} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                
+                {/* Mobile Cards */}
+                <div className="lg:hidden p-4 space-y-4">
+                  {paginatedPatients.map((patient) => (
+                    <div key={patient.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium">
+                            {patient.profile_image ? 
+                              <img src={patient.profile_image} alt={patient.username} className="w-10 h-10 rounded-lg object-cover" /> :
+                              patient.username.charAt(0).toUpperCase()
+                            }
+                          </div>
+                          <div className="ml-3">
+                            <div className="font-medium text-gray-900">{patient.username}</div>
+                            <div className="text-sm text-gray-500">ID: #{patient.id}</div>
+                          </div>
+                        </div>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          patient.is_active 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {patient.is_active ? (
+                            <>
+                              <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1"></div>
+                              Active
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-1.5 h-1.5 bg-red-400 rounded-full mr-1"></div>
+                              Blocked
+                            </>
+                          )}
+                        </span>
+                      </div>
+                      <div className="space-y-3 text-sm text-gray-600">
+                        <div className="flex items-center">
+                          <Mail size={16} className="mr-2 text-gray-400" />
+                          <span>{patient.email}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <User size={16} className="mr-2 text-gray-400" />
+                          <span>Age: {patient.patient_profile?.age || 'N/A'} • {patient.patient_profile?.gender || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar size={16} className="mr-2 text-gray-400" />
+                          <span>Joined: {patient.date_joined ? new Date(patient.date_joined).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          }) : 'N/A'}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleToggleStatus(patient)}
+                            className={`flex items-center px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                              patient.is_active 
+                                ? 'text-red-700 bg-red-50 hover:bg-red-100 border border-red-200' 
+                                : 'text-green-700 bg-green-50 hover:bg-green-100 border border-green-200'
+                            }`}
+                          >
+                            {patient.is_active ? (
+                              <>
+                                <ShieldOff size={14} className="mr-1" />
+                                Block
+                              </>
+                            ) : (
+                              <>
+                                <Shield size={14} className="mr-1" />
+                                Unblock
+                              </>
+                            )}
+                          </button>
+                          <button 
+                            onClick={() => navigate(`/admin/patient-details/${patient.id}`)}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <Eye size={14} />
+                          </button>
+                        </div>
+                        <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                          <MoreVertical size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              
-              {/* Mobile Cards */}
-              <div className="md:hidden space-y-4">
-                {filteredPatients.map((patient, index) => (
-                  <div 
-                    key={patient.id} 
-                    className={`bg-white p-4 rounded-lg shadow-sm ${!patient.is_active ? 'bg-red-50' : ''}`}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 mr-2">
-                          {patient.profile_image ? 
-                            <img src={patient.profile_image} alt={patient.username} className="w-8 h-8 rounded-full object-cover" /> :
-                            <span>👤</span>
-                          }
-                        </div>
-                        <div>
-                          <div className="font-medium">{patient.username}</div>
-                          <div className="text-xs text-gray-500">{patient.email}</div>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        patient.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {patient.is_active ? 'Active' : 'Blocked'}
-                      </span>
+
+              {/* Empty State */}
+              {paginatedPatients.length === 0 && !loading && (
+                <div className="bg-white rounded-xl border border-gray-200 p-12">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Users size={32} className="text-gray-400" />
                     </div>
-                    
-                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-3">
-                      <div>
-                        <span className="block text-gray-700 font-medium">Join Date</span>
-                        {patient.date_joined ? new Date(patient.date_joined).toLocaleDateString() : 'N/A'}
-                      </div>
-                      <div>
-                        <span className="block text-gray-700 font-medium">Age</span>
-                        {patient.patient_profile?.age || 'N/A'}
-                      </div>
-                      <div>
-                        <span className="block text-gray-700 font-medium">Gender</span>
-                        {patient.patient_profile?.gender || 'N/A'}
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No patients found</h3>
+                    <p className="text-gray-500 max-w-sm">
+                      {searchTerm || selectedStatus !== 'all' 
+                        ? 'Try adjusting your search terms or filters to find what you\'re looking for.' 
+                        : 'No patients have been registered yet. New patients will appear here once they sign up.'
+                      }
+                    </p>
+                    {(searchTerm || selectedStatus !== 'all') && (
                       <button
-                        onClick={() => showConfirmDialog(patient)}
-                        className={`px-3 py-1 text-xs font-medium rounded text-white ${
-                          patient.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-                        } transition-colors`}
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSelectedStatus('all');
+                          setCurrentPage(1);
+                        }}
+                        className="mt-4 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                       >
-                        {patient.is_active ? 'Block' : 'Unblock'}
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="bg-white rounded-xl border border-gray-200 px-6 py-4 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      Showing{' '}
+                      <span className="font-medium">
+                        {(currentPage - 1) * itemsPerPage + 1}
+                      </span>{' '}
+                      to{' '}
+                      <span className="font-medium">
+                        {Math.min(currentPage * itemsPerPage, filteredPatients.length)}
+                      </span>{' '}
+                      of{' '}
+                      <span className="font-medium">{filteredPatients.length}</span>{' '}
+                      results
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft size={16} className="mr-1" />
+                        Previous
+                      </button>
+                      
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: totalPages }, (_, i) => {
+                          const pageNum = i + 1;
+                          const isActive = pageNum === currentPage;
+                          
+                          // Show first page, last page, current page, and pages around current
+                          if (
+                            pageNum === 1 ||
+                            pageNum === totalPages ||
+                            (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setCurrentPage(pageNum)}
+                                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                  isActive
+                                    ? 'bg-blue-600 text-white'
+                                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          } else if (
+                            pageNum === currentPage - 2 ||
+                            pageNum === currentPage + 2
+                          ) {
+                            return (
+                              <span key={pageNum} className="px-2 py-2 text-gray-500">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+                      
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                        <ChevronRight size={16} className="ml-1" />
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </>
-          )}
-          
-          {/* Empty state */}
-          {!loading && filteredPatients.length === 0 && (
-            <div className="flex flex-col items-center justify-center bg-white p-12 rounded-lg shadow-sm">
-              <Users size={48} className="text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-700">No patients found</h3>
-              <p className="text-gray-500 mt-2 text-center">
-                {searchTerm ? 'Try a different search term' : 'There are no registered patients yet'}
-              </p>
-            </div>
-          )}
-          
-          {/* Pagination - add loading state checks */}
-          {!loading && filteredPatients.length > 0 && (
-            <div className="mt-6 flex items-center justify-center">
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                  <span className="sr-only">Previous</span>
-                  &lt;
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600 hover:bg-blue-100">
-                  1
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  2
-                </button>
-                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  3
-                </button>
-                <button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                  <span className="sr-only">Next</span>
-                  &gt;
-                </button>
-              </nav>
-            </div>
           )}
         </main>
       </div>
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes scale-in {
+          0% {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

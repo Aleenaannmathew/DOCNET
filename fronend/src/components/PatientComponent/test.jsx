@@ -1,316 +1,588 @@
-import React, { useState } from "react";
-import { Calendar, Users, Clock, Wallet, Settings, LogOut, Home, ChevronDown, ChevronRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../store/authSlice";
-import { ToastContainer } from "react-toastify";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { logout } from '../../store/authSlice';
+import { adminAxios } from '../../axios/AdminAxios';
+import { toast } from 'react-toastify';
+import { 
+  ArrowLeft, CheckCircle, XCircle, UserRound, CalendarDays, 
+  Briefcase, GraduationCap, Globe, Award, Phone, Mail, MapPin,
+  FileText, Hospital, Clock, FileCheck, User, Building
+} from 'lucide-react';
 
-// Sidebar Item Component
-const SidebarItem = ({ icon, text, active, onClick, isMobile }) => {
-  return (
-    <li 
-      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-left transition-colors ${
-        active ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
-      }`}
-      onClick={onClick}
-    >
-      <div className="flex items-center">
-        <span className="mr-3">{icon}</span>
-        <span>{text}</span>
-      </div>
-      {active ? (
-        <ChevronDown size={16} />
-      ) : (
-        <ChevronRight size={16} />
-      )}
-    </li>
-  );
-};
+export default function DoctorDetail() {
+  const { doctorId } = useParams();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { token } = useSelector((state) => state.auth);
+  
+  const [doctor, setDoctor] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: '',
+    confirmButtonClass: ''
+  });
+  
+  const fetchDoctorDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await adminAxios.get(`/doctors/${doctorId}/`);
+      setDoctor(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching doctor details:', err);
+      setError('Failed to load doctor details. Please try again.');
+      
+      // If unauthorized, logout and redirect
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        dispatch(logout());
+        navigate('/admin/admin-login');
+        toast.error('Your session has expired. Please login again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchDoctorDetails();
+  }, [doctorId, token]);
 
-// Stat Card Component
-const StatCard = ({ title, value, icon, color }) => {
-  const colors = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    amber: 'bg-amber-100 text-amber-600',
-    purple: 'bg-purple-100 text-purple-600'
+  const showConfirmDialog = (title, message, onConfirm, confirmText = 'Confirm', confirmButtonClass = 'bg-blue-600 hover:bg-blue-700') => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      confirmText,
+      confirmButtonClass
+    });
   };
 
-  return (
-    <div className="bg-white p-5 rounded-xl shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-gray-600 font-medium text-sm">{title}</h4>
-        <div className={`p-2 rounded-full ${colors[color]}`}>
-          {icon}
-        </div>
-      </div>
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
-    </div>
-  );
-};
-
-// Appointment Card Component
-const AppointmentCard = ({ name, date, condition, status, last = false }) => {
-  const statusColors = {
-    upcoming: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    canceled: 'bg-red-100 text-red-800'
+  const closeConfirmDialog = () => {
+    setConfirmDialog({
+      isOpen: false,
+      title: '',
+      message: '',
+      onConfirm: null,
+      confirmText: '',
+      confirmButtonClass: ''
+    });
   };
 
-  return (
-    <div className={`py-4 ${!last ? "border-b border-gray-200" : ""}`}>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start space-x-4">
-          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-            {name.charAt(0)}
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-800">{name}</h4>
-            <p className="text-gray-500 text-sm mt-1">{date}</p>
-            <div className="flex items-center mt-1 space-x-2">
-              <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">{condition}</span>
-              <span className={`text-xs px-2 py-1 rounded-full ${statusColors[status]}`}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </span>
+  const handleConfirm = () => {
+    if (confirmDialog.onConfirm) {
+      confirmDialog.onConfirm();
+    }
+    closeConfirmDialog();
+  };
+  
+  const handleApprove = async () => {
+    try {
+      await adminAxios.patch(`/doctors/${doctorId}/approval/`, { action: 'approve' });
+      
+      // Update local state
+      setDoctor(prev => ({
+        ...prev,
+        is_approved: true
+      }));
+      
+      toast.success('Doctor approved successfully');
+    } catch (err) {
+      console.error('Error approving doctor:', err);
+      toast.error('Failed to approve doctor');
+      
+      // Handle unauthorized
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        dispatch(logout());
+        navigate('/admin/admin-login');
+      }
+    }
+  };
+
+  const confirmApprove = () => {
+    showConfirmDialog(
+      'Approve Doctor',
+      `Are you sure you want to approve Dr. ${doctor?.name}? This will allow them to access the platform and provide medical services.`,
+      handleApprove,
+      'Approve',
+      'bg-green-600 hover:bg-green-700'
+    );
+  };
+  
+  const handleReject = async () => {
+    try {
+      await adminAxios.patch(`/doctors/${doctorId}/approval/`, { action: 'reject' });
+      
+      // Update local state
+      setDoctor(prev => ({
+        ...prev,
+        is_approved: false
+      }));
+      
+      toast.success('Doctor rejected successfully');
+    } catch (err) {
+      console.error('Error rejecting doctor:', err);
+      toast.error('Failed to reject doctor');
+      
+      // Handle unauthorized
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        dispatch(logout());
+        navigate('/admin/admin-login');
+      }
+    }
+  };
+
+  const confirmReject = () => {
+    showConfirmDialog(
+      'Reject Doctor',
+      `Are you sure you want to reject Dr. ${doctor?.name}? They will not be able to access the platform or provide services.`,
+      handleReject,
+      'Reject',
+      'bg-red-600 hover:bg-red-700'
+    );
+  };
+  
+  const toggleBlock = async () => {
+    try {
+      const action = doctor.user.is_active ? 'block' : 'unblock';
+      
+      await adminAxios.patch(`/doctors/${doctorId}/block/`, { action });
+      
+      // Update local state
+      setDoctor(prev => ({
+        ...prev,
+        user: {
+          ...prev.user,
+          is_active: !prev.user.is_active
+        }
+      }));
+      
+      toast.success(`Doctor ${action}ed successfully`);
+    } catch (err) {
+      console.error(`Error ${doctor.user.is_active ? 'blocking' : 'unblocking'} doctor:`, err);
+      toast.error(`Failed to ${doctor.user.is_active ? 'block' : 'unblock'} doctor`);
+      
+      // Handle unauthorized
+      if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+        dispatch(logout());
+        navigate('/admin/admin-login');
+      }
+    }
+  };
+
+  const confirmToggleBlock = () => {
+    const isBlocking = doctor.user.is_active;
+    const action = isBlocking ? 'block' : 'unblock';
+    const actionPast = isBlocking ? 'blocked' : 'unblocked';
+    
+    showConfirmDialog(
+      `${isBlocking ? 'Block' : 'Unblock'} Doctor`,
+      `Are you sure you want to ${action} Dr. ${doctor?.name}? ${isBlocking ? 'They will lose access to the platform immediately.' : 'They will regain access to the platform.'}`,
+      toggleBlock,
+      isBlocking ? 'Block' : 'Unblock',
+      isBlocking ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+    );
+  };
+  
+  const getProfileImage = () => {
+    if (doctor?.user?.profile_image) {
+      return (
+        <img 
+          src={doctor.user.profile_image} 
+          alt={doctor.name} 
+          className="w-32 h-32 rounded-full object-cover"
+        />
+      );
+    }
+    
+    // Default emoji based on gender
+    const emoji = doctor?.gender?.toLowerCase() === 'female' ? '👩‍⚕️' : '👨‍⚕️';
+    
+    return (
+      <div className="w-32 h-32 rounded-full bg-blue-100 flex items-center justify-center text-5xl">
+        {emoji}
+      </div>
+    );
+  };
+  
+  const getStatusBadgeClass = (isApproved) => {
+    if (isApproved === true) return 'bg-green-100 text-green-800';
+    if (isApproved === false) return 'bg-red-100 text-red-800';
+    return 'bg-yellow-100 text-yellow-800'; // For pending status (null)
+  };
+  
+  const getStatusText = (isApproved, isActive) => {
+    if (!isActive) return 'BLOCKED';
+    if (isApproved === true) return 'APPROVED';
+    if (isApproved === false) return 'REJECTED';
+    return 'PENDING';
+  };
+  
+  const getCertificateLink = () => {
+    if (doctor?.certificate) {
+      return (
+        <a 
+          href={doctor.certificate} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-blue-600 hover:underline flex items-center"
+        >
+          <FileCheck size={16} className="mr-1" />
+          View Certificate
+        </a>
+      );
+    }
+    
+    return <span className="text-gray-500">No certificate uploaded</span>;
+  };
+
+  // Confirmation Dialog Component
+  const ConfirmationDialog = () => {
+    if (!confirmDialog.isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {confirmDialog.title}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              {confirmDialog.message}
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={closeConfirmDialog}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${confirmDialog.confirmButtonClass}`}
+              >
+                {confirmDialog.confirmText}
+              </button>
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm transition-colors">
-            Start Session
-          </button>
-          <button className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-sm transition-colors">
-            Reschedule
-          </button>
-          <button className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-sm transition-colors">
-            View Details
+      </div>
+    );
+  };
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-blue-600">Loading doctor details...</div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="bg-red-50 p-4 rounded-lg border border-red-200 flex items-center">
+          <span className="text-red-700">{error}</span>
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={() => navigate('/admin/doctor-list')}
+            className="flex items-center text-blue-600 hover:underline"
+          >
+            <ArrowLeft size={16} className="mr-1" />
+            Back to Doctors List
           </button>
         </div>
       </div>
-    </div>
-  );
-};
-
-const DoctorDashboard = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { user } = useSelector(state => state.auth);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('Dashboard');
-
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/login");
-  };
-
-  const sidebarItems = [
-    { name: "Dashboard", icon: "📊", onClick: () => navigate("/doctor/dashboard") },
-    { name: "Patients", icon: "👨‍⚕️", onClick: () => navigate("/doctor/patients") },
-    { name: "Appointments", icon: "📅", onClick: () => navigate("/doctor/appointments") },
-    { name: "Wallet", icon: "💰", onClick: () => navigate("/doctor/wallet") },
-    { name: "Settings", icon: "⚙️", onClick: () => navigate("/doctor/settings") },
-    { name: "Logout", icon: "🚪", color: "text-red-500", onClick: handleLogout },
-  ];
-
-  const statCards = [
-    { title: "Total Appointments", value: 24, icon: <Calendar size={18} />, color: "blue" },
-    { title: "New Patients", value: 8, icon: <Users size={18} />, color: "green" },
-    { title: "Today's Consultations", value: 5, icon: <Clock size={18} />, color: "amber" },
-    { title: "Earnings This Month", value: "₹42,500", icon: <Wallet size={18} />, color: "purple" },
-  ];
-
-  const appointments = [
-    { name: "Jacob Hill", date: "Today, 9:00 AM - 9:30 AM", condition: "Asthma", status: "upcoming" },
-    { name: "Emma Rodriguez", date: "Today, 10:30 AM - 11:00 AM", condition: "Annual Checkup", status: "upcoming" },
-    { name: "Michael Chan", date: "Today, 2:15 PM - 2:45 PM", condition: "Hypertension", status: "upcoming" },
-    { name: "Sarah Johnson", date: "Yesterday, 11:00 AM", condition: "Diabetes", status: "completed" },
-  ];
-
+    );
+  }
+  
+  if (!doctor) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <p className="text-yellow-700">Doctor not found.</p>
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={() => navigate('/admin/doctor-list')}
+            className="flex items-center text-blue-600 hover:underline"
+          >
+            <ArrowLeft size={16} className="mr-1" />
+            Back to Doctors List
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-      
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <button 
-              className="md:hidden mr-4 text-gray-500"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <h1 className="text-xl font-bold text-blue-600">DOCNET</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-2">
-              <span className="text-gray-700 font-medium">Dr. {user?.username}</span>
-              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                <span className="text-sm font-medium text-blue-600">
-                  {user?.username?.charAt(0).toUpperCase()}
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <button
+            onClick={() => navigate('/admin/doctor-list')}
+            className="flex items-center text-blue-600 hover:underline"
+          >
+            <ArrowLeft size={16} className="mr-1" />
+            Back to Doctors List
+          </button>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {/* Header with status and action buttons */}
+          <div className="p-6 border-b flex justify-between items-center flex-wrap gap-4">
+            <div>
+              <h1 className="text-2xl font-bold">{doctor.name}</h1>
+              <div className="mt-2 flex items-center">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(doctor.is_approved)}`}>
+                  {getStatusText(doctor.is_approved, doctor.user?.is_active)}
                 </span>
               </div>
             </div>
+            
+            <div className="flex gap-2">
+              {doctor.is_approved === null && (
+                <>
+                  <button
+                    onClick={confirmApprove}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
+                  >
+                    <CheckCircle size={16} className="mr-1" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={confirmReject}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center"
+                  >
+                    <XCircle size={16} className="mr-1" />
+                    Reject
+                  </button>
+                </>
+              )}
+              
+              <button
+                onClick={confirmToggleBlock}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+              >
+                {doctor.user?.is_active ? 'Block' : 'Unblock'}
+              </button>
+            </div>
+          </div>
+          
+          {/* Profile Info */}
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Left Column - Profile Picture */}
+              <div className="flex flex-col items-center">
+                {getProfileImage()}
+                <div className="mt-4 text-center">
+                  <h2 className="font-semibold text-lg">{doctor.name}</h2>
+                  <p className="text-gray-500">{doctor.specialization}</p>
+                </div>
+              </div>
+              
+              {/* Middle Column - Personal Info */}
+              <div className="md:col-span-2">
+                <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <UserRound size={18} className="text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-500">Full Name</p>
+                      <p className="font-medium">{doctor.name}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Mail size={18} className="text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-500">Email</p>
+                      <p className="font-medium">{doctor.user?.email }</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Phone size={18} className="text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-500">Phone</p>
+                      <p className="font-medium">{doctor.phone || 'Not provided'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <CalendarDays size={18} className="text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-500">Age</p>
+                      <p className="font-medium">{doctor.age || 'Not provided'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <UserRound size={18} className="text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-500">Gender</p>
+                      <p className="font-medium">{doctor.gender || 'Not provided'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <MapPin size={18} className="text-gray-500 mr-2" />
+                    <div>
+                      <p className="text-sm text-gray-500">Location</p>
+                      <p className="font-medium">{doctor.location || 'Not provided'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Professional Info */}
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Professional Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <FileText size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Registration ID</p>
+                    <p className="font-medium">{doctor.registration_id || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Hospital size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Hospital</p>
+                    <p className="font-medium">{doctor.hospital || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Globe size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Languages</p>
+                    <p className="font-medium">{doctor.languages || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Briefcase size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Specialization</p>
+                    <p className="font-medium">{doctor.specialization || 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Award size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Experience</p>
+                    <p className="font-medium">{doctor.experience ? `${doctor.experience} years` : 'Not specified'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <GraduationCap size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Qualifications</p>
+                    <p className="font-medium">{doctor.qualifications || 'Not specified'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Certificate Information */}
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Certificate Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <FileCheck size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Certificate</p>
+                    {getCertificateLink()}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* About */}
+            {doctor.bio && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">About</h3>
+                <p className="text-gray-700">{doctor.bio}</p>
+              </div>
+            )}
+            
+            {/* Registration Details */}
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Registration Details</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <Clock size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Registration Date</p>
+                    <p className="font-medium">
+                      {doctor.created_at ? new Date(doctor.created_at).toLocaleDateString() : 'Not available'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <Clock size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Last Updated</p>
+                    <p className="font-medium">
+                      {doctor.updated_at ? new Date(doctor.updated_at).toLocaleDateString() : 'Not available'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Account Status */}
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold mb-4">Account Status</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center">
+                  <User size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Status</p>
+                    <p className={`font-medium ${doctor.user?.is_active ? 'text-green-600' : 'text-red-600'}`}>
+                      {doctor.user?.is_active ? 'Active' : 'Blocked'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center">
+                  <CheckCircle size={18} className="text-gray-500 mr-2" />
+                  <div>
+                    <p className="text-sm text-gray-500">Approval Status</p>
+                    <p className={`font-medium 
+                      ${doctor.is_approved === true ? 'text-green-600' : 
+                        doctor.is_approved === false ? 'text-red-600' : 'text-yellow-600'}`}>
+                      {doctor.is_approved === true ? 'Approved' : 
+                       doctor.is_approved === false ? 'Rejected' : 'Pending Review'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Mobile Sidebar Backdrop */}
-        {sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-20 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sidebar */}
-        <aside className={`fixed md:static z-30 w-64 h-full bg-white shadow-md transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}>
-          <div className="h-full flex flex-col">
-            {/* Profile Summary */}
-            <div className="p-6 border-b">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
-                    {user?.username?.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">Dr. {user?.username}</h3>
-                
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto p-4">
-              <ul className="space-y-1">
-                {sidebarItems.map((item) => (
-                  <li key={item.name}>
-                    <button
-                      onClick={() => {
-                        item.onClick();
-                        setActiveTab(item.name);
-                        setSidebarOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-left transition-colors ${
-                        activeTab === item.name 
-                          ? 'bg-blue-50 text-blue-600' 
-                          : 'text-gray-700 hover:bg-gray-100'
-                      } ${item.color || ''}`}
-                    >
-                      <div className="flex items-center">
-                        <span className="mr-3">{item.icon}</span>
-                        <span>{item.name}</span>
-                      </div>
-                      {activeTab === item.name ? (
-                        <ChevronDown size={16} />
-                      ) : (
-                        <ChevronRight size={16} />
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </div>
-        </aside>
-
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Dashboard Header */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-              <div className="flex flex-col sm:flex-row items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Good morning, Dr. {user?.username}</h2>
-                  <p className="text-gray-600 mt-1">
-                    {user?.doctor_profile?.hospital ? `${user.doctor_profile.hospital} • ` : ''}
-                    {user?.doctor_profile?.specialization ? `${user.doctor_profile.specialization}`: ''}
-                  </p>
-                </div>
-                <div className="mt-4 sm:mt-0">
-                  <button
-                    onClick={() => navigate("/doctor/settings")}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition"
-                  >
-                    View Profile
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {statCards.map((card, index) => (
-                <StatCard 
-                  key={index}
-                  title={card.title}
-                  value={card.value}
-                  icon={card.icon}
-                  color={card.color}
-                />
-              ))}
-            </div>
-
-            {/* Appointments Section */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Today's Appointments</h3>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {appointments.filter(a => a.status === 'upcoming').map((appointment, index) => (
-                  <AppointmentCard 
-                    key={index}
-                    name={appointment.name}
-                    date={appointment.date}
-                    condition={appointment.condition}
-                    status={appointment.status}
-                    last={index === appointments.length - 1}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Recent Activity Section */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {appointments.filter(a => a.status === 'completed').map((appointment, index) => (
-                  <AppointmentCard 
-                    key={index}
-                    name={appointment.name}
-                    date={appointment.date}
-                    condition={appointment.condition}
-                    status={appointment.status}
-                    last={index === appointments.length - 1}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </main>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog />
     </div>
   );
-};
-
-export default DoctorDashboard;
+}
