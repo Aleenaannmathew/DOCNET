@@ -2,7 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import User,  PatientProfile, Appointment
 from doctor.models import DoctorProfile, DoctorSlot
-from cloudinary.uploader import upload 
+from cloudinary.uploader import upload
+from datetime import datetime, timezone 
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.password_validation import validate_password
 import cloudinary
@@ -87,37 +88,41 @@ class UserLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, required=True)
 
     def validate(self, data):
-        user = authenticate(username=data['username'], password=data['password'])
+        username = data.get('username')
+        password = data.get('password')
 
-        if user:
-            if not user.is_active:
-                raise serializers.ValidationError('This user account is not active.')
-            
-            if not user.is_verified:
-                raise serializers.ValidationError('Please verify your email to login.')
-                
-            if user.role != 'patient':
-                raise serializers.ValidationError('This login is for patients only.')
-            
-            refresh = RefreshToken.for_user(user)
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise serializers.ValidationError('Invalid username or password')
 
-            try:
-                patient_profile = PatientProfile.objects.get(user=user)
-                is_profile_complete = patient_profile.age is not None
-            except PatientProfile.DoesNotExist:
-                is_profile_complete = False
+        if not user.check_password(password):
+               raise serializers.ValidationError('Invalid username or password.')
+        if not user.is_active:
+            raise serializers.ValidationError('This user account is not active.')
+        if not user.is_verified:
+            raise serializers.ValidationError('Please verify your email to login.')
 
-            return {
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'username': user.username,
-                'email': user.email,
-                'phone': user.phone,
-                'is_profile_complete': is_profile_complete
-            }
-        else:
-            raise serializers.ValidationError('Invalid username or password.')
+        if user.role != 'patient':
+            raise serializers.ValidationError('This login is for patients only.')
+        refresh = RefreshToken.for_user(user)
 
+        try:
+            patient_profile = PatientProfile.objects.get(user=user)
+            is_profile_complete = patient_profile.age is not None
+        except PatientProfile.DoesNotExist:
+            is_profile_complete = False
+
+        return {
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'username': user.username,
+            'email': user.email,
+            'phone': user.phone,
+            'is_profile_complete': is_profile_complete
+        }
+       
+       
 class PatientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = PatientProfile
@@ -205,6 +210,89 @@ class UserProfileUpdateSerializer(serializers.Serializer):
             'role': user.role,
             'is_verified': user.is_verified
         }
+
+class DoctorProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    phone = serializers.CharField(source='user.phone', read_only=True, required=False)
+    rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+    availability_status = serializers.SerializerMethodField()
+    next_available_slot = serializers.SerializerMethodField()
+    available_today = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = DoctorProfile
+        fields = [
+            'id', 'username', 'email', 'phone', 'registration_id',
+            'hospital', 'languages', 'age', 'gender', 'experience',
+            'specialization', 'slug', 'rating', 'total_reviews',
+            'availability_status', 'next_available_slot', 'available_today'
+        ]
+    
+    def get_rating(self, obj):
+        # Add your rating logic here or return a default
+        return 4.5  # placeholder
+    
+    def get_total_reviews(self, obj):
+        # Add your review count logic here or return a default
+        return 10  # placeholder
+    
+    def get_next_available_slot(self, obj):
+        try:
+            today = timezone.now().date()
+            
+            # Find the next available slot
+            next_slot = DoctorSlot.objects.filter(
+                doctor=obj,
+                date__gte=today,
+                is_booked=False
+            ).order_by('date', 'start_time').first()
+            
+            if next_slot:
+                is_today = next_slot.date == today
+                days_from_now = (next_slot.date - today).days
+                
+                return {
+                    'date': next_slot.date.isoformat(),
+                    'time': next_slot.start_time.strftime('%I:%M %p'),
+                    'is_today': is_today,
+                    'days_from_now': days_from_now,
+                    'has_available_slots': True
+                }
+            
+            return {
+            'has_available_slots': False
+        }
+            
+        except Exception as e:
+            print(f"Error getting next available slot for doctor {obj.id}: {e}")
+            return {
+                'has_available_slots': False
+            }
+    
+    def get_availability_status(self, obj):
+        """Determine availability status based on next available slot"""
+        try:
+            next_slot_info = self.get_next_available_slot(obj)
+            
+            if not next_slot_info:
+                return 'No Available Slots'
+            
+            days_from_now = next_slot_info['days_from_now']
+            
+            if days_from_now == 0:
+                return 'Available Today'
+            elif days_from_now == 1:
+                return 'Available Tomorrow'
+            elif days_from_now <= 7:
+                return f'Available in {days_from_now} days'
+            else:
+                return 'Available Soon'
+                
+        except Exception as e:
+            print(f"Error getting availability status for doctor {obj.id}: {e}")
+            return 'Check Availability'  
 
 
 class DoctorSlotViewSerializer(serializers.ModelSerializer):

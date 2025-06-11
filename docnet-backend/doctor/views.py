@@ -23,6 +23,7 @@ from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, 
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 class DoctorRegistrationView(APIView):
@@ -328,50 +329,30 @@ class DoctorLogoutView(APIView):
 
     def post(self, request):
         try:
-            refresh_token = request.data.get('refresh_token')
+            refresh_token = request.data.get('refresh')
 
-            if not refresh_token:
-                return ResponseManager.error_response(
-                    'Refresh token is required',
-                    status.HTTP_400_BAD_REQUEST
-                )
+            if refresh_token:
+                try:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                except TokenError:    
+                    pass
+                except Exception as e:
+                    logger.error(f'Error blacklisting token: {str(e)}')
+                    pass
             
-            try:
-                token = RefreshToken(refresh_token)
-                if token.payload.get('user_id') != request.user.id:
-                    return ResponseManager.error_response(
-                        'Invalid token ownership',
-                        status.HTTP_403_FORBIDDEN
-                    )
-                
-                token.blacklist()
-
-                if hasattr(request, 'auth'):
-                    try:
-                        from rest_framework_simplejwt.token_blacklist.models import (
-                            BlacklistedToken, OutstandingToken
-                        )
-                        outstanding = OutstandingToken.objects.get(token=request.auth)
-                        BlacklistedToken.objects.create(token=outstanding)
-                    except OutstandingToken.DoesNotExist:
-                        pass
-
-                return ResponseManager.success_response(
-                    data={'logout': True},
-                    message='Successfully logged out',
-                    status_code=status.HTTP_205_RESET_CONTENT
-                )
-
-            except TokenError as e:
-                return ResponseManager.error_response(
-                    'Invalid or expired refresh token',
-                    status.HTTP_400_BAD_REQUEST
-                )
-
+            return ResponseManager.success_response(
+                data={'logout': True},
+                message='Successfully logged out',
+                status_code=status.HTTP_200_OK
+            )
+        
         except Exception as e:
-            return ResponseManager.error_response(
-                f'Logout failed: {str(e)}',
-                status.HTTP_500_INTERNAL_SERVER_ERROR
+            logger.error(f'Logout error: {str(e)}')
+            return ResponseManager.success_response(
+                data={'logout': True},
+                message='Logged out with warnings',
+                status_code=status.HTTP_200_OK
             )
         
 class DoctorSlotCreate(generics.ListCreateAPIView):

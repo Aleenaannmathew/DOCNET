@@ -39,6 +39,12 @@ function DoctorsList({ activeFilters, searchQuery }) {
           params.append('experience', activeFilters.experience);
         }
 
+        if (activeFilters.availability) {
+          params.append('availability', activeFilters.availability);
+        }
+
+        params.append('only_available', 'true');
+
         // Add sorting
         if (sortBy) {
           params.append('ordering', sortBy);
@@ -63,12 +69,6 @@ function DoctorsList({ activeFilters, searchQuery }) {
     if (activeFilters.rating) {
       const requiredRating = parseInt(activeFilters.rating.split(' ')[0]);
       if (doctor.rating && doctor.rating < requiredRating) return false;
-    }
-    
-   
-    if (activeFilters.availability) {
-     
-      return true;
     }
     
     return true;

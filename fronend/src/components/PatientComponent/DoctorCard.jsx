@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Star, MapPin, Calendar, Phone, Mail, User, Heart } from 'lucide-react';
+import { Star, MapPin, Calendar, Phone, Mail, User, Heart, Clock } from 'lucide-react';
 
 function DoctorCard({ doctor, onViewDetails }) {
   const navigate = useNavigate();
@@ -41,7 +41,110 @@ function DoctorCard({ doctor, onViewDetails }) {
     return `${window.location.origin}/media/${profileImage}`;
   };
 
+  const getAvailabilityBadge = () => {
+  if (!doctor?.next_available_slot) {
+    return {
+      text: 'Loading availability...',
+      className: 'bg-gray-500 text-white',
+      icon: <Clock size={12} className="mr-2" />
+    };
+  }
+
+  const slot = doctor.next_available_slot;
+  
+  if (slot.has_available_slots === false) {
+    return {
+      text: 'No Slots Available',
+      className: 'bg-gray-500 text-white',
+      icon: <Clock size={12} className="mr-2" />
+    };
+  }
+
+  if (slot.is_today) {
+    return {
+      text: 'Available Today',
+      className: 'bg-green-500 text-white',
+      icon: <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
+    };
+  }
+
+  if (slot.days_from_now === 1) {
+    return {
+      text: 'Available Tomorrow',
+      className: 'bg-blue-500 text-white',
+      icon: <Clock size={12} className="mr-2" />
+    };
+  }
+
+  if (slot.days_from_now <= 7) {
+    return {
+      text: `Available in ${slot.days_from_now} days`,
+      className: 'bg-yellow-500 text-white',
+      icon: <Clock size={12} className="mr-2" />
+    };
+  }
+
+  return {
+    text: 'Available Soon',
+    className: 'bg-orange-500 text-white',
+    icon: <Clock size={12} className="mr-2" />
+  };
+};
+
+  const getNextAvailableSlot = () => {
+  if (doctor?.next_available_slot) {
+    const slot = doctor.next_available_slot;
+    if (slot.date && slot.time) {
+      if (slot.is_today) {
+        return `Today ${slot.time}`;
+      } else {
+        const date = new Date(slot.date);
+        return `${date.toLocaleDateString()} ${slot.time}`;
+      }
+    }
+    if (slot.has_available_slots === false) {
+      return 'No available slots';
+    }
+  }
+  return 'Check for availability';
+};
+
+
+  const getAvailabilityDisplayInfo = () => {
+    if (doctor?.next_available_slot) {
+      const slot = doctor.next_available_slot;
+      
+      if (slot.is_today) {
+        return {
+          text: getNextAvailableSlot(),
+          className: 'bg-green-50 border-green-200 text-green-700',
+          showAsAvailable: true
+        };
+      } else if (slot.days_from_now <= 7) {
+        return {
+          text: getNextAvailableSlot(),
+          className: 'bg-blue-50 border-blue-200 text-blue-700',
+          showAsAvailable: true
+        };
+      } else {
+        return {
+          text: getNextAvailableSlot(),
+          className: 'bg-yellow-50 border-yellow-200 text-yellow-700',
+          showAsAvailable: true
+        };
+      }
+    }
+    
+    return {
+      text: 'Contact for availability',
+      className: 'bg-gray-50 border-gray-200 text-gray-700',
+      showAsAvailable: false
+    };
+  };
+
   const profileImageUrl = getProfileImageUrl(doctor?.profile_image);
+  const availabilityBadge = getAvailabilityBadge();
+  const availabilityInfo = getAvailabilityDisplayInfo();
 
   const handleViewDetails = () => {
     navigate(`/doctor-details/${doctor.slug}`);
@@ -78,9 +181,9 @@ function DoctorCard({ doctor, onViewDetails }) {
 
         {/* Available indicator */}
         <div className="absolute top-4 left-4">
-          <span className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-medium flex items-center">
-            <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-            Available Today
+          <span className={`${availabilityBadge.className} text-xs px-3 py-1 rounded-full font-medium flex items-center`}>
+            {availabilityBadge.icon}
+            {availabilityBadge.text}
           </span>
         </div>
 
@@ -143,10 +246,10 @@ function DoctorCard({ doctor, onViewDetails }) {
             </div>
           )}
 
-          {/* Next available slot */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <div className="text-sm text-green-700 font-semibold text-center">
-              Next available: Today 2:00 PM
+          {/* Next available slot - Always shown */}
+          <div className={`${availabilityInfo.className} border rounded-lg p-3`}>
+            <div className="text-sm font-semibold text-center">
+              {availabilityInfo.showAsAvailable ? 'Next available: ' : ''}{availabilityInfo.text}
             </div>
           </div>
         </div>

@@ -31,38 +31,46 @@ doctorAxios.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url.includes('doctor-logout')) {
-        return Promise.reject(error);
-      }
+    const responseStatus = error.response?.status;
+    const errorDetail = error.response?.data?.detail;
+    const errorCode = error.response?.data?.code;
+
+
+  
+    if (responseStatus === 403 && originalRequest.url.includes('logout')) {
+      return Promise.reject(error);
+    }
+
+    
+    if (responseStatus === 403 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+      console.log("**Hii")
       try {
+        console.log("HHIIII")
         const refreshToken = localStorage.getItem('refreshToken');
-        
-        if (!refreshToken) throw new Error('No refresh token');
 
         const response = await axios.post(
-          `${doctorApi}/token/refresh/`,
+  'http://127.0.0.1:8000/api/token/refresh/', 
           { refresh: refreshToken },
-          { 
+          {
             headers: { 'Content-Type': 'application/json' },
-            skipAuthRefresh: true
+            skipAuthRefresh: true,
           }
         );
-        
-        const { access } = response.data;
-        store.dispatch(updateToken({ access }));
+        console.log(response.data)
+        const { access, refresh} = response.data;
+        store.dispatch(updateToken({ access, refresh }));
         localStorage.setItem('token', access);
+
+        // Retry the original request with new token
         originalRequest.headers.Authorization = `Bearer ${access}`;
         return doctorAxios(originalRequest);
       } catch (refreshError) {
-        console.error('Token refresh failed: ', refreshError)
         store.dispatch(logout());
         return Promise.reject(refreshError);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

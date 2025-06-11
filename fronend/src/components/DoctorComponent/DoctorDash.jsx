@@ -127,10 +127,27 @@ const DoctorDashboard = () => {
   const { user } = useSelector(state => state.auth)
   
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/doctor-login");
-  };
+  const handleLogout = async () => {
+        try{
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            await doctorAxios.post('/logout/', {
+              refresh: refreshToken
+            });
+          }
+          dispatch(logout());
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          navigate('/doctor-login');
+        } catch (error) {
+          console.error('Logout error:', error);
+    
+          dispatch(logout());
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          navigate('/doctor-login')
+        }
+      }
 
   const handleNavigation = (path) => {
     console.log(`Navigate to: ${path}`);

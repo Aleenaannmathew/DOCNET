@@ -322,19 +322,26 @@ const Settings = () => {
   };
 
   const handleLogout = async () => {
-    try{
-      const refreshToken = localStorage.getItem('refreshToken');
-      console.log('Refresh token: ', refreshToken);
-      await doctorAxios.post('/doctor-logout/', {
-        refresh_token: refreshToken
-      });
-      dispatch(logout());
-      navigate('/doctor-login/');
-    } catch (error) {
-      console.error('Logout error: ', error);
-      dispatch(logout());
-    }
-  }
+        try{
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            await doctorAxios.post('/logout/', {
+              refresh: refreshToken
+            });
+          }
+          dispatch(logout());
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          navigate('/doctor-login');
+        } catch (error) {
+          console.error('Logout error:', error);
+    
+          dispatch(logout());
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          navigate('/doctor-login')
+        }
+      }
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);

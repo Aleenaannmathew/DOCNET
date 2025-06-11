@@ -14,6 +14,7 @@ userAxios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
+      console.log("Token",token)
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -30,55 +31,61 @@ userAxios.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
-   
+
+    const responseStatus = error.response?.status;
+    const errorDetail = error.response?.data?.detail;
+    const errorCode = error.response?.data?.code;
+
+ 
     if (
-      error.response?.status === 403 || 
-      (error.response?.status === 401 && 
-       error.response?.data?.detail === 'Your account has been deactivated by admin.')
-    ) {
+      responseStatus === 403 &&
+      (errorDetail === 'User is inactive' ||
+       errorCode === 'user_inactive')
+    ) 
+  
+    {
+      console.log("hii")
       store.dispatch(logout());
       window.location.href = '/login?message=account_deactivated';
       return Promise.reject(error);
     }
 
-    // Handle expired token scenario
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url.includes('logout')) {
-        return Promise.reject(error);
-      }
+  
+    if (responseStatus === 403 && originalRequest.url.includes('logout')) {
+      return Promise.reject(error);
+    }
+
+    
+    if (responseStatus === 403 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+      console.log("**Hii")
       try {
+        console.log("HHIIII")
         const refreshToken = localStorage.getItem('refreshToken');
-        
-        if (!refreshToken) {
-          console.log('No refresh token available');
-          store.dispatch(logout());
-          return Promise.reject(error);
-        }
-        console.log('Attempting token refresh...');
+        console.log("refreshToken", refreshToken)
+
         const response = await axios.post(
-          `${userApi}/token/refresh/`, 
+  'http://localhost:8000/api/token/refresh/', 
           { refresh: refreshToken },
-          { 
+          {
             headers: { 'Content-Type': 'application/json' },
-            skipAuthRefresh: true 
+            skipAuthRefresh: true,
           }
         );
-        
-        const { access } = response.data;
-        store.dispatch(updateToken({ access }));
+        console.log(response.data)
+        const { access, refresh} = response.data;
+        store.dispatch(updateToken({ access, refresh }));
         localStorage.setItem('token', access);
+
+        // Retry the original request with new token
         originalRequest.headers.Authorization = `Bearer ${access}`;
-        console.log('Token refreshed successfully');
         return userAxios(originalRequest);
       } catch (refreshError) {
         store.dispatch(logout());
         return Promise.reject(refreshError);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

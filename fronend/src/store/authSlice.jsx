@@ -48,13 +48,13 @@ const authSlice = createSlice({
     },
 
     updateToken: (state, action) => {
-      state.token = action.payload.access;
-      if (action.payload.refresh) {
-        state.refreshToken = action.payload.refresh;
-        localStorage.setItem('refreshToken', action.payload.refresh);
-      }
-      localStorage.setItem('token', action.payload.access);
-    },
+  state.token = action.payload.access;
+  if (action.payload.refresh) {
+    state.refreshToken = action.payload.refresh;
+    localStorage.setItem('refreshToken', action.payload.refresh);
+  }
+  localStorage.setItem('token', action.payload.access);
+},
 
     updateUser: (state, action) => {
    

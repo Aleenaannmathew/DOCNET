@@ -175,7 +175,7 @@ REST_FRAMEWORK = {
 REST_USE_JWT = True
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # Increase as needed
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1), 
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -202,12 +202,6 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
 ]
-
-SIMPLE_JWT = {
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': True,
-}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

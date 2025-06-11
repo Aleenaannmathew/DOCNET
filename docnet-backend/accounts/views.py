@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.utils import timezone
+from django.utils import timezone 
 from rest_framework.response import Response
 from datetime import timedelta
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -13,7 +13,7 @@ from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
 from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
+from django.db.models import Q, Exists, OuterRef
 from doctor.models import DoctorProfile, DoctorSlot
 from doctor.serializers import DoctorProfileSerializer
 import logging
@@ -480,9 +480,7 @@ class UserLogoutView(APIView):
                 message='Logged out with warnings',
                 status_code=status.HTTP_200_OK
             )
-                
-              
-        
+       
 class DoctorListView(generics.ListAPIView):
     serializer_class = DoctorProfileSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -492,10 +490,26 @@ class DoctorListView(generics.ListAPIView):
     ordering = ['-experience']
 
     def get_queryset(self):
+        today = timezone.now().date()
         queryset = DoctorProfile.objects.filter(
             is_approved=True,
             user__is_active=True 
-        ).select_related('user')
+        ).select_related('user').prefetch_related('slots').annotate(
+            available_today = Exists(
+                DoctorSlot.objects.filter(
+                    doctor=OuterRef('pk'),
+                    date = today,
+                    is_booked = False
+                )
+            ),
+            has_available_slots = Exists(
+                DoctorSlot.objects.filter(
+                    doctor=OuterRef('pk'),
+                    date__gte=today,
+                    is_booked=False
+                )
+            )
+        )
 
         search_query = self.request.query_params.get('search', None)
         if search_query:
@@ -506,9 +520,29 @@ class DoctorListView(generics.ListAPIView):
                 Q(hospital__icontains=search_query)
             )
         
+        availability = self.request.query_params.get('availability',None)
+        if availability:
+            if availability == 'Available today':
+                queryset = queryset.filter(available_today=True)
+            elif availability == 'Next 3 days':
+                next_3_days = today + timedelta(days=3)
+                queryset = queryset.filter(
+                    slots__date__range=[today, next_3_days],
+                    slots__is_booked=False
+                ).distinct()
+            elif availability == 'This Week':
+                week_end = today + timedelta(days=7)
+                queryset = queryset.filter(
+                    slots__date__range=[today, week_end],
+                    slots__is_booked=False
+                ).distinct()        
         country = self.request.query_params.get('country', None)
         if country:
             pass
+
+        show_only_available = self.request.query_params.get('only_available', 'false')
+        if show_only_available.lower() == 'true':
+            queryset = queryset.filter(has_available_slots=True)
             
         return queryset     
 
@@ -531,7 +565,6 @@ class DoctorSlotsView(APIView):
             is_booked=False
         ).order_by('date', 'start_time')
 
-
         slots_by_date = {}
         for slot in slots:
             date_str = slot.date.strftime('%Y-%m-%d')
@@ -544,7 +577,8 @@ class DoctorSlotsView(APIView):
                 'time': time_str,
                 'duration': slot.duration,
                 'type': slot.get_consultation_type_display(),
-                'max_patients': slot.max_patients
+                'max_patients': slot.max_patients,
+                'fee': slot.fee
             })
 
         return Response({

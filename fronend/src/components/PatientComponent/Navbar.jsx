@@ -21,12 +21,27 @@ const Navbar = () => {
     navigate('/register');
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    setIsProfileMenuOpen(false);
-    navigate('/');
-  };
-
+  const handleLogout = async () => {
+      try{
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          await userAxios.post('/logout/', {
+            refresh: refreshToken
+          });
+        }
+        dispatch(logout());
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        navigate('/login');
+      } catch (error) {
+        console.error('Logout error:', error);
+  
+        dispatch(logout());
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        navigate('/login')
+      }
+    }
   const handleProfileClick = () => {
     navigate('/user-profile');
     setIsProfileMenuOpen(false);
