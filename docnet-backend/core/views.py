@@ -8,8 +8,8 @@ from django.conf import settings
 from doctor.models import DoctorProfile
 from .serializers import AdminLoginSerializer, AdminUserSerializer 
 from django.shortcuts import get_object_or_404
-from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer
-from accounts.models import User, PatientProfile
+from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer, AdminAppointmentListSerializer
+from accounts.models import User, PatientProfile,Appointment,Payment
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
 from .serializers import PatientListSerializer, PatientDetailSerializer
 from rest_framework_simplejwt.exceptions import TokenError
@@ -248,4 +248,16 @@ class PatientDetailView(APIView):
             return Response(
                 {"detail": f"Error retrieving patient details: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )        
+            )   
+
+class AdminAppointmentListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        appointments = Appointment.objects.select_related(
+            'payment', 'payment__slot', 'payment__slot__doctor',
+            'payment__patient'
+        ).all().order_by('-created_at')
+        
+        serializer = AdminAppointmentListSerializer(appointments, many=True)
+        return Response(serializer.data)             

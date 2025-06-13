@@ -317,6 +317,8 @@ const UserProfile = () => {
       handleLogout();
     } else if (tab === 'Change Password') {
       navigate('/new-password');
+    } else if (tab === 'Booking History') {
+      navigate('/booking-history')
     } else {
       setActiveTab(tab);
     }

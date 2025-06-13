@@ -320,6 +320,8 @@ const Settings = () => {
       });
     } else if (tab === 'Availability'){
       navigate('/doctor/slots');
+    } else if (tab === 'Appointments'){
+      navigate('/doctor/doctor-appointments')
     }
     else {
       setActiveTab(tab);

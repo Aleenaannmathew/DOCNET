@@ -391,3 +391,26 @@ class VerifyPaymentSerializer(serializers.Serializer):
     )
 
         return appointment
+    
+class BookingHistorySerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source='payment.slot.doctor.user.username', read_only=True)
+    slot_date = serializers.DateField(source='payment.slot.date', read_only=True)
+    start_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
+    end_time = serializers.TimeField(source='payment.slot.end_time', read_only=True)
+    payment_status = serializers.CharField(source='payment.payment_status', read_only=True)
+    amount = serializers.DecimalField(source='payment.amount', max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Appointment
+        fields = [
+            'id',
+            'status',
+            'doctor_name',
+            'slot_date',
+            'start_time',
+            'end_time',
+            'payment_status',
+            'amount',
+            'created_at',
+        ]
+   

@@ -26,7 +26,8 @@ from .serializers import (
     UserLoginSerializer, 
     UserProfileUpdateSerializer,
     CreatePaymentSerializer,
-    VerifyPaymentSerializer
+    VerifyPaymentSerializer,
+    BookingHistorySerializer
     
 )
 from core.utils import (
@@ -618,3 +619,16 @@ class VerifyPaymentView(APIView):
                 "appointment_id": appointment.id
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class BookingHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role != 'patient':
+            return Response({"detail": "Access denied."}, status=403)
+
+        appointments = Appointment.objects.filter(payment__patient=user).select_related('payment__slot__doctor__user').order_by('-created_at')
+        serializer = BookingHistorySerializer(appointments, many=True)
+        return Response(serializer.data)   

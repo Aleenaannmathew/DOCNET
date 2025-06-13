@@ -15,6 +15,9 @@ import OtpVerify from '../pages/DoctorPages/OtpVerify';
 import ProtectedRoute from './ProtectedRoute';
 import PublicRoute from './PublicRoute';
 import Slots from '../pages/DoctorPages/Slots';
+import PatientAppointments from '../pages/DoctorPages/PatientAppointments';
+import AppointmentDetails from '../pages/DoctorPages/AppointmentDetails';
+import Wallet from '../pages/DoctorPages/Wallet';
 
 function DoctorRoutes() {
   return (
@@ -67,6 +70,9 @@ function DoctorRoutes() {
         <Route path="settings" element={<DoctorSettings />} />
         <Route path="change-password" element={<PasswordChange />} />
         <Route path="slots" element={<Slots />} />
+        <Route path="doctor-appointments" element={<PatientAppointments/>}/>
+        <Route path="appointment-details" element={<AppointmentDetails/>}/>
+        <Route path="doctor-wallet" element={<Wallet/>}/>
       </Route>
 
       {/* Catch-all route */}

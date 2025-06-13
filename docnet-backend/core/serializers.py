@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from doctor.models import DoctorProfile   
-from accounts.models import User, PatientProfile
+from doctor.models import DoctorProfile, DoctorSlot   
+from accounts.models import User, PatientProfile, Payment,Appointment
 
 User = get_user_model()
 
@@ -109,3 +109,34 @@ class PatientDetailSerializer(serializers.ModelSerializer):
             return profile
         except PatientProfile.DoesNotExist:
             return None    
+        
+class DoctorSlotSerializer(serializers.ModelSerializer):
+    doctor = DoctorProfileListSerializer(read_only=True)
+
+    class Meta:
+        model = DoctorSlot
+        fields = ['id', 'date', 'start_time', 'duration', 'consultation_type', 'fee', 'doctor']
+
+class PaymentSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = ['id', 'amount', 'payment_status', 'timestamp', 'payment_method']
+
+class AdminAppointmentListSerializer(serializers.ModelSerializer):
+    slot = serializers.SerializerMethodField()
+    patient = serializers.SerializerMethodField()
+    payment = PaymentSummarySerializer(read_only=True)
+
+    class Meta:
+        model = Appointment
+        fields = ['id', 'status', 'created_at', 'updated_at', 'payment', 'slot', 'patient']
+
+    def get_slot(self, obj):
+        if obj.payment and obj.payment.slot:
+            return DoctorSlotSerializer(obj.payment.slot).data
+        return None
+
+    def get_patient(self, obj):
+        if obj.payment and obj.payment.patient:
+            return PatientDetailSerializer(obj.payment.patient).data
+        return None        

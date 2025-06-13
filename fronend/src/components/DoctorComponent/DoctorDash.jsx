@@ -150,7 +150,7 @@ const DoctorDashboard = () => {
       }
 
   const handleNavigation = (path) => {
-    console.log(`Navigate to: ${path}`);
+    navigate(path);
   };
 
   const sidebarItems = [
@@ -158,7 +158,7 @@ const DoctorDashboard = () => {
     { name: "Patients", icon: <Users size={20} />, onClick: () => handleNavigation("/doctor/patients"), badge: 3 },
     { name: "Appointments", icon: <Calendar size={20} />, onClick: () => handleNavigation("/doctor/appointments"), badge: 8 },
     { name: "Analytics", icon: <Activity size={20} />, onClick: () => handleNavigation("/doctor/analytics") },
-    { name: "Wallet", icon: <Wallet size={20} />, onClick: () => handleNavigation("/doctor/wallet") },
+    { name: "Wallet", icon: <Wallet size={20} />, onClick: () => handleNavigation("/doctor/doctor-wallet") },
     { name: "Settings", icon: <Settings size={20} />, onClick: () => handleNavigation("/doctor/settings") },
   ];
 

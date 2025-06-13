@@ -1,9 +1,10 @@
 from rest_framework import serializers
-from .models import DoctorProfile, DoctorSlot
+from .models import DoctorProfile, DoctorSlot, Wallet, WalletHistory
 from django.db import transaction
 import cloudinary
 from datetime import date
 import cloudinary.uploader
+from accounts.models import Appointment, PatientProfile
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -301,3 +302,45 @@ class DoctorSlotSerializer(serializers.ModelSerializer):
                 )
         
         return data
+    
+class PatientInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PatientProfile
+        fields = ['age', 'blood_group', 'height', 'weight', 'allergies', 'chronic_conditions', 'emergency_contact', 'emergency_contact_name']
+
+class BookedPatientSerializer(serializers.ModelSerializer):
+    patient = serializers.SerializerMethodField()
+    profile = serializers.SerializerMethodField()
+    slot_date = serializers.DateField(source='payment.slot.date', read_only=True)
+    slot_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
+
+    class Meta:
+        model = Appointment
+        fields = ['id', 'status', 'created_at', 'slot_date', 'slot_time', 'patient', 'profile']
+
+    def get_patient(self, obj):
+        return {
+            'id': obj.payment.patient.id,
+            'username': obj.payment.patient.username,
+            'email': obj.payment.patient.email,
+            'phone': obj.payment.patient.phone
+        }
+
+    def get_profile(self, obj):
+        try:
+            profile = PatientProfile.objects.get(user=obj.payment.patient)
+            return PatientInfoSerializer(profile).data
+        except PatientProfile.DoesNotExist:
+            return None
+
+class WalletHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WalletHistory
+        fields = ['id', 'type', 'amount', 'new_balance', 'updated_date']
+
+class WalletSerializer(serializers.ModelSerializer):
+    history = WalletHistorySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Wallet
+        fields = ['id', 'balance', 'history']

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView
-from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView
+from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
@@ -21,5 +21,6 @@ urlpatterns = [
     path('doctor-slots/<slug:slug>/', DoctorSlotsView.as_view(), name='doctor-slots'),
     path('payments/create/', CreatePaymentView.as_view(), name='create-payment'),
     path('payments/verify/', VerifyPaymentView.as_view(), name='verify-payment'),
+    path('patient-bookings/', BookingHistoryView.as_view(), name='patient-booking-history'),
    
 ]

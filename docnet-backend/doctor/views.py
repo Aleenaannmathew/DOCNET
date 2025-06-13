@@ -18,8 +18,9 @@ from rest_framework.permissions import IsAuthenticated
 from accounts.models import OTPVerification
 from django.utils import timezone
 import logging
-from .models import DoctorProfile, DoctorSlot
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer
+from accounts.models import Appointment
+from .models import DoctorProfile, DoctorSlot, Wallet
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, WalletHistorySerializer, WalletSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
@@ -418,4 +419,33 @@ class AvailableSlotsView(generics.ListAPIView):
             queryset = queryset.filter(doctor_id=doctor_id)
 
         return queryset.order_by('date', 'start_time')  
-                          
+
+
+class DoctorBookedPatientsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            doctor_profile = DoctorProfile.objects.get(user=request.user)
+        except DoctorProfile.DoesNotExist:
+            return Response({'detail': 'Doctor profile not found.'}, status=404)
+
+        appointments = Appointment.objects.filter(
+            payment__slot__doctor=doctor_profile,
+            payment__isnull=False,
+            payment__payment_status='success',
+        ).select_related('payment__slot', 'payment__patient').order_by('-created_at')
+
+        serializer = BookedPatientSerializer(appointments, many=True)
+        return Response(serializer.data)
+    
+class DoctorWalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            wallet = Wallet.objects.get(doctor__user=request.user)
+            serializer = WalletSerializer(wallet)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Wallet.DoesNotExist:
+            return Response({'detail': 'Wallet not found'}, status=status.HTTP_404_NOT_FOUND)    
