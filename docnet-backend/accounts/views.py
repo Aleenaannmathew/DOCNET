@@ -3,12 +3,15 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone 
 from rest_framework.response import Response
 from datetime import timedelta
+from django.utils.timezone import localtime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from .models import OTPVerification, PatientProfile, Appointment
+from .models import OTPVerification, PatientProfile, Appointment, Payment
 from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
 from rest_framework import generics, filters
@@ -16,13 +19,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Exists, OuterRef
 from doctor.models import DoctorProfile, DoctorSlot
 from doctor.serializers import DoctorProfileSerializer
-import logging
+import logging, json, hashlib, hmac, razorpay
+
 from .serializers import (
     UserRegistrationSerializer, 
     UserLoginSerializer, 
     UserProfileUpdateSerializer,
-    DoctorSlotViewSerializer,
-    AppointmentSerializer
+    CreatePaymentSerializer,
+    VerifyPaymentSerializer
+    
 )
 from core.utils import (
     OTPManager, 
@@ -557,7 +562,7 @@ class DoctorDetailView(APIView):
         
 class DoctorSlotsView(APIView):
     def get(self, request, slug): 
-        today = timezone.now().date()
+        today = localtime().date()
 
         slots = DoctorSlot.objects.filter(
             doctor__user__username=slug,
@@ -587,33 +592,29 @@ class DoctorSlotsView(APIView):
             'message': 'Slots fetched successfully'
         }, status=status.HTTP_200_OK)
         
-class BookAppointmentView(APIView):
+class CreatePaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
-        slot_id = request.data.get('slot_id')
-        doctor_id = request.data.get('doctor_id')
-        notes = request.data.get('notes', '')
-        
-        try:
-            slot = DoctorSlot.objects.get(id=slot_id, is_booked=False)
-        except DoctorSlot.DoesNotExist:
-            return ResponseManager.error_response(
-                {'error': 'Slot not available or already booked'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-       
-        appointment = Appointment.objects.create(
-            patient=request.user,
-            doctor_id=doctor_id,
-            slot=slot,
-            notes=notes,
-            status='scheduled'
-        )
-        
-        slot.is_booked = True
-        slot.save()
-        
-        return ResponseManager.success_response(
-            AppointmentSerializer(appointment).data,
-            status=status.HTTP_201_CREATED
-        )    
+        serializer = CreatePaymentSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            result = serializer.save()
+            return Response({
+                "payment_id": result["payment"].id,
+                "razorpay_order": result["order"]
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = VerifyPaymentSerializer(data=request.data)
+        if serializer.is_valid():
+            appointment = serializer.save()
+            return Response({
+                "message": "Payment verified and appointment created.",
+                "appointment_id": appointment.id
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,8 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { doctorAxios } from '../../axios/DoctorAxios';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { Calendar, Clock, Plus, Edit, Trash2, Save, X, Video, MessageCircle, ChevronLeft, ChevronRight, Eye, DollarSign, Users, Check, Copy, Settings } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import Swal from 'sweetalert2';
 
 const DoctorSlots = () => {
   const [activeTab, setActiveTab] = useState('Availability');
@@ -177,28 +180,75 @@ const DoctorSlots = () => {
   }
 };
 
+const getErrorMessage = (error) => {
+  if (error.response?.data?.message) {
+    return error.response.data.message;
+  }
+  if (error.response?.data?.error) {
+    return error.response.data.error;
+  }
+  if (error.response?.data) {
+    // Handle validation errors or other structured responses
+    if (typeof error.response.data === 'string') {
+      return error.response.data;
+    }
+    // Handle object responses with multiple error fields
+    if (typeof error.response.data === 'object') {
+      const firstError = Object.values(error.response.data)[0];
+      return Array.isArray(firstError) ? firstError[0] : firstError;
+    }
+  }
+  if (error.message) {
+    return error.message;
+  }
+  return 'An unexpected error occurred';
+};
+
 
   const createSlot = async (slotData) => {
-    try {
-      const formattedData = {
-        date: selectedDate.toISOString().split('T')[0],
-        start_time: slotData.time + ':00',
-        duration: slotData.duration,
-        consultation_type: slotData.type,
-        max_patients: slotData.maxPatients,
-        fee: slotData.fee,
-        notes: slotData.notes
-      };
-      
-      await doctorAxios.post('/slots/', formattedData);
-      await fetchSlotsForWeek();
-      setShowSlotModal(false);
-      alert('Slot created successfully');
-    } catch (error) {
-      console.error('Error creating slot:', error);
-      alert('Failed to create slot');
-    }
-  };
+  try {
+    const formattedData = {
+      date: selectedDate.toISOString().split('T')[0],
+      start_time: slotData.time + ':00',
+      duration: slotData.duration,
+      consultation_type: slotData.type,
+      max_patients: slotData.maxPatients,
+      fee: slotData.fee,
+      notes: slotData.notes
+    };
+    
+    await doctorAxios.post('/slots/', formattedData);
+    await fetchSlotsForWeek();
+    setShowSlotModal(false);
+    
+    // SweetAlert success notification
+    Swal.fire({
+      title: 'Success!',
+      text: 'Slot created successfully!',
+      icon: 'success',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#10b981',
+      timer: 3000,
+      timerProgressBar: true
+    });
+    
+  } catch (error) {
+    console.error('Error creating slot:', error);
+    const errorMessage = getErrorMessage(error);
+    
+    // SweetAlert error notification
+    Swal.fire({
+      title: 'Error!',
+      text: `Failed to create slot: ${errorMessage}`,
+      icon: 'error',
+      confirmButtonText: 'Try Again',
+      confirmButtonColor: '#ef4444',
+      showCancelButton: true,
+      cancelButtonText: 'Cancel',
+      cancelButtonColor: '#6b7280'
+    });
+  }
+};
    
   const createBulkSlots = async (bulkData) => {
     try {
@@ -218,10 +268,10 @@ const DoctorSlots = () => {
       await Promise.all(promises);
       await fetchSlotsForWeek();
       setShowBulkSlotModal(false);
-      alert(`${bulkData.selectedTimes.length} slots created successfully`);
+      toast.success(`${bulkData.selectedTimes.length} slots created successfully`);
     } catch (error) {
       console.error('Error creating bulk slots:', error);
-      alert('Failed to create some slots');
+      toast.error(' Slots already created');
     }
   };
 
@@ -240,10 +290,10 @@ const DoctorSlots = () => {
       await doctorAxios.patch(`/slots/${slotId}/`, formattedData);
       await fetchSlotsForWeek();
       setShowSlotModal(false);
-      alert('Slot updated successfully');
+      toast.success('Slot updated successfully');
     } catch (error) {
       console.error('Error updating slot:', error);
-      alert('Failed to update slot');
+      toast.error('Failed to update slot');
     }
   };
    
@@ -252,10 +302,10 @@ const DoctorSlots = () => {
       await doctorAxios.delete(`/slots/${slotId}/`);
       await fetchSlotsForWeek();
       setShowSlotDetailsModal(false);
-      alert('Slot deleted successfully');
+      toast.success('Slot deleted successfully');
     } catch (error) {
       console.error('Error deleting slot:', error);
-      alert('Failed to delete slot');
+      toast.error('Failed to delete slot');
     }
   };
 
@@ -276,12 +326,19 @@ const DoctorSlots = () => {
 
   const handleTabClick = (tab) => {
     if (tab === 'Logout') {
-      alert('Logout clicked');
-    } else if (tab === 'Change Password') {
-      alert('Navigate to change password');
-    } else if (tab === 'Profile Information') {
-      alert('Navigate to settings');
-    } else {
+      handleLogout();
+    } else if (tab === 'Change Password'){
+      navigate('/doctor/change-password', {
+        state: {
+          isDoctor: true,
+          email: user.email
+        },
+        replace: true
+      });
+    } else if (tab === 'Availability'){
+      navigate('/doctor/slots');
+    }
+    else {
       setActiveTab(tab);
       setMobileSidebarOpen(false);
     }
@@ -345,7 +402,7 @@ const DoctorSlots = () => {
     const handleSubmit = (e) => {
       e.preventDefault();
       if (formData.selectedTimes.length === 0 || !formData.fee) {
-        alert('Please select at least one time slot and set a fee');
+        toast.error('Please select at least one time slot and set a fee');
         return;
       }
       createBulkSlots(formData);
@@ -732,6 +789,7 @@ const DoctorSlots = () => {
     
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <ToastContainer/>
         <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -871,7 +929,7 @@ const DoctorSlots = () => {
     const handleSubmit = (e) => {
       e.preventDefault();
       if (!formData.time || !formData.fee) {
-        alert('Please fill in all required fields');
+        toast.error('Please fill in all required fields');
         return;
       }
 
@@ -884,6 +942,7 @@ const DoctorSlots = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+         <ToastContainer/>
         <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -1024,7 +1083,9 @@ const DoctorSlots = () => {
   // Main Calendar Component
   const CalendarView = () => {
     return (
+    
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+          <ToastContainer/>
         {/* Calendar Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-6">
           <div className="flex justify-between items-center">
@@ -1238,6 +1299,7 @@ const DoctorSlots = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar />
+       <ToastContainer/>
       
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
@@ -1249,6 +1311,7 @@ const DoctorSlots = () => {
       
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <ToastContainer/>
         {/* Top bar */}
         <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">

@@ -1,5 +1,6 @@
 from django.db import models
 from datetime import timezone
+from accounts.models import Payment
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
@@ -26,6 +27,7 @@ class DoctorProfile(models.Model):
     experience = models.PositiveIntegerField(
         validators=[MinValueValidator(0)], null=True, blank=True
     )
+    location = models.CharField(max_length=255, blank=True, null=True)
     specialization = models.CharField(max_length=255, blank=True, null=True)
     is_approved = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
@@ -68,7 +70,7 @@ class DoctorSlot(models.Model):
     slug = models.SlugField(max_length=255, blank=True)
 
     class Meta:
-        unique_together = ['doctor', 'date', 'start_time']  # Prevent duplicate slots
+        unique_together = ['doctor', 'date', 'start_time'] 
         ordering = ['date', 'start_time']
 
     def save(self, *args, **kwargs):
@@ -82,3 +84,28 @@ class DoctorSlot(models.Model):
     @property
     def is_available(self):
         return not self.is_booked and self.date >= timezone.now().date()
+
+
+class Wallet(models.Model):
+    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def __str__(self):
+        return f'{self.doctor.user.username} - Wallet'
+
+class WalletHistory(models.Model):
+    CREDIT = 'credit'
+    DEBIT = 'debit'
+    TRANSACTION_TYPES = [
+        (CREDIT, 'Credit'),
+        (DEBIT, 'Debit')
+    ]     
+    wallet = models.ForeignKey(Wallet, related_name='history', on_delete=models.CASCADE)
+    updated_date = models.DateTimeField(auto_now_add=True)
+    type = models.CharField(max_length=8, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    new_balance = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f'{self.wallet.doctor.user.username} - {self.type} - {self.amount}'
+    

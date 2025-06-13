@@ -57,24 +57,53 @@ class PatientProfile(models.Model):
             models.Index(fields=['emergency_contact']),
         ]
 
+    
+class Payment(models.Model):
+    PAYMENT_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    )
+
+    slot = models.ForeignKey('doctor.DoctorSlot', on_delete=models.CASCADE, related_name='payment', null=True, blank=True)
+    patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    payment_id = models.CharField(max_length=255, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=255, blank=True, null=True) 
+    razorpay_signature = models.CharField(max_length=255, blank=True, null=True) 
+    payment_method = models.CharField(max_length=50, blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['payment_status']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['payment_id']),
+        ]
+
+    def __str__(self):
+        return f"Payment #{self.id} - {self.patient.username} - {self.payment_status}"
+    
 class Appointment(models.Model):
     STATUS_CHOICES = (
         ('scheduled', 'Scheduled'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
-        ('no_show', 'No Show'),
     )      
-    patient = models.OneToOneField(User, on_delete=models.CASCADE, related_name='patient_appointments')
-    doctor = models.ForeignKey('doctor.DoctorProfile', on_delete=models.CASCADE, related_name='doctor_appointments')
-    slot = models.ForeignKey('doctor.DoctorSlot', on_delete=models.CASCADE, related_name='appointments')
-    notes = models.TextField(blank=True, null=True)
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='appointments', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
     
     def __str__(self):
-        return f"Appointment #{self.id} - {self.patient.username} with Dr. {self.doctor.user.username}"
-    
-    
-
+        return f"Appointment #{self.id} - {self.payment.patient.username} with slot {self.payment.slot}"
    

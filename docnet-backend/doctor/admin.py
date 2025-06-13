@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DoctorProfile,DoctorSlot
+from .models import DoctorProfile,DoctorSlot, Wallet, WalletHistory
 
 @admin.register(DoctorProfile)
 class DoctorProfileAdmin(admin.ModelAdmin):
@@ -38,3 +38,23 @@ class DoctorSlotAdmin(admin.ModelAdmin):
     list_filter = ('doctor', 'consultation_type', 'is_booked', 'date')
     search_fields = ('doctor__user__username', 'notes')
     ordering = ('-date', 'start_time')
+
+@admin.register(Wallet)
+class WalletAdmin(admin.ModelAdmin):
+    list_display = ('doctor_username', 'balance')
+    search_fields = ('doctor__user__username',)
+
+    def doctor_username(self, obj):
+        return obj.doctor.user.username
+    doctor_username.short_description = 'Doctor Username'
+
+
+@admin.register(WalletHistory)
+class WalletHistoryAdmin(admin.ModelAdmin):
+    list_display = ('wallet_doctor_username', 'type', 'amount', 'new_balance', 'updated_date')
+    list_filter = ('type', 'updated_date')
+    search_fields = ('wallet__doctor__user__username',)
+
+    def wallet_doctor_username(self, obj):
+        return obj.wallet.doctor.user.username
+    wallet_doctor_username.short_description = 'Doctor Username'

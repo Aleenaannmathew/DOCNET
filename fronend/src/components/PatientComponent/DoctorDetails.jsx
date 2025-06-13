@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { userAxios } from '../../axios/UserAxios';
+import { useSelector } from 'react-redux';
 
 function DoctorDetailPage() {
   const { slug } = useParams();
@@ -39,6 +40,7 @@ function DoctorDetailPage() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const { user } = useSelector((state)=>state.auth)
 
   // Fetch doctor details
   useEffect(() => {
@@ -116,10 +118,11 @@ function DoctorDetailPage() {
     fetchDoctorSlots();
   };
 
-  const loadRazorpayScript = () => {
+  const loadRazorpay = () => {
     return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
@@ -127,107 +130,70 @@ function DoctorDetailPage() {
   };
 
   const handlePayment = async () => {
-    if (!selectedSlot) {
-      alert('Please select a time slot');
-      return;
-    }
+  setPaymentLoading(true);
 
-    try {
-      setPaymentLoading(true);
+  const res = await loadRazorpay();
+  if (!res) {
+    alert("Failed to load Razorpay SDK.");
+    setPaymentLoading(false);
+    return;
+  }
 
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        alert('Failed to load payment gateway. Please try again.');
-        return;
-      }
+  try {
+    const createRes = await userAxios.post("/payments/create/", {
+      slot: selectedSlot.id,
+      amount: selectedSlot.fee,
+    });
 
-      const orderResponse = await userAxios.post('/api/payment/create-order/', {
-        amount: doctor.consultation_fee * 100, // Convert to paise
-        doctor_username: doctor.username,
-        slot_id: selectedSlot.id,
-        appointment_details: {
-          doctor_name: doctor.username,
-          specialization: doctor.specialization,
-          date: selectedSlot.date,
-          time: selectedSlot.time,
-          type: selectedSlot.type,
-          duration: selectedSlot.duration
-        }
-      });
+    const { razorpay_order } = createRes.data;
 
-      if (!orderResponse.data.success) {
-        throw new Error(orderResponse.data.message || 'Failed to create payment order');
-      }
+    const options = {
+      key: "rzp_test_JFRhohewvJ81Dl", // Razorpay API key (test mode)
+      amount: razorpay_order.amount,
+      currency: razorpay_order.currency,
+      name: "DocNet Health",
+      description: "Consultation Fee",
+      order_id: razorpay_order.id,
+      handler: async function (response) {
+        try {
+          const verifyRes = await userAxios.post("/payments/verify/", {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature,
+          });
 
-      const { order_id, amount, currency, key } = orderResponse.data.data;
-
-      const options = {
-        key: key, 
-        amount: amount,
-        currency: currency,
-        name: 'DOCNET',
-        description: `Appointment with Dr. ${doctor.username}`,
-        order_id: order_id,
-        handler: async function (response) {
-          try {
-            const verifyResponse = await userAxios.post('/api/payment/verify/', {
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
-              slot_id: selectedSlot.id,
-              doctor_username: doctor.username
-            });
-
-            if (verifyResponse.data.success) {
-              alert('Payment successful! Your appointment has been confirmed.');
-              setIsAppointmentModalOpen(false);
-              setSelectedSlot(null);
-              // Refresh available slots
-              fetchDoctorSlots();
-            } else {
-              alert('Payment verification failed. Please contact support.');
-            }
-          } catch (error) {
-            console.error('Payment verification error:', error);
-            alert('Payment verification failed. Please contact support.');
+          if (verifyRes.status === 201 || verifyRes.status === 200) {
+            alert("✅ Payment successful! Appointment confirmed.");
+            setIsAppointmentModalOpen(false);
+            setSelectedSlot(null);
+          } else {
+            alert("❌ Payment verification failed.");
           }
-        },
-        modal: {
-          ondismiss: function() {
-            handlePaymentCancel(order_id);
-          }
-        },
-        prefill: {
-          name: '', 
-          email: '',
-          contact: ''
-        },
-        theme: {
-          color: '#0D9488'
+        } catch (error) {
+          alert("❌ Error verifying payment.");
         }
-      };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
+        setPaymentLoading(false);
+      },
+      prefill: {
+        name: user?.name || "Patient",
+        email: user?.email || "",
+      },
+      theme: {
+        color: "#2563EB",
+      },
+    };
 
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert(error.response?.data?.message || 'Payment failed. Please try again.');
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (err) {
+    console.error(err);
+    alert("Error initiating payment.");
+    setPaymentLoading(false);
+  }
+};
 
-  const handlePaymentCancel = async (orderId) => {
-    try {
-      await userAxios.post('/api/payment/cancel/', {
-        order_id: orderId
-      });
-      setPaymentLoading(false);
-    } catch (error) {
-      console.error('Error canceling payment:', error);
-    }
-  };
+ 
 
   const toggleFavorite = async () => {
     try {
@@ -362,7 +328,7 @@ function DoctorDetailPage() {
                       <p className="text-blue-700 mt-1">Secure one-time payment</p>
                     </div>
                     <div className="text-3xl font-bold text-blue-900">
-                      ₹{doctor.consultation_fee}
+                      ₹{selectedSlot?.fee || (availableSlots.length > 0 ? availableSlots[0].fee : 'N/A')}
                     </div>
                   </div>
                 </div>
@@ -394,7 +360,7 @@ function DoctorDetailPage() {
                         ) : (
                           <CreditCard size={20} />
                         )}
-                        {paymentLoading ? 'Processing Payment...' : `Pay ₹${doctor.consultation_fee} & Confirm`}
+                        {paymentLoading ? 'Processing Payment...' : `Pay ₹${selectedSlot?.fee} & Confirm`}
                       </button>
                       
                       <div className="text-center">
@@ -523,12 +489,6 @@ function DoctorDetailPage() {
                       <span className="font-medium">{doctor.experience} years exp.</span>
                     </div>
                   </div>
-
-                  {/* Consultation Fee Badge */}
-                  <div className="inline-flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full mb-4">
-                    <CreditCard size={16} />
-                    <span className="font-semibold">₹{doctor.consultation_fee} consultation</span>
-                  </div>
                 </div>
                 
                 <button 
@@ -546,10 +506,7 @@ function DoctorDetailPage() {
                 >
                   Book Appointment
                 </button>
-                <button className="border-2 border-blue-600 text-blue-600 px-8 py-3 rounded-xl hover:bg-blue-50 transition-colors font-semibold">
-                  <MessageCircle size={18} className="inline mr-2" />
-                  Chat Now
-                </button>
+                
               </div>
             </div>
           </div>
@@ -759,21 +716,7 @@ function DoctorDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h3 className="font-bold mb-6 text-gray-900 text-lg">Quick Actions</h3>
-              <div className="space-y-3">
-                <button 
-                  onClick={handleBookAppointment}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-semibold shadow-lg"
-                >
-                  Book Appointment
-                </button>
-                <button className="w-full border-2 border-blue-600 text-blue-600 py-3 rounded-xl hover:bg-blue-50 transition-colors font-semibold">
-                  Send Message
-                </button>
-              </div>
-            </div>
+            
 
             {/* Quick Info */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
@@ -816,16 +759,6 @@ function DoctorDetailPage() {
                   <div>
                     <p className="text-sm text-gray-500">Gender & Age</p>
                     <p className="font-medium text-gray-900">{doctor.gender}, {doctor.age} years</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                    <CreditCard size={20} className="text-teal-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Consultation Fee</p>
-                    <p className="font-medium text-gray-900">₹{doctor.consultation_fee}</p>
                   </div>
                 </div>
               </div>

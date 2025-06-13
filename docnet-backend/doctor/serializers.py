@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import DoctorProfile, DoctorSlot
 from django.db import transaction
 import cloudinary
+from datetime import date
 import cloudinary.uploader
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
@@ -189,6 +190,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
     # Doctor profile fields
     hospital = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
     languages = serializers.CharField(required=False, allow_blank=True, default='English', max_length=255)
+    location = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
     age = serializers.IntegerField(required=False, allow_null=True, 
                                   min_value=21, max_value=80)
     gender = serializers.ChoiceField(required=False, allow_blank=True, allow_null=True, 
@@ -236,7 +238,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
                 setattr(user, attr, value)
         
         # Update doctor profile fields
-        profile_fields = ['hospital', 'languages', 'age', 'gender', 'experience']
+        profile_fields = ['hospital', 'languages','location', 'age', 'gender', 'experience']
         
         for field in profile_fields:
             if field in self.validated_data:
@@ -258,6 +260,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
                 'registration_id': doctor_profile.registration_id,
                 'hospital': doctor_profile.hospital,
                 'languages': doctor_profile.languages,
+                'location': doctor_profile.location,
                 'age': doctor_profile.age,
                 'gender': doctor_profile.gender,
                 'experience': doctor_profile.experience,
@@ -272,6 +275,14 @@ class DoctorSlotSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('doctor', 'is_booked','created_at', 'updated_at')
     def validate(self, data):
+        if 'date' in data:
+            slot_date = data['date']
+            today = date.today()
+
+            if slot_date < today:
+                raise serializers.ValidationError(
+                    "Cannot create or update slots for past dates."
+                )
         if 'date' in data and 'start_time' in data:
             doctor = self.context['request'].user.doctor_profile
             existing_slots = DoctorSlot.objects.filter(

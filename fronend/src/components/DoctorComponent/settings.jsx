@@ -9,7 +9,8 @@ import {
   Camera, Save, X, ChevronDown, ChevronRight, CheckCircle, FileText, 
   User, Lock, Calendar, Stethoscope, Clipboard, Bell, HelpCircle, 
   LogOut, Search, Edit3, Shield, Award, MapPin, Globe, Clock, 
-  Phone, Mail, Building2, Languages, Users, Heart
+  Phone, Mail, Building2, Languages, Users, Heart,
+  MapPinHouseIcon
 } from 'lucide-react';
 import { updateUser } from '../../store/authSlice';
 import { logout } from '../../store/authSlice';
@@ -53,6 +54,9 @@ const Settings = () => {
     
     languages: Yup.string()
       .required('Please select a language'),
+
+    location: Yup.string()
+      .required('Please add your location'),
     
     age: Yup.number()
       .integer('Age must be a whole number')
@@ -84,6 +88,7 @@ const Settings = () => {
     phone: user?.phone || '',
     hospital: user?.doctor_profile?.hospital || '',
     languages: user?.doctor_profile?.languages || 'English',
+    location: user?.location || '',
     age: user?.doctor_profile?.age || '',
     gender: user?.doctor_profile?.gender || '',
     experience: user?.doctor_profile?.experience || '',
@@ -140,6 +145,7 @@ const Settings = () => {
           ...response.data,
           hospital: response.data.hospital || '',
           languages: response.data.languages || 'English',
+          location: response.data.location || '',
           age: response.data.age || '',
           gender: response.data.gender || '',
           experience: response.data.experience || '',
@@ -726,6 +732,23 @@ const Settings = () => {
                           </div>
                           <ErrorMessage name="languages" component="p" className="mt-2 text-sm text-red-600" />
                         </div>
+                        
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
+                          <div className="relative">
+                            <MapPinHouseIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <Field
+                              name="location"
+                              type="text"
+                              disabled={!isEditing}
+                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
+                                errors.location && touched.location ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                            />
+                          </div>
+                          <ErrorMessage name="location" component="p" className="mt-2 text-sm text-red-600" />
+                        </div>
+
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Experience (years)</label>

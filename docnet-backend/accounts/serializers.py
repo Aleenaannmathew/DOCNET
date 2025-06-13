@@ -11,8 +11,12 @@ import cloudinary.uploader
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User ,PatientProfile
-from doctor.models import DoctorProfile
-
+from doctor.models import DoctorProfile, Wallet, WalletHistory
+from rest_framework import serializers
+from .models import Payment, Appointment
+from django.conf import settings
+from decimal import Decimal
+import razorpay
 
 
 cloudinary.config(
@@ -128,6 +132,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
         model = PatientProfile
         fields = ['age', 'blood_group', 'height', 'weight', 'allergies', 'chronic_conditions', 
                   'emergency_contact', 'emergency_contact_name']
+
 
 class UserProfileUpdateSerializer(serializers.Serializer):
     username = serializers.CharField(required=False)
@@ -300,48 +305,89 @@ class DoctorSlotViewSerializer(serializers.ModelSerializer):
         model = DoctorSlot
         fields = '__all__'
 
-class AppointmentSerializer(serializers.ModelSerializer):
-    patient_name = serializers.SerializerMethodField()
-    doctor_name = serializers.SerializerMethodField()
-    slot_details = serializers.SerializerMethodField()
+class CreatePaymentSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Appointment
-        fields = [
-           'id',
-            'patient',
-            'patient_name',
-            'doctor',
-            'doctor_name',
-            'slot',
-            'slot_details',
-            'notes',
-            'status',
-            'created_at',
-            'updated_at' 
-        ]
-        read_only_fields = ['status', 'created_at', 'updated_at']
-    
-    def get_patient_name(self, obj):
-        return obj.patient.get_full_name() or obj.patient.username
-    
-    def get_doctor_name(self, obj):
-        return f"Dr. {obj.doctor.user.get_full_name() or obj.doctor.user.username}"
-    
-    def get_slot_details(self, obj):
-        slot = obj.slot
+        model = Payment
+        fields = ['slot', 'amount']
+
+    def create(self, validated_data):
+        request = self.context['request']
+        slot = validated_data['slot']
+        patient = request.user
+        amount = validated_data.get('amount', slot.fee)
+
+        # Create Razorpay order
+        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl","sXYZOT0gNEqb4wh8rZ67jwYM"))
+        razorpay_order = client.order.create({
+            "amount": int(amount * 100),  # in paise
+            "currency": "INR",
+            "payment_capture": 1
+        })
+
+        payment = Payment.objects.create(
+            slot=slot,
+            patient=patient,
+            amount=amount,
+            payment_status='pending',
+            payment_id=razorpay_order['id']
+        )
+
         return {
-            'date': slot.date,
-            'start_time': slot.start_time.strftime('%I:%M %p'),
-            'duration': slot.duration,
-            'consultation_type': slot.get_consultation_type_display()
+            "payment": payment,
+            "order": razorpay_order
         }
-    
+
+
+class VerifyPaymentSerializer(serializers.Serializer):
+    razorpay_payment_id = serializers.CharField()
+    razorpay_order_id = serializers.CharField()
+    razorpay_signature = serializers.CharField()
+
     def validate(self, data):
-        if data['slot'].is_booked:
-            raise serializers.ValidationError("This slot is already booked")
-        
-        if data['slot'].doctor_id != data['doctor'].id:
-            raise serializers.ValidationError("Selected slot doesn't belong to this doctor")
-        
+        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl","sXYZOT0gNEqb4wh8rZ67jwYM"))
+
+        try:
+            # Verify signature
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': data['razorpay_order_id'],
+                'razorpay_payment_id': data['razorpay_payment_id'],
+                'razorpay_signature': data['razorpay_signature']
+            })
+        except razorpay.errors.SignatureVerificationError:
+            raise serializers.ValidationError("Invalid payment signature.")
+
         return data
 
+    def create(self, validated_data):
+        order_id = validated_data['razorpay_order_id']
+        payment = Payment.objects.get(payment_id=order_id)
+
+        # Update payment record
+        payment.razorpay_payment_id = validated_data['razorpay_payment_id']
+        payment.razorpay_signature = validated_data['razorpay_signature']
+        payment.payment_status = 'success'
+        payment.save()
+
+        # Create appointment
+        appointment = Appointment.objects.create(payment=payment)
+
+        slot_booking = payment.slot
+        slot_booking.is_booked = True
+        slot_booking.save()
+
+        # Update wallet
+        doctor = slot_booking.doctor
+        wallet, created = Wallet.objects.get_or_create(doctor=doctor)
+        credited_amount = payment.amount * Decimal('0.90')  # 90% to doctor
+        wallet.balance += credited_amount
+        wallet.save()
+
+        # Wallet history
+        WalletHistory.objects.create(
+            wallet=wallet,
+            type='credit',
+            amount=credited_amount,
+            new_balance=wallet.balance
+    )
+
+        return appointment
