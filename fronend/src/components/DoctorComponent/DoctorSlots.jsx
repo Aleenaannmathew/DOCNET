@@ -6,6 +6,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Calendar, Clock, Plus, Edit, Trash2, Save, X, Video, MessageCircle, ChevronLeft, ChevronRight, Eye, DollarSign, Users, Check, Copy, Settings } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import Swal from 'sweetalert2';
+import DocSidebar from './DocSidebar';
+import DocNav from './DocNav';
 
 const DoctorSlots = () => {
   const [activeTab, setActiveTab] = useState('Availability');
@@ -26,17 +28,7 @@ const DoctorSlots = () => {
   const [selectedType, setSelectedType] = useState(null);
   const { user } = useSelector(state => state.auth)
 
-  // Sidebar menu items
-  const sidebarItems = [
-    { name: 'Profile Information', icon: '👤' },
-    { name: 'Change Password', icon: '🔒' },
-    { name: 'Availability', icon: '📅' },
-    { name: 'Appointments', icon: '🩺' },
-    { name: 'Patient Records', icon: '📋' },
-    { name: 'Notifications', icon: '🔔' },
-    { name: 'Help & Support', icon: '❓' },
-    { name: 'Logout', icon: '🚪', color: 'text-red-500' }
-  ];
+
 
   // Time slots available
   const timeSlots = [
@@ -1250,82 +1242,19 @@ const getErrorMessage = (error) => {
       </div>
     );
   };
-
-  // Sidebar Component
-  const Sidebar = () => (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-      mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-    }`}>
-      <div className="flex items-center justify-between h-16 px-6 bg-gradient-to-r from-emerald-600 to-teal-600">
-        <h1 className="text-xl font-bold text-white">Doctor Portal</h1>
-        <button
-          onClick={() => setMobileSidebarOpen(false)}
-          className="lg:hidden text-white hover:text-gray-200"
-        >
-          <X size={24} />
-        </button>
-      </div>
-      
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-            {user.username.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">{user.username}</h3>
-            <p className="text-sm text-gray-600">{user.specialization}</p>
-          </div>
-        </div>
-      </div>
-      
-      <nav className="mt-6">
-        {sidebarItems.map((item) => (
-          <button
-            key={item.name}
-            onClick={() => handleTabClick(item.name)}
-            className={`w-full flex items-center px-6 py-3 text-left hover:bg-gray-50 transition-colors ${
-              activeTab === item.name ? 'bg-emerald-50 border-r-4 border-emerald-500 text-emerald-700' : 'text-gray-700'
-            } ${item.color || ''}`}
-          >
-            <span className="mr-3 text-lg">{item.icon}</span>
-            <span className="font-medium">{item.name}</span>
-          </button>
-        ))}
-      </nav>
-    </div>
-  );
-
   // Main render
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar />
+      <DocSidebar />
        <ToastContainer/>
       
-      {/* Mobile sidebar overlay */}
-      {mobileSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
+      
       
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <ToastContainer/>
         {/* Top bar */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setMobileSidebarOpen(true)}
-                className="lg:hidden text-gray-600 hover:text-gray-900"
-              >
-                <Settings size={24} />
-              </button>
-              <h2 className="text-2xl font-bold text-gray-900">{activeTab}</h2>
-            </div>
-          </div>
-        </header>
+       
         
         {/* Content area */}
         <main className="flex-1 overflow-y-auto p-6">

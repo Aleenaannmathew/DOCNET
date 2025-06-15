@@ -15,6 +15,8 @@ import {
 import { updateUser } from '../../store/authSlice';
 import { logout } from '../../store/authSlice';
 import DocnetLoading from '../Constants/Loading';
+import DocNav from './DocNav';
+import DocSidebar from './DocSidebar';
 
 const Settings = () => {
   const dispatch = useDispatch();
@@ -414,126 +416,10 @@ const Settings = () => {
       )}
       
       {/* Modern Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <button 
-              className="lg:hidden text-gray-500 hover:text-gray-700 transition-colors"
-              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-800">DOCNET</h1>
-                <span className="text-xs text-emerald-600 font-medium bg-emerald-100 px-2 py-0.5 rounded-full">PROFESSIONAL</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center bg-gray-100 rounded-xl px-4 py-2">
-              <Search className="w-4 h-4 text-gray-400 mr-2" />
-              <input 
-                type="text" 
-                placeholder="Search patients, appointments..."
-                className="bg-transparent border-none outline-none text-sm text-gray-600 placeholder-gray-400 w-64"
-              />
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="hidden md:block text-right">
-                <p className="text-sm font-semibold text-gray-900">Dr. {user.username}</p>
-                <p className="text-xs text-gray-500">{user?.doctor_profile?.specialization || 'Medical Professional'}</p>
-              </div>
-              <div className="relative">
-                <img 
-                  src={getProfileImageUrl()} 
-                  alt={user.username} 
-                  className="w-10 h-10 rounded-full object-cover border-2 border-emerald-200"
-                />
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Mobile Sidebar Backdrop */}
-        {mobileSidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-            onClick={() => setMobileSidebarOpen(false)}
-          />
-        )}
-
-        {/* Modern Dark Sidebar */}
-        <aside className={`fixed lg:static z-40 w-72 h-full bg-slate-800 transform transition-transform duration-300 ease-in-out ${
-          mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}>
-          <div className="h-full flex flex-col">
-            {/* Profile Summary */}
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <img 
-                    src={getProfileImageUrl()} 
-                    alt={user.username} 
-                    className="w-14 h-14 rounded-xl object-cover border-2 border-emerald-400"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-800"></div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white text-lg">Dr. {user.username}</h3>
-                  <p className="text-slate-400 text-sm">{user.email}</p>
-                  <div className="flex items-center mt-1">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
-                    <span className="text-emerald-400 text-xs font-medium">Online</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto p-4">
-              <ul className="space-y-2">
-                {sidebarItems.map((item) => {
-                  const IconComponent = item.icon;
-                  return (
-                    <li key={item.name}>
-                      <button
-                        onClick={() => handleTabClick(item.name)}
-                        className={`w-full flex items-center px-4 py-3 rounded-xl text-left transition-all duration-200 group ${
-                          activeTab === item.name 
-                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25' 
-                            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                        }`}
-                      >
-                        <div className={`flex items-center justify-center w-10 h-10 rounded-lg mr-3 ${
-                          activeTab === item.name ? 'bg-white/20' : item.bgColor
-                        }`}>
-                          <IconComponent className={`w-5 h-5 ${
-                            activeTab === item.name ? 'text-white' : item.color
-                          }`} />
-                        </div>
-                        <span className="font-medium">{item.name}</span>
-                        {activeTab === item.name && (
-                          <ChevronRight className="w-4 h-4 ml-auto" />
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </div>
-        </aside>
+        <DocSidebar/>
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-gray-50">

@@ -1,34 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Users, Clock, Wallet, Settings, LogOut, Home, Bell, Search, Filter, Activity, TrendingUp, Stethoscope, ArrowUpRight, ArrowDownLeft, CreditCard, DollarSign, Download, Plus, AlertCircle, Loader } from "lucide-react";
 import { doctorAxios } from "../../axios/DoctorAxios";
-import { useNavigate } from "react-router-dom";
+import DocSidebar from "./DocSidebar";
 
-// Sidebar Item Component
-const SidebarItem = ({ icon, text, active, onClick, badge }) => {
-  return (
-    <li 
-      className={`relative group cursor-pointer transition-all duration-200 ${
-        active ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg' : 'text-slate-300 hover:text-white hover:bg-slate-700'
-      } rounded-xl mx-2 my-1`}
-      onClick={onClick}
-    >
-      <div className="flex items-center px-4 py-3">
-        <span className="mr-3 flex-shrink-0">{icon}</span>
-        <span className="font-medium">{text}</span>
-        {badge && (
-          <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
-            {badge}
-          </span>
-        )}
-      </div>
-      {active && (
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-          <div className="w-2 h-2 bg-white rounded-full"></div>
-        </div>
-      )}
-    </li>
-  );
-};
+
 
 // Transaction Card Component
 const TransactionCard = ({ transaction, last = false }) => {
@@ -149,22 +124,11 @@ const ErrorMessage = ({ message, onRetry }) => (
 );
 
 const DoctorWallet = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('Wallet');
   const [filterType, setFilterType] = useState('all');
   const [walletData, setWalletData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
 
-  // Mock user data - replace with actual user context
-  const user = {
-    username: "Joyal",
-    doctor_profile: {
-      specialization: "Neurology",
-      hospital: "Aster Medicity"
-    }
-  };
 
   const fetchWalletData = async () => {
     try {
@@ -207,24 +171,6 @@ const DoctorWallet = () => {
   useEffect(() => {
     fetchWalletData();
   }, []);
-
-  const handleLogout = async () => {
-    console.log("Logout clicked");
-    // Implement logout logic
-  };
-
-  const handleNavigation = (path) => {
-    navigate(path);
-  };
-
-  const sidebarItems = [
-    { name: "Dashboard", icon: <Home size={20} />, onClick: () => handleNavigation("/doctor/dashboard") },
-    { name: "Patients", icon: <Users size={20} />, onClick: () => handleNavigation("/doctor/patients"), badge: 3 },
-    { name: "Appointments", icon: <Calendar size={20} />, onClick: () => handleNavigation("/doctor/appointments"), badge: 8 },
-    { name: "Analytics", icon: <Activity size={20} />, onClick: () => handleNavigation("/doctor/analytics") },
-    { name: "Wallet", icon: <Wallet size={20} />, onClick: () => handleNavigation("/doctor/doctor-wallet") },
-    { name: "Settings", icon: <Settings size={20} />, onClick: () => handleNavigation("/doctor/settings") },
-  ];
 
   // Process wallet data for display
   const processWalletStats = () => {
@@ -311,124 +257,11 @@ const DoctorWallet = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-40">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button 
-                className="lg:hidden text-slate-600 hover:text-slate-800 p-2 rounded-lg hover:bg-slate-100 transition-colors duration-200"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-                  <Stethoscope size={16} className="text-white" />
-                </div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                  DOCNET
-                </h1>
-                <span className="text-xs bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-2 py-1 rounded-full font-medium">
-                  PROFESSIONAL
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-3 bg-slate-100 rounded-xl px-4 py-2">
-                <Search size={16} className="text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search transactions..." 
-                  className="bg-transparent text-sm text-slate-600 placeholder-slate-400 border-none outline-none w-64"
-                />
-              </div>
-              <button className="relative p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors duration-200">
-                <Bell size={20} />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
-              </button>
-              <div className="flex items-center space-x-3 bg-slate-100 rounded-xl px-3 py-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                  <span className="text-sm font-semibold text-white">
-                    {user?.username?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="hidden md:block">
-                  <p className="text-sm font-medium text-slate-800">Dr. {user?.username}</p>
-                  <p className="text-xs text-slate-500">{user?.doctor_profile?.specialization}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+  
 
       <div className="flex">
-        {/* Mobile Sidebar Backdrop */}
-        {sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sidebar */}
-        <aside className={`fixed lg:static z-40 w-72 h-screen bg-gradient-to-b from-slate-800 to-slate-900 transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}>
-          <div className="flex flex-col h-full">
-            {/* Profile Section */}
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                    <span className="text-lg font-bold text-white">
-                      {user?.username?.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-slate-800"></div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">Dr. {user?.username}</h3>
-                  <p className="text-sm text-slate-300">{user?.doctor_profile?.specialization}</p>
-                  <p className="text-xs text-slate-400">{user?.doctor_profile?.hospital}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 py-6">
-              <ul className="space-y-1">
-                {sidebarItems.map((item) => (
-                  <SidebarItem
-                    key={item.name}
-                    icon={item.icon}
-                    text={item.name}
-                    active={activeTab === item.name}
-                    badge={item.badge}
-                    onClick={() => {
-                      item.onClick();
-                      setSidebarOpen(false);
-                    }}
-                  />
-                ))}
-              </ul>
-            </nav>
-
-            {/* Logout Button */}
-            <div className="p-4 border-t border-slate-700">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center px-4 py-3 text-slate-300 hover:text-white hover:bg-slate-700 rounded-xl transition-colors duration-200"
-              >
-                <LogOut size={20} className="mr-3" />
-                <span className="font-medium">Logout</span>
-              </button>
-            </div>
-          </div>
-        </aside>
+        <DocSidebar/>
+        
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
