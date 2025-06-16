@@ -1,6 +1,8 @@
 from django.urls import path
 from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView
 from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView, DoctorBookedPatientsView, DoctorWalletView
+from .views import DoctorAppointmentDetailView
+
 
 urlpatterns = [
     path('doctor-register/', DoctorRegistrationView.as_view(), name='doctor-register'),
@@ -18,5 +20,6 @@ urlpatterns = [
     path('slots/<int:pk>/', DoctorSlotUpdate.as_view(), name='doctor-slot-detail'),
     path('slots/available/', AvailableSlotsView.as_view(), name='available-slots'),
     path('doctor-appointments', DoctorBookedPatientsView.as_view(), name='doctor-appointments'),
+    path('appointments/<int:appointment_id>/', DoctorAppointmentDetailView.as_view(), name='doctor-appointment-detail'),
     path('doctor-wallet/', DoctorWalletView.as_view(), name='doctor-wallet'),
 ]

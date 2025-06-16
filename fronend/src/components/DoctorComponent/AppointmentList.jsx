@@ -441,7 +441,7 @@ const Appointments = () => {
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                            <button onClick={()=>navigate(`/doctor/appointment-details/${appointment.id}`)}  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                               <Eye className="w-5 h-5" />
                             </button>
                             <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">

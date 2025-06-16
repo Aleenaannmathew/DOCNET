@@ -507,9 +507,6 @@ const BookingHistoryPage = () => {
                                     <button className="px-4 py-2 text-sm font-medium text-blue-600 border-2 border-blue-200 rounded-xl hover:bg-blue-50 transition-all duration-200 transform hover:scale-105">
                                       Reschedule
                                     </button>
-                                    <button className="px-4 py-2 text-sm font-medium text-red-600 border-2 border-red-200 rounded-xl hover:bg-red-50 transition-all duration-200 transform hover:scale-105">
-                                      Cancel
-                                    </button>
                                   </>
                                 )}
                                 {booking.status === 'completed' && (
@@ -517,7 +514,8 @@ const BookingHistoryPage = () => {
                                     View Report
                                   </button>
                                 )}
-                                <button className="px-4 py-2 text-sm font-medium text-gray-600 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 transform hover:scale-105">
+                                <button onClick={() => navigate('/booking-details')}
+                                 className="px-4 py-2 text-sm font-medium text-gray-600 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 transform hover:scale-105">
                                   Details
                                 </button>
                               </div>

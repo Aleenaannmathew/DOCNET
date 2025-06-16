@@ -344,3 +344,73 @@ class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet
         fields = ['id', 'balance', 'history']
+
+class AppointmentDetailsSerializer(serializers.ModelSerializer):
+    # Patient information
+    patient_name = serializers.CharField(source='payment.patient.username', read_only=True)
+    patient_email = serializers.CharField(source='payment.patient.email', read_only=True)
+    patient_phone = serializers.CharField(source='payment.patient.phone', read_only=True)
+    patient_profile_image = serializers.CharField(source='payment.patient.profile_image', read_only=True)
+    
+    # Slot information
+    appointment_date = serializers.DateField(source='payment.slot.date', read_only=True)
+    appointment_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
+    duration = serializers.IntegerField(source='payment.slot.duration', read_only=True)
+    consultation_type = serializers.CharField(source='payment.slot.consultation_type', read_only=True)
+    slot_notes = serializers.CharField(source='payment.slot.notes', read_only=True)
+    
+    # Payment information
+    payment_amount = serializers.DecimalField(source='payment.amount', max_digits=10, decimal_places=2, read_only=True)
+    payment_status = serializers.CharField(source='payment.payment_status', read_only=True)
+    payment_id = serializers.CharField(source='payment.payment_id', read_only=True)
+    payment_method = serializers.CharField(source='payment.payment_method', read_only=True)
+    razorpay_payment_id = serializers.CharField(source='payment.razorpay_payment_id', read_only=True)
+    payment_date = serializers.DateTimeField(source='payment.timestamp', read_only=True)
+    
+    # Patient profile information
+    patient_profile = serializers.SerializerMethodField()
+    
+    # Doctor information
+    doctor_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Appointment
+        fields = [
+            'id', 'status', 'created_at', 'updated_at',
+            # Patient fields
+            'patient_name', 'patient_email', 'patient_phone', 'patient_profile_image',
+            # Appointment fields
+            'appointment_date', 'appointment_time', 'duration', 'consultation_type', 'slot_notes',
+            # Payment fields
+            'payment_amount', 'payment_status', 'payment_id', 'payment_method', 
+            'razorpay_payment_id', 'payment_date',
+            # Profile fields
+            'patient_profile', 'doctor_info'
+        ]
+    
+    def get_patient_profile(self, obj):
+        try:
+            profile = PatientProfile.objects.get(user=obj.payment.patient)
+            return {
+                'age': profile.age,
+                'blood_group': profile.blood_group,
+                'height': profile.height,
+                'weight': profile.weight,
+                'allergies': profile.allergies,
+                'chronic_conditions': profile.chronic_conditions,
+                'emergency_contact': profile.emergency_contact,
+                'emergency_contact_name': profile.emergency_contact_name
+            }
+        except PatientProfile.DoesNotExist:
+            return None
+    
+    def get_doctor_info(self, obj):
+        doctor_profile = obj.payment.slot.doctor
+        return {
+            'doctor_name': doctor_profile.user.username,
+            'registration_id': doctor_profile.registration_id,
+            'hospital': doctor_profile.hospital,
+            'specialization': doctor_profile.specialization,
+            'experience': doctor_profile.experience,
+            'languages': doctor_profile.languages
+        }

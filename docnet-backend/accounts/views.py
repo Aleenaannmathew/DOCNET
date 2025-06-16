@@ -632,3 +632,4 @@ class BookingHistoryView(APIView):
         appointments = Appointment.objects.filter(payment__patient=user).select_related('payment__slot__doctor__user').order_by('-created_at')
         serializer = BookingHistorySerializer(appointments, many=True)
         return Response(serializer.data)   
+

@@ -139,4 +139,6 @@ class AdminAppointmentListSerializer(serializers.ModelSerializer):
     def get_patient(self, obj):
         if obj.payment and obj.payment.patient:
             return PatientDetailSerializer(obj.payment.patient).data
-        return None        
+        return None     
+    
+       

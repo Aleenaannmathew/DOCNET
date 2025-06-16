@@ -277,7 +277,6 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
             }
     
     def get_availability_status(self, obj):
-        """Determine availability status based on next available slot"""
         try:
             next_slot_info = self.get_next_available_slot(obj)
             

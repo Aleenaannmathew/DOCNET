@@ -20,7 +20,7 @@ from django.utils import timezone
 import logging
 from accounts.models import Appointment
 from .models import DoctorProfile, DoctorSlot, Wallet
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, WalletHistorySerializer, WalletSerializer
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, WalletHistorySerializer, WalletSerializer, AppointmentDetailsSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
@@ -449,3 +449,37 @@ class DoctorWalletView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Wallet.DoesNotExist:
             return Response({'detail': 'Wallet not found'}, status=status.HTTP_404_NOT_FOUND)    
+        
+class DoctorAppointmentDetailView(generics.RetrieveAPIView):
+    serializer_class = AppointmentDetailsSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self):
+        appointment_id = self.kwargs.get('appointment_id')
+        doctor_profile = get_object_or_404(DoctorProfile, user=self.request.user)
+        
+        # Get appointment that belongs to this doctor
+        appointment = get_object_or_404(
+            Appointment,
+            id=appointment_id,
+            payment__slot__doctor=doctor_profile
+        )
+        return appointment
+    
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            appointment = self.get_object()
+            serializer = self.get_serializer(appointment)
+            
+            return Response({
+                'success': True,
+                'message': 'Appointment details retrieved successfully',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error retrieving appointment details: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

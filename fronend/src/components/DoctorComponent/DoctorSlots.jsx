@@ -25,7 +25,7 @@ const DoctorSlots = () => {
   const [editingSlot, setEditingSlot] = useState(null);
   const [slots, setSlots] = useState({});
   const [showTypeModal, setShowTypeModal] = useState(false);
-  const [selectedType, setSelectedType] = useState(null);
+  const [selectedType, SelectedType] = useState(null);
   const { user } = useSelector(state => state.auth)
 
 
