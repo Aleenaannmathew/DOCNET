@@ -71,7 +71,7 @@ function DoctorRoutes() {
         <Route path="change-password" element={<PasswordChange />} />
         <Route path="slots" element={<Slots />} />
         <Route path="doctor-appointments" element={<PatientAppointments/>}/>
-        <Route path="appointment-details" element={<AppointmentDetails/>}/>
+        <Route path="appointment-details/:appointmentId" element={<AppointmentDetails/>}/>
         <Route path="doctor-wallet" element={<Wallet/>}/>
       </Route>
 

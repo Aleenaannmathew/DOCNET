@@ -357,6 +357,7 @@ class AppointmentDetailsSerializer(serializers.ModelSerializer):
     appointment_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
     duration = serializers.IntegerField(source='payment.slot.duration', read_only=True)
     consultation_type = serializers.CharField(source='payment.slot.consultation_type', read_only=True)
+    slot_id = serializers.IntegerField(source='payment.slot_id', read_only=True)
     slot_notes = serializers.CharField(source='payment.slot.notes', read_only=True)
     
     # Payment information
@@ -380,7 +381,7 @@ class AppointmentDetailsSerializer(serializers.ModelSerializer):
             # Patient fields
             'patient_name', 'patient_email', 'patient_phone', 'patient_profile_image',
             # Appointment fields
-            'appointment_date', 'appointment_time', 'duration', 'consultation_type', 'slot_notes',
+            'appointment_date', 'appointment_time', 'duration', 'consultation_type','slot_id', 'slot_notes',
             # Payment fields
             'payment_amount', 'payment_status', 'payment_id', 'payment_method', 
             'razorpay_payment_id', 'payment_date',

@@ -359,6 +359,7 @@ class DoctorLogoutView(APIView):
 class DoctorSlotCreate(generics.ListCreateAPIView):
     serializer_class = DoctorSlotSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
         doctor_profile = self.request.user.doctor_profile
@@ -397,6 +398,7 @@ class DoctorSlotUpdate(generics.RetrieveUpdateDestroyAPIView):
 
 class AvailableSlotsView(generics.ListAPIView):
     serializer_class = DoctorSlotSerializer
+    pagination_class = None
 
     def get_queryset(self):
         date = self.request.query_params.get('date', None)
@@ -457,8 +459,6 @@ class DoctorAppointmentDetailView(generics.RetrieveAPIView):
     def get_object(self):
         appointment_id = self.kwargs.get('appointment_id')
         doctor_profile = get_object_or_404(DoctorProfile, user=self.request.user)
-        
-        # Get appointment that belongs to this doctor
         appointment = get_object_or_404(
             Appointment,
             id=appointment_id,
@@ -483,3 +483,43 @@ class DoctorAppointmentDetailView(generics.RetrieveAPIView):
                 'message': f'Error retrieving appointment details: {str(e)}',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class ValidateVideoCallAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slot_id):
+        try:
+            now = timezone.now()
+            appointment = Appointment.objects.get(
+                payment__slot__id=slot_id,
+                status='scheduled',
+                payment__payment_status='success'
+            )
+            
+            slot = appointment.payment.slot
+            slot_time = datetime.combine(slot.date, slot.start_time)
+            
+            # Make slot_time timezone-aware
+            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+
+            # start_window = slot_time - timedelta(minutes=15)
+            # end_window = slot_time + timedelta(minutes=slot.duration)
+            
+            # if not (start_window <= now <= end_window):
+            #     return Response(
+            #         {"error": "Video call is only available during your scheduled time"},
+            #         status=status.HTTP_400_BAD_REQUEST
+            #     )
+                
+            return Response({
+                "valid": True,
+                "room_name": str(slot_id),
+            })
+            
+        except Appointment.DoesNotExist:
+            return Response(
+                {"error": "No valid appointment found"},
+                status=status.HTTP_400_BAD_REQUEST
+            )

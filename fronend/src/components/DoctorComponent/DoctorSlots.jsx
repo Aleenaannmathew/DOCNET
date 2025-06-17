@@ -33,8 +33,8 @@ const DoctorSlots = () => {
   // Time slots available
   const timeSlots = [
     '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00',
-    '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', 
-    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', 
+    '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00',
     '19:30', '20:00', '20:30', '21:30', '22:00', '22:30', '23:00'
   ];
 
@@ -43,7 +43,7 @@ const DoctorSlots = () => {
     { id: 'chat', label: 'Online Chat', icon: MessageCircle, color: 'bg-blue-500', lightColor: 'bg-blue-50', textColor: 'text-blue-600' },
   ];
 
- 
+
   // Helper functions
   const getWeekDates = (date) => {
     const week = [];
@@ -61,8 +61,8 @@ const DoctorSlots = () => {
   };
 
   const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
@@ -73,29 +73,29 @@ const DoctorSlots = () => {
   };
 
   const formatTimeFromBackend = (timeString) => {
-  if (!timeString) return '';
-  
-  if (timeString.match(/^\d{2}:\d{2}$/)) {
-    return timeString.substring(0, 5);
-  }
+    if (!timeString) return '';
 
-  if (timeString.match(/^\d{2}:\d{2}$/)) {
-    return timeString;
-  }
+    if (timeString.match(/^\d{2}:\d{2}$/)) {
+      return timeString.substring(0, 5);
+    }
+
+    if (timeString.match(/^\d{2}:\d{2}$/)) {
+      return timeString;
+    }
 
 
-  try {
-    const time = new Date(`1970-01-01T${timeString}`);
-    return time.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      hour12: false 
-    });
-  } catch (error) {
-    console.error('Invalid time string:', timeString);
-    return timeString; 
-  }
-};
+    try {
+      const time = new Date(`1970-01-01T${timeString}`);
+      return time.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (error) {
+      console.error('Invalid time string:', timeString);
+      return timeString;
+    }
+  };
 
   const weekDates = getWeekDates(currentWeek);
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -119,129 +119,126 @@ const DoctorSlots = () => {
 
   // Mock functions for demonstration
   const fetchSlotsForWeek = async () => {
-  setLoading(true);
-  try {
-    const weekDates = getWeekDates(currentWeek);
-    const startDate = weekDates[0].toISOString().split('T')[0];
-    const endDate = weekDates[6].toISOString().split('T')[0];
+    setLoading(true);
+    try {
+      const weekDates = getWeekDates(currentWeek);
+      const startDate = weekDates[0].toISOString().split('T')[0];
+      const endDate = weekDates[6].toISOString().split('T')[0];
 
-    console.log('Fetching slots for:', startDate, 'to', endDate); // Debug
+      console.log('Fetching slots for:', startDate, 'to', endDate); // Debug
 
-    const response = await doctorAxios.get(`/slots/?start_date=${startDate}&end_date=${endDate}`);
-    console.log('API Response:', response.data); // Debug
-    
-    // Handle different response structures
-    let slotsData = [];
-    if (Array.isArray(response.data)) {
-      slotsData = response.data;
-    } else if (response.data && Array.isArray(response.data.results)) {
-      slotsData = response.data.results; // For paginated responses
-    } else if (response.data && typeof response.data === 'object') {
-      slotsData = Object.values(response.data);
-    }
+      const response = await doctorAxios.get(`/slots/?start_date=${startDate}&end_date=${endDate}`);
+      console.log('API Response:', response.data); // Debug
 
-    console.log('Processed slots data:', slotsData); // Debug
-
-    const formattedSlots = {};
-
-    slotsData.forEach(slot => {
-      const dateKey = slot.date;
-      if (!formattedSlots[dateKey]) {
-        formattedSlots[dateKey] = {};
+      // Handle different response structures
+      let slotsData = [];
+      if (Array.isArray(response.data)) {
+        slotsData = response.data;
+      } else if (response.data && Array.isArray(response.data.results)) {
+        slotsData = response.data.results; // For paginated responses
+      } else if (response.data && typeof response.data === 'object') {
+        slotsData = Object.values(response.data);
       }
-      formattedSlots[dateKey][slot.id] = {
-        id: slot.id,
-        time: formatTimeFromBackend(slot.start_time),
-        duration: parseInt(slot.duration) || 30,
-        type: slot.consultation_type,
-        maxPatients: parseInt(slot.max_patients) || 1,
-        fee: parseFloat(slot.fee) || 0,
-        notes: slot.notes || '',
-        isBooked: slot.is_booked || false
-      };
-    });
 
-    setSlots(formattedSlots);
-    console.log('Final formatted slots:', formattedSlots); // Debug
-  } catch (error) {
-    console.error('Error fetching slots:', error);
-    console.error('Error response:', error.response?.data); // Debug
-    setSlots({}); // Set empty slots on error
-  } finally {
-    setLoading(false);
-  }
-};
+      console.log('Processed slots data:', slotsData); // Debug
 
-const getErrorMessage = (error) => {
-  if (error.response?.data?.message) {
-    return error.response.data.message;
-  }
-  if (error.response?.data?.error) {
-    return error.response.data.error;
-  }
-  if (error.response?.data) {
-    // Handle validation errors or other structured responses
-    if (typeof error.response.data === 'string') {
-      return error.response.data;
+      const formattedSlots = {};
+
+      slotsData.forEach(slot => {
+        const dateKey = slot.date;
+        if (!formattedSlots[dateKey]) {
+          formattedSlots[dateKey] = {};
+        }
+        formattedSlots[dateKey][slot.id] = {
+          id: slot.id,
+          time: formatTimeFromBackend(slot.start_time),
+          duration: parseInt(slot.duration) || 30,
+          type: slot.consultation_type,
+          maxPatients: parseInt(slot.max_patients) || 1,
+          fee: parseFloat(slot.fee) || 0,
+          notes: slot.notes || '',
+          isBooked: slot.is_booked || false
+        };
+      });
+
+      setSlots(formattedSlots);
+      console.log('Final formatted slots:', formattedSlots);
+    } catch (error) {
+      console.error('Error fetching slots:', error);
+      console.error('Error response:', error.response?.data);
+      setSlots({});
+    } finally {
+      setLoading(false);
     }
-    // Handle object responses with multiple error fields
-    if (typeof error.response.data === 'object') {
-      const firstError = Object.values(error.response.data)[0];
-      return Array.isArray(firstError) ? firstError[0] : firstError;
+  };
+
+  const getErrorMessage = (error) => {
+    if (error.response?.data?.message) {
+      return error.response.data.message;
     }
-  }
-  if (error.message) {
-    return error.message;
-  }
-  return 'An unexpected error occurred';
-};
+    if (error.response?.data?.error) {
+      return error.response.data.error;
+    }
+    if (error.response?.data) {
+      if (typeof error.response.data === 'string') {
+        return error.response.data;
+      }
+      if (typeof error.response.data === 'object') {
+        const firstError = Object.values(error.response.data)[0];
+        return Array.isArray(firstError) ? firstError[0] : firstError;
+      }
+    }
+    if (error.message) {
+      return error.message;
+    }
+    return 'An unexpected error occurred';
+  };
 
 
   const createSlot = async (slotData) => {
-  try {
-    const formattedData = {
-      date: selectedDate.toISOString().split('T')[0],
-      start_time: slotData.time + ':00',
-      duration: slotData.duration,
-      consultation_type: slotData.type,
-      max_patients: slotData.maxPatients,
-      fee: slotData.fee,
-      notes: slotData.notes
-    };
-    
-    await doctorAxios.post('/slots/', formattedData);
-    await fetchSlotsForWeek();
-    setShowSlotModal(false);
-    
-    // SweetAlert success notification
-    Swal.fire({
-      title: 'Success!',
-      text: 'Slot created successfully!',
-      icon: 'success',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#10b981',
-      timer: 3000,
-      timerProgressBar: true
-    });
-    
-  } catch (error) {
-    console.error('Error creating slot:', error);
-    const errorMessage = getErrorMessage(error);
-    
-    // SweetAlert error notification
-    Swal.fire({
-      title: 'Error!',
-      text: `Failed to create slot: ${errorMessage}`,
-      icon: 'error',
-      confirmButtonText: 'Try Again',
-      confirmButtonColor: '#ef4444',
-      showCancelButton: true,
-      cancelButtonText: 'Cancel',
-      cancelButtonColor: '#6b7280'
-    });
-  }
-};
-   
+    try {
+      const formattedData = {
+        date: selectedDate.toISOString().split('T')[0],
+        start_time: slotData.time + ':00',
+        duration: slotData.duration,
+        consultation_type: slotData.type,
+        max_patients: slotData.maxPatients,
+        fee: slotData.fee,
+        notes: slotData.notes
+      };
+
+      await doctorAxios.post('/slots/', formattedData);
+      await fetchSlotsForWeek();
+      setShowSlotModal(false);
+
+
+      Swal.fire({
+        title: 'Success!',
+        text: 'Slot created successfully!',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#10b981',
+        timer: 3000,
+        timerProgressBar: true
+      });
+
+    } catch (error) {
+      console.error('Error creating slot:', error);
+      const errorMessage = getErrorMessage(error);
+
+      Swal.fire({
+        title: 'Error!',
+        text: `Failed to create slot: ${errorMessage}`,
+        icon: 'error',
+        confirmButtonText: 'Try Again',
+        confirmButtonColor: '#ef4444',
+        showCancelButton: true,
+        cancelButtonText: 'Cancel',
+        cancelButtonColor: '#6b7280'
+      });
+    }
+  };
+
   const createBulkSlots = async (bulkData) => {
     try {
       const promises = bulkData.selectedTimes.map(time => {
@@ -278,7 +275,7 @@ const getErrorMessage = (error) => {
         fee: slotData.fee,
         notes: slotData.notes
       };
-      
+
       await doctorAxios.patch(`/slots/${slotId}/`, formattedData);
       await fetchSlotsForWeek();
       setShowSlotModal(false);
@@ -288,7 +285,7 @@ const getErrorMessage = (error) => {
       toast.error('Failed to update slot');
     }
   };
-   
+
   const deleteSlot = async (slotId) => {
     try {
       await doctorAxios.delete(`/slots/${slotId}/`);
@@ -312,14 +309,14 @@ const getErrorMessage = (error) => {
     const videoCalls = daySlots.filter(slot => slot.type === 'video').length;
     const onlineChat = daySlots.filter(slot => slot.type === 'chat').length;
     const total = daySlots.length;
-    
+
     return { videoCalls, onlineChat, total };
   };
 
   const handleTabClick = (tab) => {
     if (tab === 'Logout') {
       handleLogout();
-    } else if (tab === 'Change Password'){
+    } else if (tab === 'Change Password') {
       navigate('/doctor/change-password', {
         state: {
           isDoctor: true,
@@ -327,7 +324,7 @@ const getErrorMessage = (error) => {
         },
         replace: true
       });
-    } else if (tab === 'Availability'){
+    } else if (tab === 'Availability') {
       navigate('/doctor/slots');
     }
     else {
@@ -440,18 +437,17 @@ const getErrorMessage = (error) => {
                   </button>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
                 {timeSlots.map(time => (
                   <button
                     key={time}
                     type="button"
                     onClick={() => toggleTimeSelection(time)}
-                    className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                      formData.selectedTimes.includes(time)
+                    className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${formData.selectedTimes.includes(time)
                         ? 'bg-emerald-500 text-white border-emerald-500 shadow-md transform scale-105'
                         : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'
-                    }`}
+                      }`}
                   >
                     {time}
                     {formData.selectedTimes.includes(time) && (
@@ -460,7 +456,7 @@ const getErrorMessage = (error) => {
                   </button>
                 ))}
               </div>
-              
+
               <p className="text-sm text-gray-600 mt-2">
                 {formData.selectedTimes.length} slot{formData.selectedTimes.length !== 1 ? 's' : ''} selected
               </p>
@@ -473,7 +469,7 @@ const getErrorMessage = (error) => {
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Duration</label>
                   <select
                     value={formData.duration}
-                    onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
                   >
                     <option value="15">15 minutes</option>
@@ -490,7 +486,7 @@ const getErrorMessage = (error) => {
                     min="1"
                     max="5"
                     value={formData.maxPatients}
-                    onChange={(e) => setFormData({...formData, maxPatients: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, maxPatients: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   />
                 </div>
@@ -502,7 +498,7 @@ const getErrorMessage = (error) => {
                     min="0"
                     step="0.01"
                     value={formData.fee}
-                    onChange={(e) => setFormData({...formData, fee: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     placeholder="Enter fee"
                     required
@@ -520,12 +516,11 @@ const getErrorMessage = (error) => {
                         <button
                           key={type.id}
                           type="button"
-                          onClick={() => setFormData({...formData, type: type.id})}
-                          className={`p-4 rounded-xl border-2 flex flex-col items-center space-y-2 transition-all ${
-                            formData.type === type.id 
-                              ? `${type.color} text-white border-transparent shadow-lg` 
+                          onClick={() => setFormData({ ...formData, type: type.id })}
+                          className={`p-4 rounded-xl border-2 flex flex-col items-center space-y-2 transition-all ${formData.type === type.id
+                              ? `${type.color} text-white border-transparent shadow-lg`
                               : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
-                          }`}
+                            }`}
                         >
                           <IconComponent size={20} />
                           <span className="text-sm font-medium">{type.label}</span>
@@ -539,7 +534,7 @@ const getErrorMessage = (error) => {
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Notes (Optional)</label>
                   <textarea
                     value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     rows="4"
                     placeholder="Add any special instructions..."
@@ -573,13 +568,13 @@ const getErrorMessage = (error) => {
   // Type Details Modal Component  
   const TypeDetailsModal = () => {
     if (!selectedDate || !selectedType) return null;
-    
+
     const daySlots = getSlotsForDate(selectedDate);
     const filteredSlots = daySlots.filter(slot => slot.type === selectedType);
     const typeInfo = consultationTypes.find(t => t.id === selectedType);
-    
+
     if (!typeInfo) return null;
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -613,15 +608,28 @@ const getErrorMessage = (error) => {
               </div>
             ) : (
               filteredSlots.map(slot => (
-                <div key={slot.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-4 hover:shadow-md transition-all">
+                <div key={slot.id} className={`border rounded-2xl p-4 hover:shadow-md transition-all ${slot.isBooked
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-gray-50 border-gray-200'
+                  }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className={`w-12 h-12 ${typeInfo.color} rounded-xl flex items-center justify-center`}>
+                      <div className={`w-12 h-12 ${slot.isBooked
+                          ? 'bg-red-500'
+                          : typeInfo.color
+                        } rounded-xl flex items-center justify-center`}>
                         <typeInfo.icon size={18} className="text-white" />
                       </div>
                       <div>
-                        <div className="font-bold text-gray-900 text-lg">{slot.time}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className={`font-bold text-lg ${slot.isBooked ? 'text-red-600' : 'text-gray-900'
+                          }`}>
+                          {slot.time}
+                          {slot.isBooked && (
+                            <span className="ml-2 text-sm font-normal text-red-500">(Booked)</span>
+                          )}
+                        </div>
+                        <div className={`text-sm ${slot.isBooked ? 'text-red-500' : 'text-gray-600'
+                          }`}>
                           {slot.duration}min • Rs{slot.fee} • Max {slot.maxPatients} patients
                         </div>
                         {slot.notes && (
@@ -682,10 +690,10 @@ const getErrorMessage = (error) => {
   // Slot Details Modal Component
   const SlotDetailsModal = () => {
     if (!selectedSlot) return null;
-    
+
     const consultationType = consultationTypes.find(t => t.id === selectedSlot.type);
     const IconComponent = consultationType?.icon || Video;
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -709,16 +717,21 @@ const getErrorMessage = (error) => {
 
           <div className="space-y-4">
             <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 space-y-4">
+              {selectedSlot.isBooked && (
+                <div className="bg-red-100 text-red-800 px-4 py-2 rounded-lg mb-4 flex items-center">
+                  <span className="font-semibold">This slot is booked</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-600">Time</span>
                 <span className="text-2xl font-bold text-gray-900">{selectedSlot.time}</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-600">Duration</span>
                 <span className="text-gray-900 font-medium">{selectedSlot.duration} minutes</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-600">Type</span>
                 <div className="flex items-center space-x-2">
@@ -726,12 +739,12 @@ const getErrorMessage = (error) => {
                   <span className="text-gray-900 font-medium">{consultationType?.label}</span>
                 </div>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-600">Fee</span>
                 <span className="text-2xl font-bold text-emerald-600">Rs{selectedSlot.fee}</span>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-600">Max Patients</span>
                 <span className="text-gray-900 font-medium">{selectedSlot.maxPatients}</span>
@@ -776,12 +789,12 @@ const getErrorMessage = (error) => {
   // Day Details Modal Component
   const DayDetailsModal = () => {
     if (!selectedDate) return null;
-    
+
     const daySlots = getSlotsForDate(selectedDate);
-    
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <ToastContainer/>
+        <ToastContainer />
         <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -820,7 +833,7 @@ const getErrorMessage = (error) => {
               daySlots.map(slot => {
                 const consultationType = consultationTypes.find(t => t.id === slot.type);
                 const IconComponent = consultationType?.icon || Video;
-                
+
                 return (
                   <div key={slot.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-4 hover:shadow-md transition-all">
                     <div className="flex items-center justify-between">
@@ -829,8 +842,15 @@ const getErrorMessage = (error) => {
                           <IconComponent size={18} className="text-white" />
                         </div>
                         <div>
-                          <div className="font-bold text-gray-900 text-lg">{slot.time}</div>
-                          <div className="text-sm text-gray-600">
+                          <div className={`font-bold text-lg ${slot.isBooked ? 'text-red-600' : 'text-gray-900'
+                            }`}>
+                            {slot.time}
+                            {slot.isBooked && (
+                              <span className="ml-2 text-sm font-normal text-red-500">(Booked)</span>
+                            )}
+                          </div>
+                          <div className={`text-sm ${slot.isBooked ? 'text-red-500' : 'text-gray-600'
+                            }`}>
                             {slot.duration}min • Rs{slot.fee} • Max {slot.maxPatients} patients
                           </div>
                           {slot.notes && (
@@ -934,7 +954,7 @@ const getErrorMessage = (error) => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-         <ToastContainer/>
+        <ToastContainer />
         <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -961,7 +981,7 @@ const getErrorMessage = (error) => {
               <label className="block text-sm font-semibold text-gray-900 mb-2">Time *</label>
               <select
                 value={formData.time}
-                onChange={(e) => setFormData({...formData, time: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
                 required
               >
@@ -976,7 +996,7 @@ const getErrorMessage = (error) => {
               <label className="block text-sm font-semibold text-gray-900 mb-2">Duration</label>
               <select
                 value={formData.duration}
-                onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
               >
                 <option value="15">15 minutes</option>
@@ -995,12 +1015,11 @@ const getErrorMessage = (error) => {
                     <button
                       key={type.id}
                       type="button"
-                      onClick={() => setFormData({...formData, type: type.id})}
-                      className={`p-4 rounded-xl border-2 flex flex-col items-center space-y-2 transition-all ${
-                        formData.type === type.id 
-                          ? `${type.color} text-white border-transparent shadow-lg` 
+                      onClick={() => setFormData({ ...formData, type: type.id })}
+                      className={`p-4 rounded-xl border-2 flex flex-col items-center space-y-2 transition-all ${formData.type === type.id
+                          ? `${type.color} text-white border-transparent shadow-lg`
                           : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
-                      }`}
+                        }`}
                     >
                       <IconComponent size={20} />
                       <span className="text-sm font-medium">{type.label}</span>
@@ -1017,7 +1036,7 @@ const getErrorMessage = (error) => {
                 min="1"
                 max="5"
                 value={formData.maxPatients}
-                onChange={(e) => setFormData({...formData, maxPatients: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, maxPatients: e.target.value })}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               />
             </div>
@@ -1029,7 +1048,7 @@ const getErrorMessage = (error) => {
                 min="0"
                 step="0.01"
                 value={formData.fee}
-                onChange={(e) => setFormData({...formData, fee: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 placeholder="Enter fee"
                 required
@@ -1040,7 +1059,7 @@ const getErrorMessage = (error) => {
               <label className="block text-sm font-semibold text-gray-900 mb-2">Notes (Optional)</label>
               <textarea
                 value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 rows="3"
                 placeholder="Add any special instructions..."
@@ -1075,9 +1094,9 @@ const getErrorMessage = (error) => {
   // Main Calendar Component
   const CalendarView = () => {
     return (
-    
+
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <ToastContainer/>
+        <ToastContainer />
         {/* Calendar Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-6">
           <div className="flex justify-between items-center">
@@ -1129,20 +1148,18 @@ const getErrorMessage = (error) => {
                     <div className="text-sm font-semibold text-gray-600">
                       {dayNames[index]}
                     </div>
-                    <div className={`text-2xl font-bold mt-1 ${
-                      isToday ? 'text-emerald-600' : isPast ? 'text-gray-400' : 'text-gray-900'
-                    }`}>
+                    <div className={`text-2xl font-bold mt-1 ${isToday ? 'text-emerald-600' : isPast ? 'text-gray-400' : 'text-gray-900'
+                      }`}>
                       {date.getDate()}
                     </div>
                   </div>
 
                   {/* Day Content */}
-                  <div className={`min-h-[200px] border-2 border-dashed rounded-2xl p-4 transition-all ${
-                    isPast 
-                      ? 'border-gray-200 bg-gray-50' 
+                  <div className={`min-h-[200px] border-2 border-dashed rounded-2xl p-4 transition-all ${isPast
+                      ? 'border-gray-200 bg-gray-50'
                       : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 cursor-pointer'
-                  }`}
-                  onClick={() => !isPast && openDayDetails(date)}
+                    }`}
+                    onClick={() => !isPast && openDayDetails(date)}
                   >
                     {/* Slot Summary */}
                     {slotCounts.total > 0 && (
@@ -1151,9 +1168,9 @@ const getErrorMessage = (error) => {
                           <span>Total Slots</span>
                           <span className="bg-gray-200 px-2 py-1 rounded-full">{slotCounts.total}</span>
                         </div>
-                        
+
                         {slotCounts.videoCalls > 0 && (
-                          <div 
+                          <div
                             className="flex items-center justify-between text-xs p-2 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1169,9 +1186,9 @@ const getErrorMessage = (error) => {
                             </span>
                           </div>
                         )}
-                        
+
                         {slotCounts.onlineChat > 0 && (
-                          <div 
+                          <div
                             className="flex items-center justify-between text-xs p-2 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1191,39 +1208,45 @@ const getErrorMessage = (error) => {
                     )}
 
                     {/* Recent Slots Preview */}
-                    <div className="space-y-2">
-                      {daySlots.slice(0, 3).map(slot => {
+                    <div className="space-y-3">
+                      {daySlots.map(slot => {
                         const consultationType = consultationTypes.find(t => t.id === slot.type);
                         const IconComponent = consultationType?.icon || Video;
-                        
+
                         return (
-                          <div 
+                          <div
                             key={slot.id}
-                            className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all cursor-pointer"
+                            className={`flex items-center justify-between p-2 rounded-lg border hover:shadow-md transition-all cursor-pointer ${slot.isBooked
+                                ? 'bg-red-50 border-red-200'
+                                : 'bg-white border-gray-200'
+                              }`}
                             onClick={(e) => {
                               e.stopPropagation();
                               openSlotDetails(slot, date);
                             }}
                           >
                             <div className="flex items-center space-x-2">
-                              <div className={`w-6 h-6 ${consultationType?.color} rounded-lg flex items-center justify-center`}>
+                              <div className={`w-6 h-6 ${slot.isBooked
+                                  ? 'bg-red-500'
+                                  : consultationType?.color
+                                } rounded-lg flex items-center justify-center`}>
                                 <IconComponent size={12} className="text-white" />
                               </div>
-                              <span className="text-sm font-semibold text-gray-900">{slot.time}</span>
+                              <span className={`text-sm font-semibold ${slot.isBooked ? 'text-red-600' : 'text-gray-900'
+                                }`}>
+                                {slot.time}
+                                {slot.isBooked && (
+                                  <span className="ml-1 text-xs text-red-500">(Booked)</span>
+                                )}
+                              </span>
                             </div>
-                            <div className="flex items-center space-x-1 text-xs text-gray-600">
-                              <DollarSign size={10} />
-                              <span>{slot.fee}</span>
+                            <div className={`flex items-center space-x-1 text-xs ${slot.isBooked ? 'text-red-500' : 'text-gray-600'
+                              }`}>
+
                             </div>
                           </div>
                         );
                       })}
-                      
-                      {daySlots.length > 3 && (
-                        <div className="text-center text-xs text-gray-500 font-medium">
-                          +{daySlots.length - 3} more slots
-                        </div>
-                      )}
                     </div>
 
                     {/* Add Slot Button */}
@@ -1246,16 +1269,16 @@ const getErrorMessage = (error) => {
   return (
     <div className="flex h-screen bg-gray-100">
       <DocSidebar />
-       <ToastContainer/>
-      
-      
-      
+      <ToastContainer />
+
+
+
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <ToastContainer/>
+        <ToastContainer />
         {/* Top bar */}
-       
-        
+
+
         {/* Content area */}
         <main className="flex-1 overflow-y-auto p-6">
           {activeTab === 'Availability' && (
@@ -1263,7 +1286,7 @@ const getErrorMessage = (error) => {
               <CalendarView />
             </div>
           )}
-          
+
           {activeTab !== 'Availability' && (
             <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">{activeTab}</h3>
@@ -1279,7 +1302,7 @@ const getErrorMessage = (error) => {
       {showDayDetailsModal && <DayDetailsModal />}
       {showBulkSlotModal && <BulkSlotModal />}
       {showTypeModal && <TypeDetailsModal />}
-      
+
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 flex items-center space-x-4">
@@ -1293,4 +1316,3 @@ const getErrorMessage = (error) => {
 };
 
 export default DoctorSlots;
-                

@@ -28,12 +28,16 @@ const AdminSignIn = () => {
       // Make API call to Django backend using your custom axios instance
       // Fix: Use the correct API endpoint based on your Django URL configuration
       const response = await adminAxios.post('admin-login/', formData);
-      
-      // Dispatch login action with token and user data
-      dispatch(login({
-        token: response.data.token,
-        user: response.data.user
-      }));
+      const data=response.data
+       dispatch(login({
+              token: data.access,
+              refreshToken: data.refresh,
+              user: {
+                username: data.username,
+                email: data.email,
+                role: 'admin',
+              }
+            }));
       
       // Store token in localStorage for later use
       localStorage.setItem('token', response.data.token);

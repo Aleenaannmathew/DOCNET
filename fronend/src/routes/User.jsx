@@ -54,7 +54,7 @@ function UserRoutes() {
         <Route path="/doctor-list" element={<DoctorListingPage />} />
         <Route path="/doctor-details/:slug" element={<DocDetail/>}/>
         <Route path='/booking-history' element={<BookingList/>}/>
-        <Route path='/booking-details' element={<BookingDetails/>}/>
+        <Route path='/booking-details/:id' element={<BookingDetails />} />
       </Route>
 
       {/* Catch-all route */}

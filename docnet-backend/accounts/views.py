@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone 
 from rest_framework.response import Response
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.utils.timezone import localtime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -18,6 +18,7 @@ from rest_framework import generics, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Exists, OuterRef
 from doctor.models import DoctorProfile, DoctorSlot
+from django.shortcuts import get_object_or_404
 from doctor.serializers import DoctorProfileSerializer
 import logging, json, hashlib, hmac, razorpay
 
@@ -27,8 +28,8 @@ from .serializers import (
     UserProfileUpdateSerializer,
     CreatePaymentSerializer,
     VerifyPaymentSerializer,
-    BookingHistorySerializer
-    
+    BookingHistorySerializer,
+    AppointmentDetailSerializer    
 )
 from core.utils import (
     OTPManager, 
@@ -633,3 +634,75 @@ class BookingHistoryView(APIView):
         serializer = BookingHistorySerializer(appointments, many=True)
         return Response(serializer.data)   
 
+        
+class AppointmentDetailView(generics.RetrieveAPIView):
+    serializer_class = AppointmentDetailSerializer
+    permission_classes = [IsAuthenticated]
+
+    
+    def get_object(self):
+        appointment_id = self.kwargs.get('appointment_id')
+        patient_profile = get_object_or_404(PatientProfile, user=self.request.user)
+        appointment = get_object_or_404(
+            Appointment,
+            id=appointment_id,
+            payment__patient=self.request.user
+        )
+        return appointment
+    
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            appointment = self.get_object()
+            serializer = self.get_serializer(appointment)
+            
+            return Response({
+                'success': True,
+                'message': 'Appointment details retrieved successfully',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error retrieving appointment details: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ValidateVideoCallAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slot_id):
+        try:
+            now = timezone.now()
+            appointment = Appointment.objects.get(
+                payment__slot__id=slot_id,
+                status='scheduled',
+                payment__payment_status='success'
+            )
+            
+            slot = appointment.payment.slot
+            slot_time = datetime.combine(slot.date, slot.start_time)
+            
+            # Make slot_time timezone-aware
+            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+
+            # start_window = slot_time - timedelta(minutes=15)
+            # end_window = slot_time + timedelta(minutes=slot.duration)
+            
+            # if not (start_window <= now <= end_window):
+            #     return Response(
+            #         {"error": "Video call is only available during your scheduled time"},
+            #         status=status.HTTP_400_BAD_REQUEST
+            #     )
+                
+            return Response({
+                "valid": True,
+                "room_name": str(slot_id),
+            })
+            
+        except Appointment.DoesNotExist:
+            return Response(
+                {"error": "No valid appointment found"},
+                status=status.HTTP_400_BAD_REQUEST
+            )

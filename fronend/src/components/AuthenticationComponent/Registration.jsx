@@ -1,24 +1,40 @@
 import React, { useState } from 'react';
-import { Lock, Mail, Phone, User, Heart, Shield, Users, Calendar } from 'lucide-react';
+import { Lock, Mail, Phone, User, Heart, Shield, Users, Calendar, AlertTriangle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { userAxios } from '../../axios/UserAxios'
 import { useNavigate } from 'react-router-dom'
 import DocnetLoading from '../Constants/Loading'
 
-// Validation schema using Yup 
+// Enhanced validation schema with better password rules
 const validationSchema = Yup.object({
   username: Yup.string()
     .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username must be less than 30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores')
     .required('Username is required'),
   email: Yup.string()
-    .email('Please enter a valid email')
+    .email('Please enter a valid email address')
     .required('Email is required'),
   phone: Yup.string()
     .matches(/^[0-9]{10,15}$/, 'Phone number must be 10-15 digits only')
     .required('Phone number is required'),
   password: Yup.string()
     .min(8, 'Password must be at least 8 characters')
+    .matches(/^(?=.*[a-z])/, 'Password must contain at least one lowercase letter')
+    .matches(/^(?=.*[A-Z])/, 'Password must contain at least one uppercase letter')
+    .matches(/^(?=.*\d)/, 'Password must contain at least one number')
+    .matches(/^(?=.*[@$!%*?&])/, 'Password must contain at least one special character (@$!%*?&)')
+    .test('not-all-numeric', 'Password cannot be entirely numeric', (value) => {
+      return value ? !/^\d+$/.test(value) : true;
+    })
+    .test('not-too-common', 'Please choose a stronger password', (value) => {
+      const commonPasswords = [
+        '12345678', '123456789', '1234567890', 'password', 'password123', 
+        '11111111', 'qwerty123', 'abc12345', 'admin123', 'welcome123'
+      ];
+      return value ? !commonPasswords.includes(value.toLowerCase()) : true;
+    })
     .required('Password is required'),
   password2: Yup.string()
     .oneOf([Yup.ref('password'), null], 'Passwords do not match')
@@ -40,12 +56,16 @@ const initialValues = {
 export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (values, { setFieldError, setSubmitting }) => {
+  const handleSubmit = async (values, { setFieldError, setSubmitting, resetForm }) => {
     console.log("Form submission started with values:", values);
     setIsLoading(true);
     setServerError('');
+    setSuccessMessage('');
     
     try {
       const data = new FormData();
@@ -61,13 +81,18 @@ export default function Register() {
       console.log("Registration response:", response.data);
       
       if (response.data && response.data.user_id) {
+        setSuccessMessage('Registration successful! Redirecting to OTP verification...');
         console.log("Navigating to OTP page with userId:", response.data.user_id);
-        navigate('/verify-otp', {
-          state: {
-            userId: response.data.user_id,
-            email: response.data.email,
-          }
-        });
+        
+        // Small delay to show success message
+        setTimeout(() => {
+          navigate('/verify-otp', {
+            state: {
+              userId: response.data.user_id,
+              email: response.data.email,
+            }
+          });
+        }, 1500);
       } else {
         console.error("Unexpected response format - no user id.", response.data);
         setServerError('Registration failed. Please try again.');
@@ -80,32 +105,65 @@ export default function Register() {
         const serverErrors = error.response.data;
         console.log("Server errors:", serverErrors);
         
-        // Handle different error response formats
+        // Handle string error messages
         if (typeof serverErrors === 'string') {
           setServerError(serverErrors);
-        } else if (typeof serverErrors === 'object') {
+        } 
+        // Handle object error messages
+        else if (typeof serverErrors === 'object') {
+          let hasFieldErrors = false;
+          let generalErrors = [];
+          
           Object.keys(serverErrors).forEach(key => {
-            const errorMessage = Array.isArray(serverErrors[key]) 
-              ? serverErrors[key][0] 
-              : serverErrors[key];
+            // Handle array of error messages
+            let errorMessage;
+            if (Array.isArray(serverErrors[key])) {
+              errorMessage = serverErrors[key].join(' ');
+            } else {
+              errorMessage = serverErrors[key];
+            }
             
+            // Map server field names to form field names
             const fieldMap = {
               confirm_password: 'password2'
             };
             
             const fieldName = fieldMap[key] || key;
             
-            // Set field error if it's a form field, otherwise show as server error
+            // Set field error if it's a form field
             if (['username', 'email', 'phone', 'password', 'password2'].includes(fieldName)) {
               setFieldError(fieldName, errorMessage);
+              hasFieldErrors = true;
             } else {
-              setServerError(errorMessage);
+              // Collect non-field errors
+              generalErrors.push(errorMessage);
             }
           });
+          
+          // Show general errors or if no field-specific errors were set
+          if (generalErrors.length > 0) {
+            setServerError(generalErrors.join(' '));
+          } else if (!hasFieldErrors && Object.keys(serverErrors).length > 0) {
+            const firstError = Object.values(serverErrors)[0];
+            const errorMsg = Array.isArray(firstError) ? firstError.join(' ') : firstError;
+            setServerError(errorMsg);
+          }
         }
-      } else if (error.message) {
-        setServerError(`Network error: ${error.message}`);
-      } else {
+      } 
+      // Handle network errors
+      else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network')) {
+        setServerError('Network error. Please check your internet connection and try again.');
+      }
+      // Handle timeout errors
+      else if (error.code === 'ECONNABORTED') {
+        setServerError('Request timeout. Please try again.');
+      }
+      // Handle other errors
+      else if (error.message) {
+        setServerError(`Error: ${error.message}`);
+      } 
+      // Handle unknown errors
+      else {
         setServerError('Registration failed. Please try again later.');
       }
     } finally {
@@ -114,33 +172,69 @@ export default function Register() {
     }
   };
 
-  // Enhanced custom input component for consistent styling
-  const FormInput = ({ field, form, placeholder, type = "text", icon: Icon, ...props }) => {
+  // Enhanced custom input component with password visibility toggle
+  const FormInput = ({ field, form, placeholder, type = "text", icon: Icon, showToggle = false, ...props }) => {
     const hasError = form.errors[field.name] && form.touched[field.name];
+    const isPasswordField = type === "password";
+    const showPasswordState = field.name === 'password' ? showPassword : showConfirmPassword;
+    const togglePassword = field.name === 'password' 
+      ? () => setShowPassword(!showPassword)
+      : () => setShowConfirmPassword(!showConfirmPassword);
     
     return (
       <div className="relative">
-        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
           <Icon size={18} />
         </div>
         <input
           {...field}
           {...props}
-          type={type}
+          type={isPasswordField && showToggle ? (showPasswordState ? "text" : "password") : type}
           placeholder={placeholder}
-          className={`w-full pl-12 pr-4 py-3 rounded-xl border ${
+          className={`w-full pl-12 ${showToggle ? 'pr-12' : 'pr-4'} py-3 rounded-xl border ${
             hasError 
               ? 'border-red-400 focus:ring-red-400' 
               : 'border-gray-200 focus:ring-teal-500'
           } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200 bg-white`}
         />
+        {showToggle && (
+          <button
+            type="button"
+            onClick={togglePassword}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 z-10"
+          >
+            {showPasswordState ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
         <ErrorMessage 
           name={field.name} 
-          component="p" 
-          className="text-red-500 text-sm mt-1 ml-1" 
+          component="div" 
+          className="text-red-500 text-sm mt-1 ml-1 flex items-start"
         />
       </div>
     );
+  };
+
+  // Password strength indicator
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: '', color: '' };
+    
+    let strength = 0;
+    const checks = [
+      { regex: /.{8,}/, label: 'At least 8 characters' },
+      { regex: /[a-z]/, label: 'Lowercase letter' },
+      { regex: /[A-Z]/, label: 'Uppercase letter' },
+      { regex: /[0-9]/, label: 'Number' },
+      { regex: /[@$!%*?&]/, label: 'Special character' }
+    ];
+    
+    checks.forEach(check => {
+      if (check.regex.test(password)) strength++;
+    });
+    
+    if (strength < 2) return { strength, label: 'Weak', color: 'bg-red-500' };
+    if (strength < 4) return { strength, label: 'Medium', color: 'bg-yellow-500' };
+    return { strength, label: 'Strong', color: 'bg-green-500' };
   };
 
   // Loading component
@@ -220,14 +314,25 @@ export default function Register() {
               </p>
             </div>
 
+            {/* Success Message Display */}
+            {successMessage && (
+              <div className="mb-6 bg-green-50 border-l-4 border-green-400 text-green-700 p-4 rounded-lg">
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  {successMessage}
+                </div>
+              </div>
+            )}
+
             {/* Server Error Display */}
             {serverError && (
               <div className="mb-6 bg-red-50 border-l-4 border-red-400 text-red-700 p-4 rounded-lg">
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {serverError}
+                <div className="flex items-start">
+                  <AlertTriangle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>Registration Failed:</strong>
+                    <p className="mt-1">{serverError}</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -237,7 +342,7 @@ export default function Register() {
               validationSchema={validationSchema}
               onSubmit={handleSubmit}
             >
-              {({ isSubmitting, errors, touched }) => (
+              {({ isSubmitting, errors, touched, values }) => (
                 <Form className="space-y-6">
                   {/* Personal Information Section */}
                   <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
@@ -249,7 +354,7 @@ export default function Register() {
                       <Field
                         name="username"
                         component={FormInput}
-                        placeholder="User Name"
+                        placeholder="Username (letters, numbers, underscore only)"
                         icon={User}
                       />
 
@@ -265,7 +370,7 @@ export default function Register() {
                         name="phone"
                         component={FormInput}
                         type="tel"
-                        placeholder="Phone Number"
+                        placeholder="Phone Number (10-15 digits)"
                         icon={Phone}
                       />
                     </div>
@@ -278,13 +383,37 @@ export default function Register() {
                       Account Security
                     </h3>
                     <div className="space-y-4">
-                      <Field
-                        name="password"
-                        component={FormInput}
-                        type="password"
-                        placeholder="Password"
-                        icon={Lock}
-                      />
+                      <div>
+                        <Field
+                          name="password"
+                          component={FormInput}
+                          type="password"
+                          placeholder="Password"
+                          icon={Lock}
+                          showToggle={true}
+                        />
+                        {/* Password strength indicator */}
+                        {values.password && (
+                          <div className="mt-2">
+                            <div className="flex items-center justify-between text-sm mb-1">
+                              <span className="text-gray-600">Password strength:</span>
+                              <span className={`font-medium ${
+                                getPasswordStrength(values.password).strength < 2 ? 'text-red-600' :
+                                getPasswordStrength(values.password).strength < 4 ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {getPasswordStrength(values.password).label}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrength(values.password).color}`}
+                                style={{width: `${(getPasswordStrength(values.password).strength / 5) * 100}%`}}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                       <Field
                         name="password2"
@@ -292,7 +421,35 @@ export default function Register() {
                         type="password"
                         placeholder="Confirm Password"
                         icon={Lock}
+                        showToggle={true}
                       />
+                    </div>
+
+                    {/* Password requirements */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Password must contain:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-600">
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${values.password?.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          At least 8 characters
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[a-z]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Lowercase letter
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[A-Z]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Uppercase letter
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[0-9]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Number
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[@$!%*?&]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Special character
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -321,10 +478,10 @@ export default function Register() {
                   {/* Submit button */}
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isLoading}
                     className="w-full bg-gradient-to-r from-teal-600 to-teal-700 text-white font-semibold py-4 px-6 rounded-xl hover:from-teal-700 hover:to-teal-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-teal-300"
                   >
-                    {isSubmitting ? (
+                    {isSubmitting || isLoading ? (
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                         Creating Account...
@@ -333,18 +490,6 @@ export default function Register() {
                       'Create Patient Account'
                     )}
                   </button>
-
-                  {/* Debug info (remove in production) */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-                      <details>
-                        <summary>Debug Info (Development Only)</summary>
-                        <pre>Errors: {JSON.stringify(errors, null, 2)}</pre>
-                        <pre>Touched: {JSON.stringify(touched, null, 2)}</pre>
-                        <pre>Is Submitting: {isSubmitting}</pre>
-                      </details>
-                    </div>
-                  )}
 
                   {/* Sign in link */}
                   <div className="text-center text-gray-600 pt-4">

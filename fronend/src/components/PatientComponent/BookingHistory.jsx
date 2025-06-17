@@ -514,7 +514,7 @@ const BookingHistoryPage = () => {
                                     View Report
                                   </button>
                                 )}
-                                <button onClick={() => navigate('/booking-details')}
+                                <button onClick={() => navigate(`/booking-details/${booking.id}`)}
                                  className="px-4 py-2 text-sm font-medium text-gray-600 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 transform hover:scale-105">
                                   Details
                                 </button>
