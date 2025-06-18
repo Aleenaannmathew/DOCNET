@@ -197,6 +197,17 @@ const DoctorSlots = () => {
 
   const createSlot = async (slotData) => {
     try {
+
+      const dateKey = selectedDate.toISOString().split('T')[0];
+      const existingSlots = slots[dateKey] || {};
+      const slotExists = Object.values(existingSlots).some(
+        slot => slot.time === slotData.time && (!editingSlot || slot.id !== editingSlot.id)
+      );
+
+      if (slotExists) {
+        throw new Error('A slot already exists for this date and time');
+      }
+
       const formattedData = {
         date: selectedDate.toISOString().split('T')[0],
         start_time: slotData.time + ':00',
@@ -241,6 +252,17 @@ const DoctorSlots = () => {
 
   const createBulkSlots = async (bulkData) => {
     try {
+
+      const dateKey = selectedDate.toISOString().split('T')[0];
+      const existingSlots = slots[dateKey] || {};
+      const bookedTimes = Object.values(existingSlots).map(slot => slot.time.substring(0, 5));
+
+      const availableTimes = bulkData.selectedTimes.filter(time => !bookedTimes.includes(time));
+
+      if (availableTimes.length === 0) {
+        throw new Error('All selected time slots are already booked');
+      }
+
       const promises = bulkData.selectedTimes.map(time => {
         const slotData = {
           date: selectedDate.toISOString().split('T')[0],
@@ -365,7 +387,13 @@ const DoctorSlots = () => {
       notes: ''
     });
 
+    const slotsForDate = selectedDate ? getSlotsForDate(selectedDate) : [];
+
+    const bookedTimes = slotsForDate.map(slot => slot.time.substring(0, 5));
+
     const toggleTimeSelection = (time) => {
+      if (bookedTimes.includes(time)) return;
+
       setFormData(prev => ({
         ...prev,
         selectedTimes: prev.selectedTimes.includes(time)
@@ -377,7 +405,7 @@ const DoctorSlots = () => {
     const selectAllTimes = () => {
       setFormData(prev => ({
         ...prev,
-        selectedTimes: timeSlots
+        selectedTimes: timeSlots.filter(time => !bookedTimes.includes(time))
       }));
     };
 
@@ -439,22 +467,34 @@ const DoctorSlots = () => {
               </div>
 
               <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
-                {timeSlots.map(time => (
-                  <button
-                    key={time}
-                    type="button"
-                    onClick={() => toggleTimeSelection(time)}
-                    className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${formData.selectedTimes.includes(time)
-                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-md transform scale-105'
-                        : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'
-                      }`}
-                  >
-                    {time}
-                    {formData.selectedTimes.includes(time) && (
-                      <Check size={12} className="ml-1 inline" />
-                    )}
-                  </button>
-                ))}
+                {timeSlots.map(time => {
+                  const isBooked = bookedTimes.includes(time);
+                  const isSelected = formData.selectedTimes.includes(time);
+
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      onClick={() => !isBooked && toggleTimeSelection(time)}
+                      className={`p-3 rounded-xl border-2 transition-all text-sm font-medium ${isBooked
+                        ? 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed'
+                        : isSelected
+                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-md transform scale-105'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'
+                        }`}
+                      disabled={isBooked}
+                      title={isBooked ? "This slot is already booked" : ""}
+                    >
+                      {time}
+                      {isSelected && (
+                        <Check size={12} className="ml-1 inline" />
+                      )}
+                      {isBooked && (
+                        <X size={12} className="ml-1 inline" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               <p className="text-sm text-gray-600 mt-2">
@@ -518,8 +558,8 @@ const DoctorSlots = () => {
                           type="button"
                           onClick={() => setFormData({ ...formData, type: type.id })}
                           className={`p-4 rounded-xl border-2 flex flex-col items-center space-y-2 transition-all ${formData.type === type.id
-                              ? `${type.color} text-white border-transparent shadow-lg`
-                              : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
+                            ? `${type.color} text-white border-transparent shadow-lg`
+                            : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
                             }`}
                         >
                           <IconComponent size={20} />
@@ -609,14 +649,14 @@ const DoctorSlots = () => {
             ) : (
               filteredSlots.map(slot => (
                 <div key={slot.id} className={`border rounded-2xl p-4 hover:shadow-md transition-all ${slot.isBooked
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-gray-50 border-gray-200'
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-gray-50 border-gray-200'
                   }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className={`w-12 h-12 ${slot.isBooked
-                          ? 'bg-red-500'
-                          : typeInfo.color
+                        ? 'bg-red-500'
+                        : typeInfo.color
                         } rounded-xl flex items-center justify-center`}>
                         <typeInfo.icon size={18} className="text-white" />
                       </div>
@@ -625,7 +665,7 @@ const DoctorSlots = () => {
                           }`}>
                           {slot.time}
                           {slot.isBooked && (
-                            <span className="ml-2 text-sm font-normal text-red-500">(Booked)</span>
+                            <span className="ml-2 text-sm font-normal text-red-500"></span>
                           )}
                         </div>
                         <div className={`text-sm ${slot.isBooked ? 'text-red-500' : 'text-gray-600'
@@ -846,7 +886,7 @@ const DoctorSlots = () => {
                             }`}>
                             {slot.time}
                             {slot.isBooked && (
-                              <span className="ml-2 text-sm font-normal text-red-500">(Booked)</span>
+                              <span className="ml-2 text-sm font-normal text-red-500"></span>
                             )}
                           </div>
                           <div className={`text-sm ${slot.isBooked ? 'text-red-500' : 'text-gray-600'
@@ -938,6 +978,10 @@ const DoctorSlots = () => {
       notes: editingSlot?.notes || ''
     });
 
+    const slotsForDate = selectedDate ? getSlotsForDate(selectedDate) : [];
+
+    const bookedTimes = slotsForDate.map(slot => slot.time.substring(0, 5));
+
     const handleSubmit = (e) => {
       e.preventDefault();
       if (!formData.time || !formData.fee) {
@@ -986,9 +1030,19 @@ const DoctorSlots = () => {
                 required
               >
                 <option value="">Select time</option>
-                {timeSlots.map(time => (
-                  <option key={time} value={time}>{time}</option>
-                ))}
+                {timeSlots.map(time => {
+                  const isBooked = bookedTimes.includes(time);
+                  return (
+                    <option
+                      key={time}
+                      value={time}
+                      disabled={isBooked && time !== formData.time}
+                      className={isBooked ? 'text-gray-400' : ''}
+                    >
+                      {time} {isBooked && '(Booked)'}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -1017,8 +1071,8 @@ const DoctorSlots = () => {
                       type="button"
                       onClick={() => setFormData({ ...formData, type: type.id })}
                       className={`p-4 rounded-xl border-2 flex flex-col items-center space-y-2 transition-all ${formData.type === type.id
-                          ? `${type.color} text-white border-transparent shadow-lg`
-                          : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
+                        ? `${type.color} text-white border-transparent shadow-lg`
+                        : 'border-gray-200 text-gray-700 hover:border-gray-300 bg-white'
                         }`}
                     >
                       <IconComponent size={20} />
@@ -1148,108 +1202,84 @@ const DoctorSlots = () => {
                     <div className="text-sm font-semibold text-gray-600">
                       {dayNames[index]}
                     </div>
-                    <div className={`text-2xl font-bold mt-1 ${isToday ? 'text-emerald-600' : isPast ? 'text-gray-400' : 'text-gray-900'
+                    <div className={`text-2xl font-bold mt-1 ${isToday ? 'text-emerald-600' :
+                        isPast ? 'text-gray-400' : 'text-gray-900'
                       }`}>
                       {date.getDate()}
                     </div>
                   </div>
 
                   {/* Day Content */}
-                  <div className={`min-h-[200px] border-2 border-dashed rounded-2xl p-4 transition-all ${isPast
-                      ? 'border-gray-200 bg-gray-50'
-                      : 'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 cursor-pointer'
+                  <div className={`min-h-[200px] border-2 border-dashed rounded-2xl p-4 transition-all ${isPast ? 'border-gray-200 bg-gray-50' :
+                      'border-gray-300 hover:border-emerald-400 hover:bg-emerald-50 cursor-pointer'
                     }`}
                     onClick={() => !isPast && openDayDetails(date)}
                   >
                     {/* Slot Summary */}
                     {slotCounts.total > 0 && (
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center justify-between text-xs font-semibold text-gray-600">
-                          <span>Total Slots</span>
-                          <span className="bg-gray-200 px-2 py-1 rounded-full">{slotCounts.total}</span>
+                      <div className="space-y-3">
+                        <div className="flex flex-col space-y-1">
+                          <span className="text-xs font-semibold text-gray-600">Total Slots</span>
+                          <span className="text-sm font-medium">{slotCounts.total}</span>
                         </div>
 
                         {slotCounts.videoCalls > 0 && (
-                          <div
-                            className="flex items-center justify-between text-xs p-2 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openTypeDetails(date, 'video');
-                            }}
-                          >
+                          <div className="flex flex-col space-y-1">
                             <div className="flex items-center space-x-2">
-                              <Video size={12} className="text-emerald-600" />
-                              <span className="text-emerald-700 font-medium">Video Calls</span>
+                              <Video size={14} className="text-emerald-600" />
+                              <span className="text-xs font-semibold text-gray-600">Video Calls</span>
                             </div>
-                            <span className="bg-emerald-200 text-emerald-800 px-2 py-1 rounded-full font-semibold">
-                              {slotCounts.videoCalls}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {daySlots
+                                .filter(slot => slot.type === 'video')
+                                .slice(0, 3)
+                                .map((slot, i) => (
+                                  <span
+                                    key={i}
+                                    className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded"
+                                  >
+                                    {slot.time}
+                                  </span>
+                                ))}
+                              {slotCounts.videoCalls > 3 && (
+                                <span className="text-xs text-gray-500">
+                                  +{slotCounts.videoCalls - 3} more
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
 
                         {slotCounts.onlineChat > 0 && (
-                          <div
-                            className="flex items-center justify-between text-xs p-2 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openTypeDetails(date, 'chat');
-                            }}
-                          >
+                          <div className="flex flex-col space-y-1">
                             <div className="flex items-center space-x-2">
-                              <MessageCircle size={12} className="text-blue-600" />
-                              <span className="text-blue-700 font-medium">Online Chat</span>
+                              <MessageCircle size={14} className="text-blue-600" />
+                              <span className="text-xs font-semibold text-gray-600">Online Chat</span>
                             </div>
-                            <span className="bg-blue-200 text-blue-800 px-2 py-1 rounded-full font-semibold">
-                              {slotCounts.onlineChat}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {daySlots
+                                .filter(slot => slot.type === 'chat')
+                                .slice(0, 3)
+                                .map((slot, i) => (
+                                  <span
+                                    key={i}
+                                    className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
+                                  >
+                                    {slot.time}
+                                  </span>
+                                ))}
+                              {slotCounts.onlineChat > 3 && (
+                                <span className="text-xs text-gray-500">
+                                  +{slotCounts.onlineChat - 3} more
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Recent Slots Preview */}
-                    <div className="space-y-3">
-                      {daySlots.map(slot => {
-                        const consultationType = consultationTypes.find(t => t.id === slot.type);
-                        const IconComponent = consultationType?.icon || Video;
-
-                        return (
-                          <div
-                            key={slot.id}
-                            className={`flex items-center justify-between p-2 rounded-lg border hover:shadow-md transition-all cursor-pointer ${slot.isBooked
-                                ? 'bg-red-50 border-red-200'
-                                : 'bg-white border-gray-200'
-                              }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openSlotDetails(slot, date);
-                            }}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-6 h-6 ${slot.isBooked
-                                  ? 'bg-red-500'
-                                  : consultationType?.color
-                                } rounded-lg flex items-center justify-center`}>
-                                <IconComponent size={12} className="text-white" />
-                              </div>
-                              <span className={`text-sm font-semibold ${slot.isBooked ? 'text-red-600' : 'text-gray-900'
-                                }`}>
-                                {slot.time}
-                                {slot.isBooked && (
-                                  <span className="ml-1 text-xs text-red-500">(Booked)</span>
-                                )}
-                              </span>
-                            </div>
-                            <div className={`flex items-center space-x-1 text-xs ${slot.isBooked ? 'text-red-500' : 'text-gray-600'
-                              }`}>
-
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Add Slot Button */}
+                    {/* Empty State */}
                     {slotCounts.total === 0 && !isPast && (
                       <div className="flex flex-col items-center justify-center h-full text-gray-400">
                         <Plus size={32} className="mb-2 opacity-50" />

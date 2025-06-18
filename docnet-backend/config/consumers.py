@@ -52,34 +52,12 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             )
             logger.info(f"User {self.user_id} added to group {self.room_group_name}")
             
-            # Send join confirmation
-            await self.send(text_data=json.dumps({
-                'type': 'join-confirmation',
-                'room': self.room_name,
-                'userId': self.user_id
-            }))
-            
-            # Get list of users already in the room and notify both ways
-            await asyncio.sleep(0.5)  # Small delay to ensure client is ready
-            
-            # Notify existing users about new connection
+            # Immediately notify other users that this user connected
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     'type': 'user_connected',
                     'user_id': self.user_id,
-                    'exclude_user': self.user_id  # Don't send to the connecting user
-                }
-            )
-            
-            # Also trigger a user-connected message to the new user for any existing connections
-            # This ensures both sides know about each other
-            await asyncio.sleep(0.5)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'notify_existing_users',
-                    'new_user_id': self.user_id
                 }
             )
             
@@ -99,7 +77,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'user_disconnected',
                     'user_id': self.user_id,
-                    'exclude_user': self.user_id
                 }
             )
             
@@ -128,14 +105,18 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             elif message_type == 'signal':
                 # Forward signaling data between peers
                 target_user = data.get('userToSignal')
-                logger.debug(f"Forwarding signal from {self.user_id} to {target_user}")
+                caller_id = data.get('callerId')
+                signal = data.get('signal')
                 
+                logger.debug(f"Forwarding signal from {caller_id} to {target_user}")
+                
+                # Send signal to the specific target user
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
                         'type': 'signal_message',
-                        'signal_data': data,
-                        'sender_id': self.user_id,
+                        'signal': signal,
+                        'caller_id': caller_id,
                         'target_user': target_user
                     }
                 )
@@ -148,41 +129,21 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
     async def user_connected(self, event):
         """Handle user_connected group message"""
         user_id = event['user_id']
-        exclude_user = event.get('exclude_user')
         
-        # Don't send notification to the user who just connected or specified exclude user
-        if user_id != self.user_id and self.user_id != exclude_user:
+        # Don't send notification to the user who just connected
+        if user_id != self.user_id:
             await self.send(text_data=json.dumps({
                 'type': 'user-connected',
                 'userId': user_id
             }))
             logger.debug(f"Notified user {self.user_id} about user {user_id} connecting")
 
-    async def notify_existing_users(self, event):
-        """Notify new user about existing users in the room"""
-        new_user_id = event['new_user_id']
-        
-        # Only existing users (not the new user) should send their presence to the new user
-        if self.user_id != new_user_id:
-            # Small delay to avoid race conditions
-            await asyncio.sleep(1)
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'user_connected',
-                    'user_id': self.user_id,
-                    'exclude_user': self.user_id  # Don't send to self
-                }
-            )
-            logger.debug(f"Existing user {self.user_id} notified new user {new_user_id}")
-
     async def user_disconnected(self, event):
         """Handle user_disconnected group message"""
         user_id = event['user_id']
-        exclude_user = event.get('exclude_user')
         
         # Don't send notification to the user who disconnected
-        if self.user_id != exclude_user:
+        if self.user_id != user_id:
             await self.send(text_data=json.dumps({
                 'type': 'user-disconnected',
                 'userId': user_id
@@ -191,19 +152,18 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
 
     async def signal_message(self, event):
         """Handle signal_message group message"""
-        signal_data = event['signal_data']
-        sender_id = event['sender_id']
+        signal = event['signal']
+        caller_id = event['caller_id']
         target_user = event.get('target_user')
         
         # Only send to the intended recipient
-        if sender_id != self.user_id and (target_user is None or target_user == self.user_id):
+        if target_user == self.user_id and caller_id != self.user_id:
             await self.send(text_data=json.dumps({
                 'type': 'signal',
-                'signal': signal_data['signal'],
-                'callerId': sender_id,
-                'userToSignal': target_user
+                'signal': signal,
+                'callerId': caller_id
             }))
-            logger.debug(f"Forwarded signal from {sender_id} to {self.user_id}")
+            logger.debug(f"Forwarded signal from {caller_id} to {self.user_id}")
 
     @database_sync_to_async
     def validate_appointment(self, room_name, user_id):
