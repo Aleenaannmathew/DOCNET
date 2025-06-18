@@ -8,7 +8,6 @@ import {
   Mail, 
   Clock, 
   User, 
-  Heart,
   Award,
   Stethoscope,
   X,
@@ -26,6 +25,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { userAxios } from '../../axios/UserAxios';
 import { useSelector } from 'react-redux';
+import Navbar from './Navbar';
 
 function DoctorDetailPage() {
   const { slug } = useParams();
@@ -417,6 +417,7 @@ function DoctorDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
+      <Navbar/>
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="container mx-auto px-6 py-6">
           <button 
@@ -495,7 +496,7 @@ function DoctorDetailPage() {
                   onClick={toggleFavorite}
                   className={`p-3 rounded-full transition-colors ${isFavorite ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                 >
-                  <Heart size={22} className={isFavorite ? 'fill-current' : ''} />
+                
                 </button>
               </div>
               

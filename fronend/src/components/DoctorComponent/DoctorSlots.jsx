@@ -40,7 +40,7 @@ const DoctorSlots = () => {
 
   const consultationTypes = [
     { id: 'video', label: 'Video Call', icon: Video, color: 'bg-emerald-500', lightColor: 'bg-emerald-50', textColor: 'text-emerald-600' },
-    { id: 'chat', label: 'Online Chat', icon: MessageCircle, color: 'bg-blue-500', lightColor: 'bg-blue-50', textColor: 'text-blue-600' },
+   
   ];
 
 
