@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FiVideo, FiMic } from 'react-icons/fi';
 import { MdMicOff, MdPhoneDisabled, MdVideocamOff } from 'react-icons/md';
-import Peer from 'simple-peer';
+import SimplePeer from 'simple-peer';
 import { jwtDecode } from 'jwt-decode';
 
 const VideoCall = ({ slotId, token, onEndCall }) => {
@@ -11,8 +11,9 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
   const [videoOff, setVideoOff] = useState(false);
   const [callStarted, setCallStarted] = useState(false);
   const [error, setError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('Connecting...');
+  const [connectionStatus, setConnectionStatus] = useState('Initializing...');
   const [debugInfo, setDebugInfo] = useState('');
+  const [connectedUsers, setConnectedUsers] = useState(new Set());
   
   const socketRef = useRef(null);
   const peersRef = useRef({});
@@ -22,15 +23,19 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
   const maxReconnectAttempts = 5;
   const currentUser = jwtDecode(token).user_id;
   const roomName = slotId;
+  const isInitializedRef = useRef(false);
+  const pendingSignalsRef = useRef({});
 
-  // Add debug logging
   const addDebug = (message) => {
     console.log(message);
     setDebugInfo(prev => `${prev}\n${new Date().toLocaleTimeString()}: ${message}`);
   };
 
-  // Stable WebSocket connection with exponential backoff
   const connectWebSocket = () => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      return;
+    }
+
     if (socketRef.current) {
       socketRef.current.close();
     }
@@ -45,12 +50,6 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
       setConnectionStatus('Connected');
       setError(null);
       reconnectAttemptsRef.current = 0;
-      
-      socketRef.current.send(JSON.stringify({
-        type: 'join-room',
-        room: roomName,
-        userId: currentUser
-      }));
     };
 
     socketRef.current.onmessage = (event) => {
@@ -59,17 +58,40 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
         addDebug(`Received message: ${JSON.stringify(data)}`);
         
         switch (data.type) {
+          case 'join-confirmation':
+            addDebug(`Successfully joined room ${data.room} as user ${data.userId}`);
+            setConnectionStatus('Waiting for participant...');
+            break;
+            
           case 'user-connected':
             if (data.userId !== currentUser) {
-              handleUserConnected(data.userId);
+              addDebug(`User ${data.userId} connected to room`);
+              setConnectedUsers(prev => new Set([...prev, data.userId]));
+              
+              if (localStream && !peersRef.current[data.userId]) {
+                setTimeout(() => {
+                  if (!peersRef.current[data.userId]) {
+                    handleUserConnected(data.userId);
+                  }
+                }, 1500);
+              }
             }
             break;
+            
           case 'user-disconnected':
+            addDebug(`User ${data.userId} disconnected from room`);
+            setConnectedUsers(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(data.userId);
+              return newSet;
+            });
             handleUserDisconnected(data.userId);
             break;
+            
           case 'signal':
             handleSignal(data);
             break;
+            
           default:
             addDebug(`Unknown message type: ${data.type}`);
         }
@@ -79,43 +101,40 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
     };
 
     socketRef.current.onerror = (error) => {
-      addDebug(`WebSocket error: ${error}`);
+      addDebug(`WebSocket error: ${error.message || 'Unknown error'}`);
       setConnectionStatus('Connection Error');
+      setError('Failed to connect to video call service. Please try again.');
     };
 
     socketRef.current.onclose = (event) => {
-      addDebug(`WebSocket closed: ${event.code} ${event.reason}`);
+      addDebug(`WebSocket closed: ${event.code} ${event.reason || 'No reason provided'}`);
       setConnectionStatus('Disconnected');
+
+      if (event.code === 4004) {
+        setError('Invalid appointment or access denied.');
+        return;
+      }
       
       if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
         const delay = Math.min(5000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
         reconnectAttemptsRef.current++;
         addDebug(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
         setTimeout(connectWebSocket, delay);
-      } else {
-        setError('Connection failed. Please refresh the page.');
+      } else if (event.code !== 1000) {
+        setError('Connection failed. Please refresh the page and try again.');
       }
     };
   };
 
-  // Initialize media and connection
   useEffect(() => {
-    // Verify token
-    try {
-      const decoded = jwtDecode(token);
-      if (decoded.exp * 1000 < Date.now()) {
-        setError('Session expired. Please login again.');
-        return;
-      }
-    } catch (err) {
-      setError('Invalid authentication token.');
-      return;
-    }
+    if (isInitializedRef.current) return;
+    isInitializedRef.current = true;
 
-    // Get user media with better error handling
     const getMediaStream = async () => {
       try {
         addDebug('Requesting media permissions...');
+        setConnectionStatus('Requesting camera access...');
+        
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
             width: { ideal: 1280 },
@@ -130,20 +149,19 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
         });
         
         addDebug(`Obtained local stream with ${stream.getTracks().length} tracks`);
-        addDebug(`Video tracks: ${stream.getVideoTracks().length}, Audio tracks: ${stream.getAudioTracks().length}`);
-        
         setLocalStream(stream);
         
-        // Set local video immediately
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
           addDebug('Set local video stream');
         }
-        
+
         connectWebSocket();
+        
       } catch (err) {
         addDebug(`Failed to get media: ${err.name} - ${err.message}`);
         setError(`Could not access camera/microphone: ${err.message}`);
+        setConnectionStatus('Media Access Failed');
       }
     };
 
@@ -152,7 +170,7 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
     return () => {
       addDebug('Cleaning up resources...');
       if (socketRef.current) {
-        socketRef.current.close();
+        socketRef.current.close(1000, 'Component unmounting');
       }
       if (localStream) {
         localStream.getTracks().forEach(track => {
@@ -160,39 +178,72 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
           addDebug(`Stopped ${track.kind} track`);
         });
       }
-      Object.values(peersRef.current).forEach(peer => peer.destroy());
+      Object.values(peersRef.current).forEach(peer => {
+        if (peer && typeof peer.destroy === 'function') {
+          peer.destroy();
+        }
+      });
+      peersRef.current = {};
     };
   }, []);
 
-  // Update local video when stream changes
+  useEffect(() => {
+    if (localStream && connectedUsers.size > 0) {
+      addDebug(`Local stream available, checking ${connectedUsers.size} connected users`);
+      connectedUsers.forEach(userId => {
+        if (!peersRef.current[userId]) {
+          addDebug(`Creating delayed connection to existing user ${userId}`);
+          setTimeout(() => {
+            if (!peersRef.current[userId] && localStream) {
+              handleUserConnected(userId);
+            }
+          }, 1000);
+        }
+      });
+    }
+  }, [localStream, connectedUsers]);
+
   useEffect(() => {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
-      addDebug('Updated local video element with stream');
     }
   }, [localStream]);
 
-  // Update remote video when stream changes
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
-      addDebug('Updated remote video element with stream');
-      
-      // Force video to play
       remoteVideoRef.current.play().catch(err => {
         addDebug(`Error playing remote video: ${err.message}`);
       });
     }
   }, [remoteStream]);
 
-  // Handle new user connection
   const handleUserConnected = (userId) => {
-    addDebug(`New user connected: ${userId}`);
+    addDebug(`Handling user connected: ${userId}`);
     
-    if (!peersRef.current[userId] && localStream) {
-      addDebug(`Creating peer connection to ${userId} as initiator`);
+    if (peersRef.current[userId]) {
+      addDebug(`Peer already exists for ${userId}, skipping creation`);
+      return;
+    }
+
+    if (!localStream) {
+      addDebug(`Cannot create peer for ${userId} - no local stream`);
+      return;
+    }
+
+    if (socketRef.current?.readyState !== WebSocket.OPEN) {
+      addDebug(`Cannot create peer for ${userId} - WebSocket not ready`);
+      return;
+    }
+
+    const shouldInitiate = currentUser < userId;
+    
+    addDebug(`Creating peer connection to ${userId} as ${shouldInitiate ? 'initiator' : 'receiver'}`);
+    
+    try {
+      const Peer = SimplePeer.default || SimplePeer;
       const peer = new Peer({
-        initiator: true,
+        initiator: shouldInitiate,
         trickle: true,
         stream: localStream,
         config: { 
@@ -206,62 +257,108 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
 
       setupPeerEvents(peer, userId);
       peersRef.current[userId] = peer;
-    } else if (!localStream) {
-      addDebug(`Cannot create peer - no local stream available`);
-    } else {
-      addDebug(`Peer already exists for user ${userId}`);
+
+      if (pendingSignalsRef.current[userId]) {
+        addDebug(`Processing ${pendingSignalsRef.current[userId].length} pending signals for ${userId}`);
+        pendingSignalsRef.current[userId].forEach(signal => {
+          try {
+            if (peer && typeof peer.signal === 'function') {
+              peer.signal(signal);
+            }
+          } catch (err) {
+            addDebug(`Error processing pending signal: ${err.message}`);
+          }
+        });
+        delete pendingSignalsRef.current[userId];
+      }
+    } catch (err) {
+      addDebug(`Error creating peer for ${userId}: ${err.stack}`);
+      setError(`Failed to create connection with participant: ${err.message}`);
     }
   };
 
-  // Handle incoming signals
   const handleSignal = ({ callerId, signal }) => {
     addDebug(`Received signal from ${callerId}, signal type: ${signal.type || 'unknown'}`);
     
-    if (!peersRef.current[callerId] && localStream) {
-      addDebug(`Creating peer response to ${callerId} as non-initiator`);
-      const peer = new Peer({
-        initiator: false,
-        trickle: true,
-        stream: localStream,
-        config: { 
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
-          ]
-        }
-      });
+    if (callerId === currentUser) {
+      addDebug(`Ignoring signal from self`);
+      return;
+    }
 
-      setupPeerEvents(peer, callerId);
-      peersRef.current[callerId] = peer;
+    if (!localStream) {
+      addDebug(`Cannot handle signal - no local stream available`);
+      return;
+    }
+
+    if (!peersRef.current[callerId]) {
+      addDebug(`No peer exists for ${callerId}, storing signal for later`);
       
-      // Signal the peer after setup
-      setTimeout(() => {
-        try {
-          peer.signal(signal);
-          addDebug(`Signaled peer ${callerId} with incoming signal`);
-        } catch (err) {
-          addDebug(`Error signaling peer ${callerId}: ${err.message}`);
-        }
-      }, 100);
-      
-    } else if (peersRef.current[callerId]) {
-      try {
-        peersRef.current[callerId].signal(signal);
-        addDebug(`Forwarded signal to existing peer ${callerId}`);
-      } catch (err) {
-        addDebug(`Error forwarding signal to ${callerId}: ${err.message}`);
+      if (!pendingSignalsRef.current[callerId]) {
+        pendingSignalsRef.current[callerId] = [];
       }
-    } else {
-      addDebug(`Cannot handle signal from ${callerId} - no local stream`);
+      pendingSignalsRef.current[callerId].push(signal);
+
+      const shouldInitiate = currentUser < callerId;
+      if (!shouldInitiate) {
+        addDebug(`Creating peer for ${callerId} as receiver`);
+        
+        try {
+          const Peer = SimplePeer.default || SimplePeer;
+          const peer = new Peer({
+            initiator: false,
+            trickle: true,
+            stream: localStream,
+            config: { 
+              iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' }
+              ]
+            }
+          });
+
+          setupPeerEvents(peer, callerId);
+          peersRef.current[callerId] = peer;
+
+          pendingSignalsRef.current[callerId].forEach(pendingSignal => {
+            try {
+              if (peer && typeof peer.signal === 'function') {
+                peer.signal(pendingSignal);
+              }
+            } catch (err) {
+              addDebug(`Error processing stored signal: ${err.message}`);
+            }
+          });
+          delete pendingSignalsRef.current[callerId];
+        } catch (err) {
+          addDebug(`Error creating receiver peer for ${callerId}: ${err.message}`);
+        }
+      }
+      return;
+    }
+
+    try {
+      const peer = peersRef.current[callerId];
+      if (peer && typeof peer.signal === 'function') {
+        peer.signal(signal);
+        addDebug(`Successfully signaled peer ${callerId}`);
+      } else {
+        addDebug(`Peer ${callerId} is not valid or doesn't have signal method`);
+      }
+    } catch (err) {
+      addDebug(`Error signaling peer ${callerId}: ${err.message}`);
     }
   };
 
-  // Setup peer event handlers
   const setupPeerEvents = (peer, userId) => {
+    if (!peer) {
+      addDebug(`Cannot setup events for null peer ${userId}`);
+      return;
+    }
+
     peer.on('signal', signal => {
-      addDebug(`Sending signal to ${userId}, type: ${signal.type || 'unknown'}`);
       if (socketRef.current?.readyState === WebSocket.OPEN) {
+        addDebug(`Sending signal to ${userId}, type: ${signal.type || 'unknown'}`);
         socketRef.current.send(JSON.stringify({
           type: 'signal',
           userToSignal: userId,
@@ -274,35 +371,16 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
     });
 
     peer.on('stream', stream => {
-      addDebug(`Received remote stream from ${userId} with ${stream.getTracks().length} tracks`);
-      addDebug(`Remote stream - Video: ${stream.getVideoTracks().length}, Audio: ${stream.getAudioTracks().length}`);
-      
+      addDebug(`Received remote stream from ${userId}`);
       setRemoteStream(stream);
       setCallStarted(true);
       setConnectionStatus('Call Active');
     });
 
-    peer.on('connect', () => {
-      addDebug(`Peer connected to ${userId}`);
-    });
-
-    peer.on('data', data => {
-      addDebug(`Received data from ${userId}: ${data}`);
-    });
-
     peer.on('error', err => {
       addDebug(`Peer error with ${userId}: ${err.message}`);
       delete peersRef.current[userId];
-      
-      // Try to recreate connection once
-      if (err.message.includes('Connection failed')) {
-        setTimeout(() => {
-          if (!peersRef.current[userId] && localStream) {
-            addDebug(`Attempting to recreate peer connection to ${userId}`);
-            // This would need to be triggered by the signaling server
-          }
-        }, 2000);
-      }
+      setError(`Connection error with participant: ${err.message}`);
     });
 
     peer.on('close', () => {
@@ -311,32 +389,40 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
       if (Object.keys(peersRef.current).length === 0) {
         setRemoteStream(null);
         setCallStarted(false);
-        setConnectionStatus('Connected');
+        setConnectionStatus('Participant disconnected');
       }
+    });
+
+    peer.on('connect', () => {
+      addDebug(`Peer data channel connected with ${userId}`);
     });
   };
 
-  // Handle user disconnection
   const handleUserDisconnected = (userId) => {
     addDebug(`User disconnected: ${userId}`);
     if (peersRef.current[userId]) {
-      peersRef.current[userId].destroy();
+      const peer = peersRef.current[userId];
+      if (peer && typeof peer.destroy === 'function') {
+        peer.destroy();
+      }
       delete peersRef.current[userId];
     }
+    
+    delete pendingSignalsRef.current[userId];
+    
     if (Object.keys(peersRef.current).length === 0) {
       setRemoteStream(null);
       setCallStarted(false);
-      setConnectionStatus('Connected');
+      setConnectionStatus('Waiting for participant...');
     }
   };
 
-  // Control functions
   const toggleMic = () => {
     if (localStream) {
       const enabled = !micMuted;
       localStream.getAudioTracks().forEach(track => {
         track.enabled = enabled;
-        addDebug(`Audio track ${enabled ? 'enabled' : 'disabled'}`);
+        addDebug(`${enabled ? 'Enabled' : 'Disabled'} microphone`);
       });
       setMicMuted(!enabled);
     }
@@ -347,7 +433,7 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
       const enabled = !videoOff;
       localStream.getVideoTracks().forEach(track => {
         track.enabled = enabled;
-        addDebug(`Video track ${enabled ? 'enabled' : 'disabled'}`);
+        addDebug(`${enabled ? 'Enabled' : 'Disabled'} video`);
       });
       setVideoOff(!enabled);
     }
@@ -355,15 +441,28 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
 
   const endCall = () => {
     addDebug('Ending call...');
-    if (socketRef.current) socketRef.current.close();
+    
+    if (socketRef.current) {
+      socketRef.current.close(1000, 'Call ended by user');
+    }
+    
     if (localStream) {
       localStream.getTracks().forEach(track => {
         track.stop();
         addDebug(`Stopped ${track.kind} track`);
       });
     }
-    Object.values(peersRef.current).forEach(peer => peer.destroy());
-    if (onEndCall) onEndCall();
+    
+    Object.values(peersRef.current).forEach(peer => {
+      if (peer && typeof peer.destroy === 'function') {
+        peer.destroy();
+      }
+    });
+    peersRef.current = {};
+    
+    if (onEndCall) {
+      onEndCall();
+    }
   };
 
   return (
@@ -378,28 +477,10 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
       )}
 
       <div className="bg-gray-800 p-2 text-center text-sm">
-        Status: {connectionStatus} | Room: {roomName} | User: {currentUser} | 
-        Peers: {Object.keys(peersRef.current).length}
-      </div>
-
-      {/* Debug panel - remove in production */}
-      <div className="bg-gray-700 p-2 text-xs max-h-32 overflow-y-auto">
-        <div className="flex justify-between items-center mb-1">
-          <span>Debug Log:</span>
-          <button 
-            onClick={() => setDebugInfo('')}
-            className="text-red-400 hover:text-red-300"
-          >
-            Clear
-          </button>
-        </div>
-        <pre className="whitespace-pre-wrap font-mono text-xs">
-          {debugInfo.split('\n').slice(-10).join('\n')}
-        </pre>
+        Status: {connectionStatus} | Room: {roomName} | User: {currentUser} | Connected: {connectedUsers.size}
       </div>
 
       <div className="flex-1 relative">
-        {/* Remote Video */}
         <div className="absolute inset-0 bg-black">
           {remoteStream ? (
             <video
@@ -407,28 +488,23 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
               autoPlay
               playsInline
               className="w-full h-full object-cover"
-              onLoadedMetadata={() => addDebug('Remote video metadata loaded')}
-              onCanPlay={() => addDebug('Remote video can play')}
-              onError={(e) => addDebug(`Remote video error: ${e.target.error?.message || 'Unknown error'}`)}
             />
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="animate-pulse mb-4">
-                  <div className="w-16 h-16 bg-gray-600 rounded-full mx-auto mb-4"></div>
-                </div>
                 <p className="text-xl mb-4">
-                  {callStarted ? 'Connected' : 'Waiting for participant...'}
+                  {connectionStatus === 'Call Active' ? 'Connected' : connectionStatus}
                 </p>
-                <p className="text-sm text-gray-400">
-                  Connected users: {Object.keys(peersRef.current).length}
-                </p>
+                {connectionStatus === 'Waiting for participant...' && (
+                  <p className="text-sm text-gray-400">
+                    {connectedUsers.size > 0 ? 'Connecting to participant...' : 'Share the room ID with the other participant'}
+                  </p>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Local Video */}
         <div className="absolute bottom-20 right-4 w-1/4 max-w-xs bg-black rounded-lg overflow-hidden shadow-lg">
           {localStream ? (
             <video
@@ -436,9 +512,7 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-cover"
-              onLoadedMetadata={() => addDebug('Local video metadata loaded')}
-              onError={(e) => addDebug(`Local video error: ${e.target.error?.message || 'Unknown error'}`)}
+              className={`w-full h-full object-cover ${videoOff ? 'opacity-20' : ''}`}
             />
           ) : (
             <div className="aspect-video bg-gray-700 flex items-center justify-center">
@@ -448,32 +522,37 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
         </div>
       </div>
 
-      {/* Controls */}
       <div className="bg-gray-800 p-4 flex justify-center space-x-6">
         <button
           onClick={toggleMic}
-          className={`p-3 rounded-full ${micMuted ? 'bg-red-500' : 'bg-gray-700'} hover:opacity-80`}
-          title={micMuted ? 'Unmute' : 'Mute'}
+          className={`p-3 rounded-full transition-colors ${micMuted ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+          title={micMuted ? 'Unmute microphone' : 'Mute microphone'}
         >
           {micMuted ? <MdMicOff size={24} /> : <FiMic size={24} />}
         </button>
         
         <button
           onClick={toggleVideo}
-          className={`p-3 rounded-full ${videoOff ? 'bg-red-500' : 'bg-gray-700'} hover:opacity-80`}
-          title={videoOff ? 'Enable video' : 'Disable video'}
+          className={`p-3 rounded-full transition-colors ${videoOff ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+          title={videoOff ? 'Turn on camera' : 'Turn off camera'}
         >
           {videoOff ? <MdVideocamOff size={24} /> : <FiVideo size={24} />}
         </button>
         
         <button
           onClick={endCall}
-          className="p-3 rounded-full bg-red-600 hover:opacity-80"
+          className="p-3 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
           title="End call"
         >
           <MdPhoneDisabled size={24} />
         </button>
       </div>
+
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute top-16 left-4 max-w-md max-h-40 overflow-auto bg-black bg-opacity-75 p-2 text-xs">
+          <pre className="whitespace-pre-wrap">{debugInfo}</pre>
+        </div>
+      )}
     </div>
   );
 };
