@@ -254,104 +254,71 @@ const Settings = () => {
   };
 
   const handleSubmit = async (values, { setSubmitting, setFieldError }) => {
-    try {
-      setLoading(true);
-      
-      if (profileImage) {
-        const imageError = validateProfileImage(profileImage);
-        if (imageError) {
-          toast.error(imageError);
-          setSubmitting(false);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      const formDataToSend = new FormData();
-      
-      Object.keys(values).forEach(key => {
-        if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
-          formDataToSend.append(key, values[key]);
-        }
-      });
-      
-      if (profileImage) {
-        formDataToSend.append('profile_image', profileImage);
-      }
-      
-      const response = await doctorAxios.put('doctor-profile/update', formDataToSend, {
-        headers: { 
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.data) {
-        dispatch(updateUser(response.data));
-        toast.success('Profile updated successfully!');
-        setIsEditing(false);
-        setCertificatePreview(response.data.doctor_profile?.certificate || null);
-      }
-    } catch (err) {
-      console.error('Error updating profile:', err);
-      
-      if (err.response?.data && typeof err.response.data === 'object') {
-        Object.keys(err.response.data).forEach(field => {
-          if (err.response.data[field]) {
-            setFieldError(field, err.response.data[field][0] || err.response.data[field]);
-          }
-        });
-      } else {
-        toast.error(`Failed to update profile: ${err.response?.data?.detail || err.message}`);
-      }
-    } finally {
-      setLoading(false);
-      setSubmitting(false);
-    }
-  };
-
-  const handleTabClick = (tab) => {
-    if (tab === 'Logout') {
-      handleLogout();
-    } else if (tab === 'Change Password'){
-      navigate('/doctor/change-password', {
-        state: {
-          isDoctor: true,
-          email: user.email
-        },
-        replace: true
-      });
-    } else if (tab === 'Availability'){
-      navigate('/doctor/slots');
-    } else if (tab === 'Appointments'){
-      navigate('/doctor/doctor-appointments')
-    }
-    else {
-      setActiveTab(tab);
-      setMobileSidebarOpen(false);
-    }
-  };
-
-  const handleLogout = async () => {
-        try{
-          const refreshToken = localStorage.getItem('refreshToken');
-          if (refreshToken) {
-            await doctorAxios.post('/logout/', {
-              refresh: refreshToken
-            });
-          }
-          dispatch(logout());
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          navigate('/doctor-login');
-        } catch (error) {
-          console.error('Logout error:', error);
+  console.log('handleSubmit called with values:', values);
+  console.log('Form is submitting...');
+  
+  try {
+    setLoading(true);
     
-          dispatch(logout());
-          localStorage.removeItem('token');
-          localStorage.removeItem('refreshToken');
-          navigate('/doctor-login')
-        }
+    if (profileImage) {
+      const imageError = validateProfileImage(profileImage);
+      if (imageError) {
+        console.log('Image validation error:', imageError);
+        toast.error(imageError);
+        setSubmitting(false);
+        setLoading(false);
+        return;
       }
+    }
+    
+    const formDataToSend = new FormData();
+    
+    Object.keys(values).forEach(key => {
+      if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
+        formDataToSend.append(key, values[key]);
+        console.log(`Added to FormData: ${key} = ${values[key]}`);
+      }
+    });
+    
+    if (profileImage) {
+      formDataToSend.append('profile_image', profileImage);
+      console.log('Added profile image to FormData');
+    }
+    
+    console.log('Making API request...');
+    const response = await doctorAxios.put('doctor-profile/update', formDataToSend, {
+      headers: { 
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    console.log('API response:', response.data);
+    
+    if (response.data) {
+      dispatch(updateUser(response.data));
+      toast.success('Profile updated successfully!');
+      setIsEditing(false);
+      setCertificatePreview(response.data.doctor_profile?.certificate || null);
+    }
+  } catch (err) {
+    console.error('Error updating profile:', err);
+    console.error('Error response:', err.response);
+    
+    if (err.response?.data && typeof err.response.data === 'object') {
+      Object.keys(err.response.data).forEach(field => {
+        if (err.response.data[field]) {
+          setFieldError(field, err.response.data[field][0] || err.response.data[field]);
+        }
+      });
+    } else {
+      toast.error(`Failed to update profile: ${err.response?.data?.detail || err.message}`);
+    }
+  } finally {
+    console.log('Cleaning up...');
+    setLoading(false);
+    setSubmitting(false);
+  }
+};
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);

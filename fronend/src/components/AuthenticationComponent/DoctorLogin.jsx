@@ -31,17 +31,16 @@ const CustomField = ({ icon: Icon, name, type, placeholder, error, touched }) =>
         name={name}
         type={type}
         placeholder={placeholder}
-        className={`w-full pl-12 pr-4 py-3 rounded-xl border ${
-          error && touched
-            ? 'border-red-400 focus:ring-red-400' 
+        className={`w-full pl-12 pr-4 py-3 rounded-xl border ${error && touched
+            ? 'border-red-400 focus:ring-red-400'
             : 'border-gray-200 focus:ring-blue-500'
-        } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
+          } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
       />
     </div>
-    <ErrorMessage 
-      name={name} 
-      component="p" 
-      className="text-red-500 text-sm mt-1 ml-1" 
+    <ErrorMessage
+      name={name}
+      component="p"
+      className="text-red-500 text-sm mt-1 ml-1"
     />
   </div>
 );
@@ -50,11 +49,11 @@ export default function DoctorLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [serverError, setServerError] = useState('');
   const [showNotification, setShowNotification] = useState(false);
-  
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  
+
   // Initial form values
   const initialValues = {
     username: '',
@@ -64,18 +63,18 @@ export default function DoctorLogin() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const fromOtpVerification = urlParams.get('verified') === 'true';
-  
+
     if (fromOtpVerification) {
       setShowNotification(true);
-      
+
       // Auto-hide notification after 3 seconds
       const timer = setTimeout(() => {
         setShowNotification(false);
-        
+
         // Clean up the URL by removing the query parameter
         navigate('/doctor/doctor-login', { replace: true });
       }, 3000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [navigate]);
@@ -99,10 +98,10 @@ export default function DoctorLogin() {
   const handleSubmit = async (values, { setSubmitting, setFieldError }) => {
     setIsLoading(true);
     setServerError('');
-    
+
     try {
       const response = await doctorAxios.post('/doctor-login/', values);
-      
+
       if (response.data) {
         // Store auth data in Redux
         dispatch(login({
@@ -121,11 +120,13 @@ export default function DoctorLogin() {
               age: response.data.age,
               gender: response.data.gender,
               experience: response.data.experience,
-              is_approved: response.data.is_approved
+              is_approved: response.data.is_approved,
+              prefer_24hr_consultation: response.data.prefer_24hr_consultation,
+              emergency_status: response.data.emergency_status
             }
           }
         }));
-        
+
         // Redirect based on approval status
         if (response.data.is_approved) {
           navigate('/doctor/doctor-landing');
@@ -135,27 +136,27 @@ export default function DoctorLogin() {
       }
     } catch (error) {
       console.error('Login failed:', error);
-      
+
       // Handle API error responses
       if (error.response?.data) {
         const serverErrors = error.response.data;
-        
+
         // Display non-field errors
         if (typeof serverErrors === 'string') {
           setServerError(serverErrors);
-        } 
+        }
         // Display field errors
         else if (typeof serverErrors === 'object') {
           // Handle field-specific errors
           Object.keys(serverErrors).forEach(key => {
             if (key === 'username' || key === 'password') {
-              const errorMsg = Array.isArray(serverErrors[key]) 
-                ? serverErrors[key][0] 
+              const errorMsg = Array.isArray(serverErrors[key])
+                ? serverErrors[key][0]
                 : serverErrors[key];
               setFieldError(key, errorMsg);
             }
           });
-          
+
           // Check for non-field errors
           if (serverErrors.non_field_errors) {
             const errorMsg = Array.isArray(serverErrors.non_field_errors)
@@ -163,7 +164,7 @@ export default function DoctorLogin() {
               : serverErrors.non_field_errors;
             setServerError(errorMsg);
           }
-          
+
           // Handle general server error messages
           if (serverErrors.detail) {
             setServerError(serverErrors.detail);
@@ -214,7 +215,7 @@ export default function DoctorLogin() {
             <div className="absolute bottom-32 left-16 w-12 h-12 border-2 border-white rounded-full"></div>
             <div className="absolute bottom-16 right-20 w-24 h-24 border-2 border-white rounded-full"></div>
           </div>
-          
+
           <div className="relative z-10">
             <div className="flex items-center mb-8">
               <Stethoscope className="mr-3" size={32} />
@@ -229,7 +230,7 @@ export default function DoctorLogin() {
                 Continue providing exceptional care and managing your practice with our comprehensive medical platform.
               </p>
             </div>
-            
+
             {/* Professional Features */}
             <div className="space-y-4">
               <div className="flex items-center">
@@ -312,8 +313,8 @@ export default function DoctorLogin() {
 
                     {/* Forgot Password */}
                     <div className="text-right">
-                      <Link 
-                        to="/doctor/password-request" 
+                      <Link
+                        to="/doctor/password-request"
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline transition-colors duration-200"
                       >
                         Forgot Password?
@@ -348,8 +349,8 @@ export default function DoctorLogin() {
                     {/* Register link */}
                     <div className="text-center text-gray-600 pt-4">
                       Don't have an account?{' '}
-                      <Link 
-                        to="/doctor/doctor-register" 
+                      <Link
+                        to="/doctor/doctor-register"
                         className="text-blue-600 font-medium hover:text-blue-800 hover:underline transition-colors duration-200"
                       >
                         Register as Doctor

@@ -3,9 +3,9 @@ from .models import DoctorProfile,DoctorSlot, Wallet, WalletHistory
 
 @admin.register(DoctorProfile)
 class DoctorProfileAdmin(admin.ModelAdmin):
-    list_display = ('get_doctor_name', 'registration_id', 'hospital', 'experience', 'is_approved','prefer_24hr_consultation')
+    list_display = ('get_doctor_name', 'registration_id', 'hospital', 'experience', 'is_approved','prefer_24hr_consultation','emergency_status')
     list_filter = ('is_approved', 'gender')
-    search_fields = ('user__username', 'user__email', 'registration_id', 'hospital','prefer_24hr_consultation')
+    search_fields = ('user__username', 'user__email', 'registration_id', 'hospital','prefer_24hr_consultation','emergency_status')
     readonly_fields = ('created_at', 'updated_at')
     
     def get_doctor_name(self, obj):
@@ -23,7 +23,7 @@ class DoctorProfileAdmin(admin.ModelAdmin):
             'fields': ('age', 'gender')
         }),
         ('Status', {
-            'fields': ('is_approved','prefer_24hr_consultation')
+            'fields': ('is_approved','prefer_24hr_consultation''emergency_status')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),

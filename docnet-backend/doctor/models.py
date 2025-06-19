@@ -33,6 +33,7 @@ class DoctorProfile(models.Model):
     is_approved = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
+    emergency_status = models.BooleanField(default=False)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     class Meta:
         verbose_name = "Doctor Profile"

@@ -18,9 +18,10 @@ from rest_framework.permissions import IsAuthenticated
 from accounts.models import OTPVerification
 from django.utils import timezone
 import logging
+from rest_framework.decorators import api_view, permission_classes
 from accounts.models import Appointment
 from .models import DoctorProfile, DoctorSlot, Wallet
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, WalletHistorySerializer, WalletSerializer, AppointmentDetailsSerializer
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
@@ -523,3 +524,87 @@ class ValidateVideoCallAPI(APIView):
                 {"error": "No valid appointment found"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+class EmergencyStatusUpdateView(APIView):
+    """
+    API View to handle emergency status for doctors
+    Supports both GET (fetch) and POST (update) methods
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get current emergency status"""
+        logger.info(f"GET request for emergency status from user: {request.user}")
+        
+        try:
+            profile = DoctorProfile.objects.get(user=request.user)
+            logger.info(f"Found profile for {request.user}: emergency_status={profile.emergency_status}")
+            
+            return Response({
+                'emergency_status': profile.emergency_status,
+                'prefer_24hr_consultation': profile.prefer_24hr_consultation,
+                'message': 'Emergency status retrieved successfully'
+            }, status=status.HTTP_200_OK)
+            
+        except DoctorProfile.DoesNotExist:
+            logger.error(f"DoctorProfile not found for user: {request.user}")
+            return Response(
+                {'detail': 'Doctor profile not found.'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in GET: {str(e)}")
+            return Response(
+                {'detail': 'An error occurred while fetching emergency status.'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request):
+        """Update emergency status"""
+        logger.info(f"POST request for emergency status from user: {request.user}, data: {request.data}")
+        
+        serializer = EmergencyStatusSerializer(data=request.data)
+        if serializer.is_valid():
+            emergency_status = serializer.validated_data['emergency_status']
+            
+            try:
+                profile = DoctorProfile.objects.get(user=request.user)
+                
+                # Check if doctor has opted for 24hr consultation
+                if not profile.prefer_24hr_consultation:
+                    logger.warning(f"User {request.user} tried to update emergency status without 24hr consultation preference")
+                    return Response(
+                        {'detail': 'Doctor has not opted for 24hr consultation.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+                # Update emergency status
+                old_status = profile.emergency_status
+                profile.emergency_status = emergency_status
+                profile.save(update_fields=['emergency_status'])
+                
+                logger.info(f"Emergency status updated for {request.user}: {old_status} -> {emergency_status}")
+                
+                return Response({
+                    'message': 'Emergency status updated successfully.',
+                    'emergency_status': profile.emergency_status
+                }, status=status.HTTP_200_OK)
+                
+            except DoctorProfile.DoesNotExist:
+                logger.error(f"DoctorProfile not found for user: {request.user}")
+                return Response(
+                    {'detail': 'Doctor profile not found.'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            except Exception as e:
+                logger.error(f"Unexpected error in POST: {str(e)}")
+                return Response(
+                    {'detail': 'An error occurred while updating emergency status.'}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def options(self, request, *args, **kwargs):
+        """Handle preflight requests"""
+        return Response(status=status.HTTP_200_OK)

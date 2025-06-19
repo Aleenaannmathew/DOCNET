@@ -158,6 +158,7 @@ class DoctorLoginSerializer(serializers.Serializer):
                     'gender': doctor_profile.gender,
                     'experience': doctor_profile.experience,
                     'prefer_24hr_consultation': doctor_profile.prefer_24hr_consultation,
+                    'emergency_status': doctor_profile.emergency_status,
                 }
             except DoctorProfile.DoesNotExist:
                 raise serializers.ValidationError('Doctor profile not found. Please contact support.')
@@ -165,11 +166,12 @@ class DoctorLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid username or password.')
 
 class DoctorProfileSerializer(serializers.ModelSerializer):
-   
     user_id = serializers.ReadOnlyField(source='user.id')
     username = serializers.ReadOnlyField(source='user.username')
     email = serializers.ReadOnlyField(source='user.email')
     phone = serializers.ReadOnlyField(source='user.phone')
+    prefer_24hr_consultation = serializers.BooleanField()
+    emergency_status = serializers.BooleanField()
     profile_image = serializers.ReadOnlyField(source='user.profile_image')
     is_verified = serializers.ReadOnlyField(source='user.is_verified')
     role = serializers.ReadOnlyField(source='user.role')
@@ -177,11 +179,12 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoctorProfile
         fields = [
-            'user_id', 'slug' ,'username', 'email', 'phone', 'profile_image',
-            'registration_id', 'hospital','specialization' ,'languages', 'age', 'gender',
-            'experience', 'is_approved', 'is_verified', 'role'
+            'user_id', 'slug', 'username', 'email', 'phone', 'prefer_24hr_consultation', 
+            'emergency_status', 'profile_image', 'registration_id', 'hospital', 
+            'specialization', 'languages', 'age', 'gender', 'experience', 
+            'is_approved', 'is_verified', 'role'
         ]
-        read_only_fields = ['registration_id','specialization', 'is_approved']
+        read_only_fields = ['registration_id', 'specialization', 'is_approved']
 
 
 class DoctorProfileUpdateSerializer(serializers.Serializer):
@@ -418,3 +421,12 @@ class AppointmentDetailsSerializer(serializers.ModelSerializer):
             'experience': doctor_profile.experience,
             'languages': doctor_profile.languages
         }
+
+class EmergencyStatusSerializer(serializers.Serializer):
+    emergency_status = serializers.BooleanField()
+
+    def validate_emergency_status(self, value):
+        """Validate emergency status"""
+        if not isinstance(value, bool):
+            raise serializers.ValidationError("Emergency status must be a boolean value.")
+        return value
