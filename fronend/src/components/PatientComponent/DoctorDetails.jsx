@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ArrowLeft, 
-  Star, 
-  MapPin, 
-  Calendar, 
-  Phone, 
-  Mail, 
-  Clock, 
-  User, 
+import {
+  ArrowLeft,
+  Star,
+  MapPin,
+  Calendar,
+  Phone,
+  Mail,
+  Clock,
+  User,
   Award,
   Stethoscope,
   X,
@@ -40,7 +40,7 @@ function DoctorDetailPage() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
-  const { user } = useSelector((state)=>state.auth)
+  const { user } = useSelector((state) => state.auth)
 
   // Fetch doctor details
   useEffect(() => {
@@ -49,7 +49,7 @@ function DoctorDetailPage() {
         setLoading(true);
         const response = await userAxios.get(`/doctor-details/${slug}/`);
         setDoctor(response.data);
-        
+
         // Check if doctor is in favorites
         const favoritesResponse = await userAxios.get('/user/favorites/');
         if (favoritesResponse.data.some(fav => fav.doctor === response.data.id)) {
@@ -69,7 +69,7 @@ function DoctorDetailPage() {
   useEffect(() => {
     const fetchReviews = async () => {
       if (!doctor) return;
-      
+
       try {
         const response = await userAxios.get(`/doctor-reviews/${doctor.username}/`);
         setReviews(response.data);
@@ -84,11 +84,11 @@ function DoctorDetailPage() {
   // Fetch available time slots
   const fetchDoctorSlots = async () => {
     if (!doctor?.username) return;
-    
+
     try {
       setSlotsLoading(true);
       const response = await userAxios.get(`/doctor-slots/${doctor.username}/`);
-      
+
       if (response.data.success && response.data.data) {
         const slotsData = response.data.data;
         const flattenedSlots = [];
@@ -130,70 +130,86 @@ function DoctorDetailPage() {
   };
 
   const handlePayment = async () => {
-  setPaymentLoading(true);
+    setPaymentLoading(true);
 
-  const res = await loadRazorpay();
-  if (!res) {
-    alert("Failed to load Razorpay SDK.");
-    setPaymentLoading(false);
-    return;
-  }
+    const res = await loadRazorpay();
+    if (!res) {
+      alert("Failed to load Razorpay SDK.");
+      setPaymentLoading(false);
+      return;
+    }
 
-  try {
-    const createRes = await userAxios.post("/payments/create/", {
-      slot: selectedSlot.id,
-      amount: selectedSlot.fee,
-    });
+    try {
+      const createRes = await userAxios.post("/payments/create/", {
+        slot: selectedSlot.id,
+        amount: selectedSlot.fee,
+      });
 
-    const { razorpay_order } = createRes.data;
+      const { razorpay_order } = createRes.data;
 
-    const options = {
-      key: "rzp_test_JFRhohewvJ81Dl", // Razorpay API key (test mode)
-      amount: razorpay_order.amount,
-      currency: razorpay_order.currency,
-      name: "DocNet Health",
-      description: "Consultation Fee",
-      order_id: razorpay_order.id,
-      handler: async function (response) {
-        try {
-          const verifyRes = await userAxios.post("/payments/verify/", {
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_signature: response.razorpay_signature,
-          });
+      const options = {
+        key: "rzp_test_JFRhohewvJ81Dl", // Razorpay API key (test mode)
+        amount: razorpay_order.amount,
+        currency: razorpay_order.currency,
+        name: "DOCNET Health",
+        description: "Consultation Fee",
+        order_id: razorpay_order.id,
+        handler: async function (response) {
+          try {
+            console.log("Payment successful, verifying...", response);
+            const verifyRes = await userAxios.post("/payments/verify/", {
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
 
-          if (verifyRes.status === 201 || verifyRes.status === 200) {
-            alert("✅ Payment successful! Appointment confirmed.");
-            setIsAppointmentModalOpen(false);
-            setSelectedSlot(null);
-          } else {
-            alert("❌ Payment verification failed.");
+            if (verifyRes.status === 201 || verifyRes.status === 200) {
+              // Close modal first
+              setIsAppointmentModalOpen(false);
+              setSelectedSlot(null);
+              setPaymentLoading(false);
+
+              setTimeout(() => {
+              const paymentId = response.razorpay_payment_id;
+              console.log("Navigating to confirmation page with payment ID:", paymentId);
+              navigate(`/booking-confirmation/payment/${paymentId}`);
+            }, 100);
+            } else {
+              console.error("Payment verification failed:", verifyRes);
+              alert("❌ Payment verification failed.");
+            }
+          } catch (error) {
+            console.error("Payment verification error:", error);
+            alert("❌ Error verifying payment: " + (error.response?.data?.message || error.message));
+          setPaymentLoading(false);
           }
-        } catch (error) {
-          alert("❌ Error verifying payment.");
+
+          setPaymentLoading(false);
+        },
+        prefill: {
+          name: user?.name || "Patient",
+          email: user?.email || "",
+        },
+        theme: {
+          color: "#2563EB",
+        },
+        modal: {
+          ondismiss: function () {
+            // Handle case when user closes payment modal
+            setPaymentLoading(false);
+          }
         }
+      };
 
-        setPaymentLoading(false);
-      },
-      prefill: {
-        name: user?.name || "Patient",
-        email: user?.email || "",
-      },
-      theme: {
-        color: "#2563EB",
-      },
-    };
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("Payment initiation error:", err);
+      alert("Error initiating payment.");
+      setPaymentLoading(false);
+    }
+  };
 
-    const rzp = new window.Razorpay(options);
-    rzp.open();
-  } catch (err) {
-    console.error(err);
-    alert("Error initiating payment.");
-    setPaymentLoading(false);
-  }
-};
-
- 
 
   const toggleFavorite = async () => {
     try {
@@ -282,11 +298,10 @@ function DoctorDetailPage() {
                   {availableSlots.map((slot, index) => (
                     <div
                       key={slot.id || index}
-                      className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${
-                        selectedSlot?.id === slot.id
+                      className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${selectedSlot?.id === slot.id
                           ? 'border-blue-500 bg-blue-50 shadow-md'
                           : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
-                      }`}
+                        }`}
                       onClick={() => setSelectedSlot(slot)}
                     >
                       <div className="flex items-center justify-between">
@@ -348,9 +363,9 @@ function DoctorDetailPage() {
                         <p className="text-gray-600">{selectedSlot.duration} minutes</p>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3">
-                      <button 
+                      <button
                         onClick={handlePayment}
                         disabled={paymentLoading}
                         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-semibold"
@@ -362,7 +377,7 @@ function DoctorDetailPage() {
                         )}
                         {paymentLoading ? 'Processing Payment...' : `Pay ₹${selectedSlot?.fee} & Confirm`}
                       </button>
-                      
+
                       <div className="text-center">
                         <p className="text-xs text-gray-500">🔐 Secure payment powered by Razorpay</p>
                         <p className="text-xs text-gray-500 mt-1">UPI • Cards • Net Banking • Wallets</p>
@@ -402,7 +417,7 @@ function DoctorDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Doctor not found</p>
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="mt-4 text-blue-600 hover:text-blue-700 flex items-center justify-center mx-auto"
           >
@@ -417,25 +432,25 @@ function DoctorDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <Navbar/>
+      <Navbar />
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="container mx-auto px-6 py-6">
-          <button 
+          <button
             onClick={() => navigate(-1)}
             className="flex items-center text-blue-600 hover:text-blue-700 mb-6 transition-colors"
           >
             <ArrowLeft size={20} className="mr-2" />
             <span className="font-medium">Back to Doctors</span>
           </button>
-          
+
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Doctor Image */}
             <div className="flex-shrink-0">
               <div className="relative">
                 <div className="w-40 h-40 rounded-2xl overflow-hidden shadow-lg">
                   {doctor.profile_image ? (
-                    <img 
-                      src={doctor.profile_image} 
+                    <img
+                      src={doctor.profile_image}
                       alt={`Dr. ${doctor.username}`}
                       className="w-full h-full object-cover"
                     />
@@ -463,7 +478,7 @@ function DoctorDetailPage() {
                     </h1>
                     <BadgeCheck className="text-blue-500" size={24} />
                   </div>
-                  
+
                   <div className="flex items-center gap-4 mb-3">
                     <span className="text-xl text-blue-600 font-semibold">
                       {doctor.specialization}
@@ -474,7 +489,7 @@ function DoctorDetailPage() {
                       <span className="text-gray-600">{doctor.hospital}</span>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-6 mb-4">
                     <div className="flex items-center gap-2">
                       {renderStars(Math.floor(doctor.rating || 0))}
@@ -491,15 +506,15 @@ function DoctorDetailPage() {
                     </div>
                   </div>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={toggleFavorite}
                   className={`p-3 rounded-full transition-colors ${isFavorite ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                 >
-                
+
                 </button>
               </div>
-              
+
               <div className="flex gap-4 mt-6">
                 <button
                   onClick={handleBookAppointment}
@@ -507,7 +522,7 @@ function DoctorDetailPage() {
                 >
                   Book Appointment
                 </button>
-                
+
               </div>
             </div>
           </div>
@@ -530,11 +545,10 @@ function DoctorDetailPage() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.key
+                  className={`flex items-center gap-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.key
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
+                    }`}
                 >
                   <Icon size={16} />
                   {tab.label}
@@ -554,7 +568,7 @@ function DoctorDetailPage() {
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-6 text-gray-900">About Dr. {doctor.username}</h2>
                 <p className="text-gray-700 mb-8 text-lg leading-relaxed">{doctor.about}</p>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
                     <div className="flex items-center gap-3 mb-2">
@@ -563,7 +577,7 @@ function DoctorDetailPage() {
                     </div>
                     <p className="text-gray-700 font-medium">{doctor.specialization}</p>
                   </div>
-                  
+
                   <div className="bg-green-50 rounded-xl p-6 border border-green-100">
                     <div className="flex items-center gap-3 mb-2">
                       <Languages className="text-green-600" size={20} />
@@ -571,7 +585,7 @@ function DoctorDetailPage() {
                     </div>
                     <p className="text-gray-700 font-medium">{doctor.languages}</p>
                   </div>
-                  
+
                   <div className="bg-purple-50 rounded-xl p-6 border border-purple-100">
                     <div className="flex items-center gap-3 mb-2">
                       <Award className="text-purple-600" size={20} />
@@ -579,7 +593,7 @@ function DoctorDetailPage() {
                     </div>
                     <p className="text-gray-700 font-medium">{doctor.experience} years</p>
                   </div>
-                  
+
                   <div className="bg-orange-50 rounded-xl p-6 border border-orange-100">
                     <div className="flex items-center gap-3 mb-2">
                       <Shield className="text-orange-600" size={20} />
@@ -594,7 +608,7 @@ function DoctorDetailPage() {
             {activeTab === 'experience' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-8 text-gray-900">Education & Experience</h2>
-                
+
                 <div className="mb-10">
                   <h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
                     <GraduationCap className="text-blue-600" size={24} />
@@ -630,7 +644,7 @@ function DoctorDetailPage() {
             {activeTab === 'reviews' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-8 text-gray-900">Patient Reviews</h2>
-                
+
                 <div className="space-y-6">
                   {reviews.length > 0 ? reviews.map((review) => (
                     <div key={review.id} className="p-6 bg-gray-50 rounded-xl border border-gray-200">
@@ -664,20 +678,20 @@ function DoctorDetailPage() {
             {activeTab === 'location' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-8 text-gray-900">Location & Contact</h2>
-                
+
                 <div className="space-y-6">
                   <div className="flex items-start gap-4 p-6 bg-blue-50 rounded-xl border border-blue-100">
                     <MapPin size={24} className="text-blue-600 mt-1 flex-shrink-0" />
                     <div>
                       <h3 className="font-semibold mb-2 text-gray-900">Clinic Address</h3>
                       <p className="text-gray-700 leading-relaxed">
-                        {doctor.hospital}<br/>
-                        200 First Street SW<br/>
+                        {doctor.hospital}<br />
+                        200 First Street SW<br />
                         Rochester, MN 55905
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 p-6 bg-green-50 rounded-xl border border-green-100">
                     <Phone size={24} className="text-green-600 flex-shrink-0" />
                     <div>
@@ -685,7 +699,7 @@ function DoctorDetailPage() {
                       <p className="text-gray-700 font-medium">{doctor.phone}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4 p-6 bg-purple-50 rounded-xl border border-purple-100">
                     <Mail size={24} className="text-purple-600 flex-shrink-0" />
                     <div>
@@ -700,7 +714,7 @@ function DoctorDetailPage() {
             {activeTab === 'timings' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-8 text-gray-900">Weekly Schedule</h2>
-                
+
                 <div className="space-y-3">
                   {getWeeklySchedule().map((schedule, index) => (
                     <div key={index} className="flex items-center justify-between py-4 px-6 bg-gray-50 rounded-xl border border-gray-200">
@@ -717,7 +731,7 @@ function DoctorDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            
+
 
             {/* Quick Info */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
@@ -732,7 +746,7 @@ function DoctorDetailPage() {
                     <p className="font-medium text-gray-900">{doctor.specialization}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                     <Building2 size={20} className="text-green-600" />
@@ -742,7 +756,7 @@ function DoctorDetailPage() {
                     <p className="font-medium text-gray-900">{doctor.hospital}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                     <Award size={20} className="text-purple-600" />
@@ -752,7 +766,7 @@ function DoctorDetailPage() {
                     <p className="font-medium text-gray-900">{doctor.experience} years</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
                     <User size={20} className="text-orange-600" />
@@ -773,10 +787,10 @@ function DoctorDetailPage() {
                   <div key={index} className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {new Date(slot.date).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          month: 'short', 
-                          day: 'numeric' 
+                        {new Date(slot.date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric'
                         })}
                       </p>
                       <p className="text-xs text-gray-500">{slot.time}</p>

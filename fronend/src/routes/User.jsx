@@ -13,6 +13,7 @@ import PublicRoute from './PublicRoute';
 import DocDetail from '../pages/PatientPages/DocDetail';
 import BookingList from '../pages/PatientPages/BookingList';
 import BookingDetails from '../pages/PatientPages/BookingDetails';
+import Confirmation from '../pages/PatientPages/Confirmation';
 
 function UserRoutes() {
   return (
@@ -55,6 +56,7 @@ function UserRoutes() {
         <Route path="/doctor-details/:slug" element={<DocDetail/>}/>
         <Route path='/booking-history' element={<BookingList/>}/>
         <Route path='/booking-details/:id' element={<BookingDetails />} />
+        <Route path='/booking-confirmation/payment/:payment_id' element={<Confirmation />} />
       </Route>
 
       {/* Catch-all route */}

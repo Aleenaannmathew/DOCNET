@@ -484,4 +484,206 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
             'languages': doctor_profile.languages
         }
 
-   
+class BookingConfirmationSerializer(serializers.ModelSerializer):
+    # Appointment Information
+    appointment_id = serializers.IntegerField(source='id', read_only=True)
+    appointment_status = serializers.CharField(source='status', read_only=True)
+    booking_date = serializers.DateTimeField(source='created_at', read_only=True)
+    
+    # Patient Information - Add error handling for missing relationships
+    patient_name = serializers.SerializerMethodField()
+    patient_email = serializers.SerializerMethodField()
+    patient_phone = serializers.SerializerMethodField()
+    
+    # Doctor Information - Add error handling
+    doctor_name = serializers.SerializerMethodField()
+    doctor_specialization = serializers.SerializerMethodField()
+    doctor_hospital = serializers.SerializerMethodField()
+    doctor_experience = serializers.SerializerMethodField()
+    
+    # Slot Information - Add error handling
+    appointment_date = serializers.SerializerMethodField()
+    appointment_time = serializers.SerializerMethodField()
+    appointment_end_time = serializers.SerializerMethodField()
+    duration = serializers.SerializerMethodField()
+    consultation_type = serializers.SerializerMethodField()
+    slot_fee = serializers.SerializerMethodField()
+    
+    # Payment Information - Add error handling
+    payment_id = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
+    payment_amount = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
+    razorpay_payment_id = serializers.SerializerMethodField()
+    payment_timestamp = serializers.SerializerMethodField()
+    
+    # Additional Information
+    booking_reference = serializers.SerializerMethodField()
+    appointment_instructions = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Appointment
+        fields = [
+            # Appointment fields
+            'appointment_id', 'appointment_status', 'booking_date',
+            # Patient fields
+            'patient_name', 'patient_email', 'patient_phone',
+            # Doctor fields
+            'doctor_name', 'doctor_specialization', 'doctor_hospital', 'doctor_experience',
+            # Slot fields
+            'appointment_date', 'appointment_time', 'appointment_end_time', 
+            'duration', 'consultation_type', 'slot_fee',
+            # Payment fields
+            'payment_id', 'payment_status', 'payment_amount', 'payment_method', 
+            'razorpay_payment_id', 'payment_timestamp',
+            # Additional fields
+            'booking_reference', 'appointment_instructions'
+        ]
+    
+    # Patient Information Methods
+    def get_patient_name(self, obj):
+        try:
+            return obj.payment.patient.username if obj.payment and obj.payment.patient else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_patient_email(self, obj):
+        try:
+            return obj.payment.patient.email if obj.payment and obj.payment.patient else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_patient_phone(self, obj):
+        try:
+            return getattr(obj.payment.patient, 'phone', 'N/A') if obj.payment and obj.payment.patient else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    # Doctor Information Methods
+    def get_doctor_name(self, obj):
+        try:
+            return obj.payment.slot.doctor.user.username if obj.payment and obj.payment.slot and obj.payment.slot.doctor else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_doctor_specialization(self, obj):
+        try:
+            return getattr(obj.payment.slot.doctor, 'specialization', 'N/A') if obj.payment and obj.payment.slot and obj.payment.slot.doctor else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_doctor_hospital(self, obj):
+        try:
+            return getattr(obj.payment.slot.doctor, 'hospital', 'N/A') if obj.payment and obj.payment.slot and obj.payment.slot.doctor else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_doctor_experience(self, obj):
+        try:
+            return getattr(obj.payment.slot.doctor, 'experience', 0) if obj.payment and obj.payment.slot and obj.payment.slot.doctor else 0
+        except AttributeError:
+            return 0
+    
+    # Slot Information Methods
+    def get_appointment_date(self, obj):
+        try:
+            return obj.payment.slot.date if obj.payment and obj.payment.slot else None
+        except AttributeError:
+            return None
+    
+    def get_appointment_time(self, obj):
+        try:
+            return obj.payment.slot.start_time if obj.payment and obj.payment.slot else None
+        except AttributeError:
+            return None
+    
+    def get_appointment_end_time(self, obj):
+        try:
+            return obj.payment.slot.end_time if obj.payment and obj.payment.slot else None
+        except AttributeError:
+            return None
+    
+    def get_duration(self, obj):
+        try:
+            return getattr(obj.payment.slot, 'duration', 0) if obj.payment and obj.payment.slot else 0
+        except AttributeError:
+            return 0
+    
+    def get_consultation_type(self, obj):
+        try:
+            return getattr(obj.payment.slot, 'consultation_type', 'N/A') if obj.payment and obj.payment.slot else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_slot_fee(self, obj):
+        try:
+            return obj.payment.slot.fee if obj.payment and obj.payment.slot else 0
+        except AttributeError:
+            return 0
+    
+    # Payment Information Methods
+    def get_payment_id(self, obj):
+        try:
+            return obj.payment.payment_id if obj.payment else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_payment_status(self, obj):
+        try:
+            return obj.payment.payment_status if obj.payment else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_payment_amount(self, obj):
+        try:
+            return obj.payment.amount if obj.payment else 0
+        except AttributeError:
+            return 0
+    
+    def get_payment_method(self, obj):
+        try:
+            return obj.payment.payment_method if obj.payment else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_razorpay_payment_id(self, obj):
+        try:
+            return obj.payment.razorpay_payment_id if obj.payment else "N/A"
+        except AttributeError:
+            return "N/A"
+    
+    def get_payment_timestamp(self, obj):
+        try:
+            return obj.payment.timestamp if obj.payment else None
+        except AttributeError:
+            return None
+    
+    def get_booking_reference(self, obj):
+        return f"BK{obj.id:06d}"
+    
+    def get_appointment_instructions(self, obj):
+        try:
+            consultation_type = obj.payment.slot.consultation_type if obj.payment and obj.payment.slot else 'general'
+            
+            if consultation_type == 'video':
+                return {
+                    'type': 'video',
+                    'message': 'Please join the video call 5 minutes before your scheduled time.',
+                    'requirements': [
+                        'Ensure stable internet connection',
+                        'Test your camera and microphone',
+                        'Find a quiet, private space for consultation'
+                    ]
+                }
+            else:
+                return {
+                    'type': 'general',
+                    'message': 'Please be available at your scheduled time.',
+                    'requirements': ['Keep your phone accessible for communication']
+                }
+        except AttributeError:
+            return {
+                'type': 'general',
+                'message': 'Please be available at your scheduled time.',
+                'requirements': ['Keep your phone accessible for communication']
+            }

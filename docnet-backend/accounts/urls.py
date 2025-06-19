@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView
+from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI
 
 urlpatterns = [
@@ -24,5 +24,8 @@ urlpatterns = [
     path('patient-bookings/', BookingHistoryView.as_view(), name='patient-booking-history'),
     path('appointment-details/<int:appointment_id>',AppointmentDetailView.as_view(), name='appointment-details'),
     path('validate-videocall/<int:slot_id>/', ValidateVideoCallAPI.as_view(), name='validate_videocall'),
+    path('booking-confirmation/payment/<str:payment_id>/', 
+         BookingConfirmationByPaymentView.as_view(), 
+         name='booking-confirmation-by-payment'),
    
 ]

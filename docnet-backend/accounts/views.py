@@ -29,7 +29,8 @@ from .serializers import (
     CreatePaymentSerializer,
     VerifyPaymentSerializer,
     BookingHistorySerializer,
-    AppointmentDetailSerializer    
+    AppointmentDetailSerializer,
+    BookingConfirmationSerializer  
 )
 from core.utils import (
     OTPManager, 
@@ -706,3 +707,52 @@ class ValidateVideoCallAPI(APIView):
                 {"error": "No valid appointment found"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+class BookingConfirmationByPaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, payment_id):
+        try:
+            # Ensure user is a patient
+            if request.user.role != 'patient':
+                return Response({
+                    'success': False,
+                    'message': 'Access denied. This endpoint is for patients only.',
+                    'data': None
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            print(payment_id)
+            appointment = Appointment.objects.select_related(
+                'payment__patient',
+                'payment__slot__doctor__user',
+                'payment__slot__doctor'
+            ).get(
+                payment__razorpay_payment_id=payment_id,
+                payment__patient=request.user,
+                payment__payment_status='success'
+            )
+            
+            # Serialize the appointment data
+            serializer = BookingConfirmationSerializer(appointment)
+            
+            return Response({
+                'success': True,
+                'message': 'Booking confirmation retrieved successfully',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Appointment.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'No confirmed booking found for this payment ID.',
+                'data': None
+            }, status=status.HTTP_404_NOT_FOUND)
+            
+        except Exception as e:
+            logger.error(f"Error in BookingConfirmationByPaymentView: {str(e)}")
+            return Response({
+                'success': False,
+                'message': f'An error occurred while retrieving booking confirmation: {str(e)}',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
