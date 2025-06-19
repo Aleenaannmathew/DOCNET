@@ -16,6 +16,7 @@ import BookingDetails from '../pages/PatientPages/BookingDetails';
 import Confirmation from '../pages/PatientPages/Confirmation';
 import AboutPage from '../pages/PatientPages/AboutPage';
 import UserContact from '../pages/PatientPages/UserContact';
+import BlogPage from '../pages/PatientPages/BlogPage';
 
 
 
@@ -63,6 +64,7 @@ function UserRoutes() {
         <Route path='/booking-confirmation/payment/:payment_id' element={<Confirmation />} />
         <Route path='/about' element={<AboutPage/>}/>
         <Route path='/contact' element={<UserContact/>}/>
+        <Route path='/blog' element={<BlogPage/>}/>
         
       </Route>
 

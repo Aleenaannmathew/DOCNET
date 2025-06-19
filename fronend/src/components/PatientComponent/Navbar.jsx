@@ -109,7 +109,7 @@ const Navbar = () => {
           <a href="/doctor-list" className={getNavLinkClasses('/doctor-list')}>Doctors</a>
           <a href="/about" className={getNavLinkClasses('/about')}>About</a>
           <a href="/contact" className={getNavLinkClasses('/contact')}>Contact</a>
-          <a href="#blog" className={getNavLinkClasses('/blog')}>Blog</a>
+          <a href="/blog" className={getNavLinkClasses('/blog')}>Blog</a>
         </div>
         
         {/* Auth Section */}
@@ -211,9 +211,9 @@ const Navbar = () => {
               <a href="/" className={`block ${getNavLinkClasses('/')}`}>Home</a>
               <a href="#services" className={`block ${getNavLinkClasses('/services')}`}>Services</a>
               <a href="/doctor-list" className={`block ${getNavLinkClasses('/doctor-list')}`}>Doctors</a>
-              <a href="#about" className={`block ${getNavLinkClasses('/about')}`}>About</a>
-              <a href="#contact" className={`block ${getNavLinkClasses('/contact')}`}>Contact</a>
-              <a href="#blog" className={`block ${getNavLinkClasses('/blog')}`}>Blog</a>
+              <a href="/about" className={`block ${getNavLinkClasses('/about')}`}>About</a>
+              <a href="/contact" className={`block ${getNavLinkClasses('/contact')}`}>Contact</a>
+              <a href="/blog" className={`block ${getNavLinkClasses('/blog')}`}>Blog</a>
               
               {isAuthenticated ? (
                 <div className="pt-4 border-t border-gray-200 space-y-3">
