@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 from django.core.validators import RegexValidator
 
 class User(AbstractUser):
@@ -107,3 +108,47 @@ class Appointment(models.Model):
     def __str__(self):
         return f"Appointment #{self.id} - {self.payment.patient.username} with slot {self.payment.slot}"
    
+class EmergencyPayment(models.Model):
+    PAYMENT_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    )
+
+    doctor = models.ForeignKey('doctor.DoctorProfile', on_delete=models.CASCADE, related_name='emergency_payments')
+    patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='emergency_payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=800.00)  # Higher fee for emergency
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    payment_id = models.CharField(max_length=255, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=255, blank=True, null=True)
+    razorpay_order_id = models.CharField(max_length=255, blank=True, null=True)
+    razorpay_signature = models.CharField(max_length=255, blank=True, null=True)
+    consultation_started = models.BooleanField(default=False)
+    consultation_start_time = models.DateTimeField(null=True, blank=True)
+    consultation_end_time = models.DateTimeField(null=True, blank=True)
+    video_call_link = models.URLField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['payment_status']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['payment_id']),
+            models.Index(fields=['doctor', 'patient']),
+        ]
+
+    def __str__(self):
+        return f"Emergency Payment #{self.id} - {self.patient.username} to Dr. {self.doctor.user.username}"
+
+    def start_consultation(self):
+        """Mark consultation as started"""
+        self.consultation_started = True
+        self.consultation_start_time = timezone.now()
+        self.save()
+
+    def end_consultation(self):
+        """Mark consultation as ended"""
+        self.consultation_end_time = timezone.now()
+        self.save()

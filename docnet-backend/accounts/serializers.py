@@ -13,7 +13,8 @@ from django.contrib.auth.password_validation import validate_password
 from .models import User ,PatientProfile
 from doctor.models import DoctorProfile, Wallet, WalletHistory
 from rest_framework import serializers
-from .models import Payment, Appointment
+from .models import Payment, Appointment,EmergencyPayment
+from django.db import transaction
 from django.conf import settings
 from decimal import Decimal
 import razorpay
@@ -721,3 +722,177 @@ class EmergencyDoctorSerializer(serializers.ModelSerializer):
     def get_emergency_fee(self, obj):
         # Emergency consultation fee (usually higher)
         return 800  # placeholder - you can add this field to your model
+
+class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
+    doctor_id = serializers.IntegerField()
+
+    class Meta:
+        model = EmergencyPayment
+        fields = ['doctor_id', 'amount']
+
+    def validate(self, data):
+        doctor_id = data.get('doctor_id')
+        if not doctor_id:
+            raise serializers.ValidationError({
+                "doctor_id": "Doctor ID is required."
+            })
+
+        try:
+            doctor = DoctorProfile.objects.get(
+                user__id=doctor_id,
+                emergency_status=True,
+                is_approved=True
+            )
+            data['doctor_id'] = doctor  # replace ID with the actual DoctorProfile instance
+            return data
+        except DoctorProfile.DoesNotExist:
+            raise serializers.ValidationError({
+                "doctor_id": "Doctor not found or not available for emergency consultation."
+            })
+
+    def validate_amount(self, value):
+        if value < 500:
+            raise serializers.ValidationError("Minimum emergency consultation fee is ₹500")
+        if value > 5000:
+            raise serializers.ValidationError("Maximum emergency consultation fee is ₹5000")
+        return value
+
+    def create(self, validated_data):
+        request = self.context['request']
+        doctor = validated_data['doctor_id']
+        patient = request.user
+        amount = validated_data.get('amount', 800.00)
+
+        # Check for existing active consultation
+        active_consultation = EmergencyPayment.objects.filter(
+            patient=patient,
+            payment_status='success',
+            consultation_started=True,
+            consultation_end_time__isnull=True
+        ).first()
+
+        if active_consultation:
+            raise serializers.ValidationError(
+                "You already have an active emergency consultation."
+            )
+
+        # Initialize Razorpay client
+        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl", "sXYZOT0gNEqb4wh8rZ67jwYM"))
+
+        try:
+            # Create Razorpay order
+            razorpay_order = client.order.create({
+                "amount": int(amount * 100),  # in paise
+                "currency": "INR",
+                "payment_capture": 1,
+                "notes": {
+                    "consultation_type": "emergency",
+                    "doctor_id": str(doctor.id),
+                    "patient_id": str(patient.id),
+                    "patient_name": patient.username
+                }
+            })
+
+            # Create payment entry
+            with transaction.atomic():
+                payment = EmergencyPayment.objects.create(
+                    doctor=doctor,
+                    patient=patient,
+                    amount=amount,
+                    payment_status='pending',
+                    payment_id=razorpay_order['id'],
+                    razorpay_order_id=razorpay_order['id']
+                )
+
+            return {
+                "payment": payment,
+                "razorpay_order": razorpay_order
+            }
+
+        except Exception as e:
+            raise serializers.ValidationError(f"Failed to create payment order: {str(e)}")
+
+
+class VerifyEmergencyPaymentSerializer(serializers.Serializer):
+    razorpay_payment_id = serializers.CharField(max_length=255)
+    razorpay_order_id = serializers.CharField(max_length=255)
+    razorpay_signature = serializers.CharField(max_length=500)
+
+    def validate(self, data):
+        # Initialize Razorpay client
+        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl","sXYZOT0gNEqb4wh8rZ67jwYM"))
+
+        try:
+            # Verify payment signature
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': data['razorpay_order_id'],
+                'razorpay_payment_id': data['razorpay_payment_id'],
+                'razorpay_signature': data['razorpay_signature']
+            })
+        except razorpay.errors.SignatureVerificationError:
+            raise serializers.ValidationError("Invalid payment signature.")
+        except Exception as e:
+            raise serializers.ValidationError(f"Payment verification failed: {str(e)}")
+
+        return data
+
+    def create(self, validated_data):
+        order_id = validated_data['razorpay_order_id']
+        
+        try:
+            payment = EmergencyPayment.objects.get(
+                razorpay_order_id=order_id,
+                payment_status='pending'
+            )
+        except EmergencyPayment.DoesNotExist:
+            raise serializers.ValidationError("Payment record not found or already processed.")
+
+        with transaction.atomic():
+            # Update payment record
+            payment.razorpay_payment_id = validated_data['razorpay_payment_id']
+            payment.razorpay_signature = validated_data['razorpay_signature']
+            payment.payment_status = 'success'
+            
+            
+            
+            # Start consultation automatically
+            payment.start_consultation()
+            payment.save()
+
+            # Update doctor's wallet
+            doctor = payment.doctor
+            wallet, created = Wallet.objects.get_or_create(
+                doctor=doctor,
+                defaults={'balance': Decimal('0.00')}
+            )
+            
+            # Emergency consultation: 85% to doctor, 15% platform fee
+            credited_amount = payment.amount * Decimal('0.85')
+            wallet.balance += credited_amount
+            wallet.save()
+
+            # Create wallet history
+            WalletHistory.objects.create(
+                wallet=wallet,
+                type='credit',
+                amount=credited_amount,
+                new_balance=wallet.balance,
+            )
+
+        return payment
+
+class EmergencyPaymentSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source='doctor.user.username', read_only=True)
+    doctor_specialization = serializers.CharField(source='doctor.specialization', read_only=True)
+    patient_name = serializers.CharField(source='patient.username', read_only=True)
+    duration_minutes = serializers.ReadOnlyField()
+
+    class Meta:
+        model = EmergencyPayment
+        fields = [
+            'id', 'doctor_name', 'doctor_specialization', 'patient_name',
+            'amount', 'payment_status', 'video_call_link', 'consultation_started',
+            'consultation_start_time', 'consultation_end_time', 'duration_minutes',
+            'timestamp'
+        ]
+

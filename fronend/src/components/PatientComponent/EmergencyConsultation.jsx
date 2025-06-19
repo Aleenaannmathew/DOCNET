@@ -119,55 +119,6 @@ function EmergencyConsultationPage() {
         </div>
       </section>
 
-      {/* Search and Filter Section */}
-      <section className="py-8 bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col lg:flex-row gap-6 items-center">
-          <div className="flex-1 relative">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search emergency doctors by name or specialization..."
-              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none transition-all duration-200"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          <div className="flex gap-4">
-            <select
-              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none"
-              value={filters.specialization}
-              onChange={(e) => handleFilterChange('specialization', e.target.value)}
-            >
-              <option value="">All Specializations</option>
-              <option value="Cardiology">Cardiology</option>
-              <option value="Emergency Medicine">Emergency Medicine</option>
-              <option value="Internal Medicine">Internal Medicine</option>
-              <option value="Pediatrics">Pediatrics</option>
-              <option value="General Practice">General Practice</option>
-            </select>
-
-            <select
-              className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none"
-              value={filters.gender}
-              onChange={(e) => handleFilterChange('gender', e.target.value)}
-            >
-              <option value="">Any Gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-
-            <button
-              onClick={resetFilters}
-              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-      </section>
 
       {/* Emergency Notice */}
       <section className="py-4 bg-yellow-50 border-l-4 border-yellow-400">

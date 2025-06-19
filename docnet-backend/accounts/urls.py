@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView
-
+from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
     path('login/', UserLoginView.as_view(),name='login'),
@@ -26,5 +26,7 @@ urlpatterns = [
     path('validate-videocall/<int:slot_id>/', ValidateVideoCallAPI.as_view(), name='validate_videocall'),
     path('booking-confirmation/payment/<str:payment_id>/',BookingConfirmationByPaymentView.as_view(),name='booking-confirmation-by-payment'),
     path('emergency-doctors/', EmergencyDoctorListView.as_view(), name='emergency-doctors'),
+    path('emergency-payments/create/', CreateEmergencyPaymentView.as_view(), name='create-emergency-payment'),
+    path('emergency-payments/verify/', VerifyEmergencyPaymentView.as_view(), name='verify-emergency-payment'),
    
 ]

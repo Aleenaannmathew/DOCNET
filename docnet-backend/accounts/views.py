@@ -33,7 +33,8 @@ from .serializers import (
     BookingHistorySerializer,
     AppointmentDetailSerializer,
     BookingConfirmationSerializer,
-    EmergencyDoctorSerializer
+    CreateEmergencyPaymentSerializer,
+    VerifyEmergencyPaymentSerializer
 )
 from core.utils import (
     OTPManager, 
@@ -774,3 +775,242 @@ class EmergencyDoctorListView(generics.ListAPIView):
             is_approved=True,
             user__is_active=True
         ).select_related('user')
+    
+class CreateEmergencyPaymentView(APIView):
+    """
+    Create emergency payment order
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        print(request.data)
+        serializer = CreateEmergencyPaymentSerializer(
+            data=request.data, 
+            context={'request': request}
+        )
+        print(serializer)
+        
+        if serializer.is_valid():
+            try:
+                result = serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Payment order created successfully",
+                    "payment_id": result["payment"].id,
+                    "razorpay_order": result["razorpay_order"],
+                    "doctor_name": result["payment"].doctor.user.username,
+                    "amount": str(result["payment"].amount),
+                }, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({
+                    "success": False,
+                    "message": f"Failed to create payment: {str(e)}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            "success": False,
+            "message": "Invalid data",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyEmergencyPaymentView(APIView):
+   
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = VerifyEmergencyPaymentSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            try:
+                payment = serializer.save()
+                return Response({
+                    "success": True,
+                    "message": "Emergency payment verified successfully",
+                    "payment_id": payment.id,
+                    "video_call_link": payment.video_call_link,
+                    "doctor_name": payment.doctor.user.username,
+                    "doctor_specialization": payment.doctor.specialization,
+                    "consultation_fee": str(payment.amount),
+                    "consultation_started": payment.consultation_started
+                }, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({
+                    "success": False,
+                    "message": f"Payment verification failed: {str(e)}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            "success": False,
+            "message": "Invalid payment data",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# class EmergencyConsultationStatusView(APIView):
+#     """
+#     Get, start, or end emergency consultation
+#     """
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, payment_id):
+#         """Get consultation status"""
+#         try:
+#             payment = EmergencyPayment.objects.select_related(
+#                 'doctor__user', 'patient'
+#             ).get(
+#                 id=payment_id,
+#                 payment_status='success'
+#             )
+            
+#             # Check if user is authorized to view this consultation
+#             if request.user != payment.patient and request.user != payment.doctor.user:
+#                 return Response({
+#                     "error": "Not authorized to view this consultation"
+#                 }, status=status.HTTP_403_FORBIDDEN)
+            
+#             serializer = EmergencyPaymentSerializer(payment)
+#             return Response({
+#                 "success": True,
+#                 "data": serializer.data
+#             })
+            
+#         except EmergencyPayment.DoesNotExist:
+#             return Response({
+#                 "success": False,
+#                 "error": "Consultation not found"
+#             }, status=status.HTTP_404_NOT_FOUND)
+
+#     def post(self, request, payment_id):
+#         """Start or end consultation"""
+#         try:
+#             payment = EmergencyPayment.objects.get(
+#                 id=payment_id,
+#                 payment_status='success'
+#             )
+            
+#             # Check authorization
+#             if request.user != payment.patient and request.user != payment.doctor.user:
+#                 return Response({
+#                     "error": "Not authorized to modify this consultation"
+#                 }, status=status.HTTP_403_FORBIDDEN)
+            
+#             action = request.data.get('action')
+            
+#             if action == 'start':
+#                 if not payment.consultation_started:
+#                     payment.start_consultation()
+#                     return Response({
+#                         "success": True,
+#                         "message": "Consultation started",
+#                         "video_call_link": payment.video_call_link
+#                     })
+#                 else:
+#                     return Response({
+#                         "success": False,
+#                         "message": "Consultation already started"
+#                     }, status=status.HTTP_400_BAD_REQUEST)
+                    
+#             elif action == 'end':
+#                 if payment.consultation_started and not payment.consultation_end_time:
+#                     payment.end_consultation()
+#                     return Response({
+#                         "success": True,
+#                         "message": "Consultation ended",
+#                         "duration_minutes": payment.duration_minutes
+#                     })
+#                 else:
+#                     return Response({
+#                         "success": False,
+#                         "message": "Consultation not active or already ended"
+#                     }, status=status.HTTP_400_BAD_REQUEST)
+#             else:
+#                 return Response({
+#                     "success": False,
+#                     "error": "Invalid action. Use 'start' or 'end'"
+#                 }, status=status.HTTP_400_BAD_REQUEST)
+                
+#         except EmergencyPayment.DoesNotExist:
+#             return Response({
+#                 "success": False,
+#                 "error": "Consultation not found"
+#             }, status=status.HTTP_404_NOT_FOUND)
+
+
+# class PatientEmergencyHistoryView(generics.ListAPIView):
+#     """
+#     Get patient's emergency consultation history
+#     """
+#     serializer_class = EmergencyPaymentSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         return EmergencyPayment.objects.filter(
+#             patient=self.request.user,
+#             payment_status='success'
+#         ).select_related('doctor__user').order_by('-timestamp')
+
+
+# class DoctorEmergencyHistoryView(generics.ListAPIView):
+#     """
+#     Get doctor's emergency consultation history
+#     """
+#     serializer_class = EmergencyPaymentSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         try:
+#             doctor_profile = DoctorProfile.objects.get(user=self.request.user)
+#             return EmergencyPayment.objects.filter(
+#                 doctor=doctor_profile,
+#                 payment_status='success'
+#             ).select_related('patient').order_by('-timestamp')
+#         except DoctorProfile.DoesNotExist:
+#             return EmergencyPayment.objects.none()
+
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def emergency_stats(request):
+#     """
+#     Get emergency consultation statistics
+#     """
+#     if hasattr(request.user, 'doctor_profile'):
+#         # Doctor stats
+#         doctor_profile = request.user.doctor_profile
+#         total_emergency_consultations = EmergencyPayment.objects.filter(
+#             doctor=doctor_profile,
+#             payment_status='success'
+#         ).count()
+        
+#         active_consultations = EmergencyPayment.objects.filter(
+#             doctor=doctor_profile,
+#             payment_status='success',
+#             consultation_started=True,
+#             consultation_end_time__isnull=True
+#         ).count()
+        
+#         return Response({
+#             "total_emergency_consultations": total_emergency_consultations,
+#             "active_consultations": active_consultations,
+#             "emergency_status": doctor_profile.emergency_status
+#         })
+#     else:
+#         # Patient stats
+#         total_consultations = EmergencyPayment.objects.filter(
+#             patient=request.user,
+#             payment_status='success'
+#         ).count()
+        
+#         active_consultation = EmergencyPayment.objects.filter(
+#             patient=request.user,
+#             payment_status='success',
+#             consultation_started=True,
+#             consultation_end_time__isnull=True
+#         ).first()
+        
+#         return Response({
+#             "total_consultations": total_consultations,
+#             "has_active_consultation": bool(active_consultation),
+#             "active_consultation_id": active_consultation.id if active_consultation else None
+#         })    

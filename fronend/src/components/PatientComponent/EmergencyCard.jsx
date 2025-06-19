@@ -1,297 +1,296 @@
 import React, { useState } from 'react';
-import { Star, MapPin, Calendar, User, Phone, Clock, Heart, Loader } from 'lucide-react';
+import { Star, Clock, Phone, Video, User, Award, CreditCard, Loader, X, Check } from 'lucide-react';
+import { userAxios } from '../../axios/UserAxios';
 
 function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [paymentLoading, setPaymentLoading] = useState(false);
 
-  if (!doctor) {
-    return (
-      <div className="group bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 animate-pulse">
-        <div className="h-48 bg-gray-200"></div>
-        <div className="p-6 space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-        </div>
-      </div>
-    );
-  }
+    const emergencyFee = 800;
+    console.log(doctor)
 
-  const renderStars = (rating = 0) => {
-    return [...Array(5)].map((_, i) => (
-      <Star
-        key={i}
-        size={16}
-        className={i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}
-      />
-    ));
-  };
+    const loadRazorpay = () => {
+        return new Promise((resolve) => {
+            if (window.Razorpay) return resolve(true);
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
 
-  const getProfileImageUrl = (profileImage) => {
-    if (!profileImage) return null;
-    
-    if (profileImage.startsWith('http')) {
-      return profileImage;
-    }
-    
-    if (profileImage.startsWith('/')) {
-      return `${window.location.origin}${profileImage}`;
-    }
-    
-    return `${window.location.origin}/media/${profileImage}`;
-  };
+    const handleEmergencyConsultation = async () => {
+        setPaymentLoading(true);
 
-  const profileImageUrl = getProfileImageUrl(doctor?.profile_image);
-
-  const handleEmergencyPayment = async () => {
-    setIsProcessingPayment(true);
-    
-    try {
-      // Create payment order
-      const response = await fetch('/api/create-emergency-payment/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: JSON.stringify({
-          doctor_id: doctor.id,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create payment order');
-      }
-
-      const orderData = await response.json();
-
-      // Razorpay payment options
-      const options = {
-        key: orderData.key,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Emergency Consultation",
-        description: `Emergency consultation with ${orderData.doctor_name}`,
-        order_id: orderData.order_id,
-        handler: async function (response) {
-          try {
-            // Verify payment
-            const verifyResponse = await fetch('/api/verify-emergency-payment/', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-              },
-              body: JSON.stringify({
-                payment_id: response.razorpay_payment_id,
-                order_id: response.razorpay_order_id,
-                signature: response.razorpay_signature,
-              }),
-            });
-
-            if (!verifyResponse.ok) {
-              throw new Error('Payment verification failed');
-            }
-
-            const verifyData = await verifyResponse.json();
-            
-            if (onPaymentSuccess) {
-              onPaymentSuccess(verifyData);
-            }
-            
-            // Redirect to consultation room or show success message
-            alert('Payment successful! Connecting you to the doctor...');
-            window.location.href = verifyData.meeting_link;
-            
-          } catch (error) {
-            console.error('Payment verification error:', error);
-            alert('Payment verification failed. Please contact support.');
-          }
-        },
-        prefill: {
-          name: "Patient Name", // You can get this from user context
-          email: "patient@example.com", // You can get this from user context
-        },
-        theme: {
-          color: "#dc2626", // Red color for emergency
-        },
-        modal: {
-          ondismiss: function() {
-            setIsProcessingPayment(false);
-          }
+        const res = await loadRazorpay();
+        if (!res) {
+            alert("Failed to load Razorpay SDK.");
+            setPaymentLoading(false);
+            return;
         }
-      };
 
-      // Open Razorpay checkout
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+        try {
+            // Create emergency payment
+            const createRes = await userAxios.post('/emergency-payments/create/', {
+                doctor_id: doctor.user_id, // doctor.user_id is correct
+                amount: emergencyFee       // e.g., 800
+            });
+            console.log(createRes)
 
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert('Failed to initiate payment. Please try again.');
-      setIsProcessingPayment(false);
-    }
-  };
+            const createData = createRes.data;
+            const { razorpay_order } = createData;
 
-  return (
-    <div className="group bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border-2 border-red-200 hover:border-red-300 relative">
-      {/* Emergency Badge */}
-      <div className="absolute top-4 left-4 z-10 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-        <Heart size={14} className="text-white" />
-        Emergency Available
-      </div>
+            const options = {
+                key: "rzp_test_JFRhohewvJ81Dl", // Your Razorpay key
+                amount: razorpay_order.amount,
+                currency: razorpay_order.currency,
+                name: "DOCNET Health - Emergency",
+                description: "Emergency Consultation Fee",
+                order_id: razorpay_order.id,
+                handler: async function (response) {
+                    try {
+                        console.log("Emergency payment successful, verifying...", response);
 
-      {/* Doctor Image */}
-      <div className="relative h-48 bg-gradient-to-br from-red-100 to-pink-100">
-        {profileImageUrl ? (
-          <img
-            src={profileImageUrl}
-            alt={`Dr. ${doctor.username}`}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextElementSibling.style.display = 'flex';
-            }}
-          />
-        ) : null}
-        
-        {/* Fallback avatar */}
-        <div 
-          className={`absolute inset-0 bg-gradient-to-br from-red-100 to-pink-100 flex items-center justify-center ${profileImageUrl ? 'hidden' : 'flex'}`}
-        >
-          {doctor?.username ? (
-            <span className="text-red-600 font-bold text-4xl">
-              {doctor.username.charAt(0).toUpperCase()}
-            </span>
-          ) : (
-            <User size={60} className="text-red-600" />
-          )}
-        </div>
+                        const verifyRes = await userAxios.post('/emergency-payments/verify/', {
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature,
+                        });
 
-        {/* Online Status */}
-        <div className="absolute bottom-4 right-4 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          Online Now
-        </div>
-      </div>
+                        const verifyData = verifyRes.data;
 
-      {/* Doctor Information */}
-      <div className="p-6">
-        {/* Name and Specialization */}
-        <div className="mb-4">
-          <h3 className="font-bold text-xl text-gray-900 mb-1">
-            {`Dr. ${doctor?.username || 'Unknown Doctor'}`}
-          </h3>
-          <p className="text-red-600 font-semibold text-base">
-            {doctor?.specialization || 'General Practitioner'}
-          </p>
-        </div>
+                        // Close modal
+                        setIsPaymentModalOpen(false);
+                        setPaymentLoading(false);
 
-        {/* Rating */}
-        {doctor?.rating && (
-          <div className="flex items-center justify-center mb-4 bg-yellow-50 rounded-lg py-2">
-            <div className="flex mr-2">
-              {renderStars(doctor.rating)}
+                        // Redirect to video call
+                        if (verifyData.video_call_link) {
+                            window.open(verifyData.video_call_link, '_blank');
+                        }
+
+                        // Call success callback
+                        if (onPaymentSuccess) {
+                            onPaymentSuccess({
+                                paymentId: verifyData.payment_id,
+                                doctorName: verifyData.doctor_name,
+                                videoLink: verifyData.video_call_link,
+                                amount: verifyData.consultation_fee
+                            });
+                        }
+
+                        alert("✅ Emergency consultation payment successful! Video call will open shortly.");
+
+                    } catch (error) {
+                        console.error("Emergency payment verification error:", error);
+                        alert("❌ Error verifying payment: " + error.message);
+                        setPaymentLoading(false);
+                    }
+                },
+                prefill: {
+                    name: "Patient", // You can get this from user context
+                    email: "", // You can get this from user context
+                },
+                theme: {
+                    color: "#DC2626", // Red theme for emergency
+                },
+                modal: {
+                    ondismiss: function () {
+                        setPaymentLoading(false);
+                    }
+                }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        } catch (err) {
+            console.error("Emergency payment initiation error:", err);
+            alert("Error initiating emergency payment: " + err.message);
+            setPaymentLoading(false);
+        }
+    };
+
+    const renderStars = (rating) => {
+        return [...Array(5)].map((_, i) => (
+            <Star
+                key={i}
+                size={14}
+                className={i < Math.floor(rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}
+            />
+        ));
+    };
+
+    const PaymentModal = () => {
+        if (!isPaymentModalOpen) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
+                    <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                        <div>
+                            <h2 className="text-xl font-bold text-gray-900">Emergency Consultation</h2>
+                            <p className="text-gray-600 mt-1">with Dr. {doctor.user?.username || doctor.username}</p>
+                        </div>
+                        <button
+                            onClick={() => setIsPaymentModalOpen(false)}
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            disabled={paymentLoading}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="bg-red-50 rounded-xl p-6 mb-6 border border-red-100">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                    <Video className="text-red-600" size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-red-900">Instant Video Call</h3>
+                                    <p className="text-red-700 text-sm">Connect immediately with the doctor</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 text-sm text-red-700">
+                                <div className="flex items-center gap-2">
+                                    <Check size={16} className="text-red-600" />
+                                    <span>Immediate consultation</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Check size={16} className="text-red-600" />
+                                    <span>No appointment needed</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Check size={16} className="text-red-600" />
+                                    <span>Direct video call access</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 mb-6 border border-red-100">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-semibold text-red-900 text-lg">Emergency Fee</h4>
+                                    <p className="text-red-700 mt-1">One-time payment</p>
+                                </div>
+                                <div className="text-3xl font-bold text-red-900">
+                                    ₹{emergencyFee}
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleEmergencyConsultation}
+                            disabled={paymentLoading}
+                            className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-semibold"
+                        >
+                            {paymentLoading ? (
+                                <Loader size={20} className="animate-spin" />
+                            ) : (
+                                <CreditCard size={20} />
+                            )}
+                            {paymentLoading ? 'Processing Payment...' : `Pay ₹${emergencyFee} & Start Call`}
+                        </button>
+
+                        <div className="text-center mt-4">
+                            <p className="text-xs text-gray-500">🔐 Secure payment powered by Razorpay</p>
+                            <p className="text-xs text-gray-500 mt-1">UPI • Cards • Net Banking • Wallets</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <span className="text-sm font-semibold text-gray-700">
-              {doctor.rating} ({doctor.total_reviews || 0} reviews)
-            </span>
-          </div>
-        )}
+        );
+    };
 
-        {/* Emergency Details */}
-        <div className="space-y-3 mb-4">
-          <div className="flex items-center text-sm text-gray-600">
-            <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center mr-3">
-              <Clock size={16} className="text-red-600" />
-            </div>
-            <span className="font-medium">Available 24/7 for Emergency</span>
-          </div>
+    return (
+        <>
+            <div className="bg-white rounded-2xl shadow-lg border border-red-100 p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                {/* Emergency Badge */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        EMERGENCY
+                    </div>
+                    <div className="text-green-600 text-xs font-semibold flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        ONLINE
+                    </div>
+                </div>
 
-          {doctor?.hospital && (
-            <div className="flex items-center text-sm text-gray-600">
-              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
-                <MapPin size={16} className="text-blue-600" />
-              </div>
-              <span className="truncate font-medium">{doctor.hospital}</span>
-            </div>
-          )}
-          
-          {doctor?.experience && (
-            <div className="flex items-center text-sm text-gray-600">
-              <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center mr-3">
-                <Calendar size={16} className="text-green-600" />
-              </div>
-              <span className="font-medium">{doctor.experience} years experience</span>
-            </div>
-          )}
+                {/* Doctor Info */}
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
+                        {doctor.profile_image || doctor.user?.profile_image ? (
+                            <img
+                                src={doctor.profile_image || doctor.user?.profile_image}
+                                alt={`Dr. ${doctor.user?.username || doctor.username}`}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            <User className="text-red-600" size={24} />
+                        )}
+                    </div>
 
-          {doctor?.languages && (
-            <div className="flex items-center text-sm text-gray-600">
-              <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center mr-3">
-                <User size={16} className="text-purple-600" />
-              </div>
-              <span className="font-medium truncate">Languages: {doctor.languages}</span>
-            </div>
-          )}
-        </div>
+                    <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 text-lg">
+                            Dr. {doctor.user?.username || doctor.username}
+                        </h3>
+                        <p className="text-red-600 font-medium text-sm">
+                            {doctor.specialization || 'General Medicine'}
+                        </p>
 
-        {/* Emergency Fee */}
-        <div className="bg-red-50 rounded-lg p-4 mb-4">
-          <div className="text-center">
-            <div className="text-lg font-bold text-red-600">
-              Emergency Consultation Fee
-            </div>
-            <div className="text-2xl font-bold text-gray-900">
-              ₹{doctor?.emergency_fee || 800}
-            </div>
-            <div className="text-sm text-gray-600">
-              Instant consultation available
-            </div>
-          </div>
-        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center">
+                                {renderStars(doctor.rating)}
+                            </div>
+                            <span className="text-xs text-gray-600">
+                                ({doctor.total_reviews || 0})
+                            </span>
+                        </div>
+                    </div>
+                </div>
 
-        {/* Additional Info */}
-        <div className="text-xs text-gray-500 mb-4 space-y-1">
-          <div>Reg ID: {doctor?.registration_id || 'N/A'}</div>
-          <div className="flex items-center space-x-2">
-            {doctor?.age && <span>Age: {doctor.age}</span>}
-            {doctor?.gender && (
-              <>
-                {doctor?.age && <span>•</span>}
-                <span>{doctor.gender}</span>
-              </>
-            )}
-          </div>
-        </div>
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                        <Award className="mx-auto text-blue-600 mb-1" size={16} />
+                        <div className="text-xs text-gray-600">Experience</div>
+                        <div className="font-semibold text-sm">{doctor.experience || 0} years</div>
+                    </div>
 
-        {/* Pay and Consult Button */}
-        <button 
-        
-          disabled={isProcessingPayment}
-          className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {isProcessingPayment ? (
-            <>
-              <Loader size={20} className="animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <Phone size={20} />
-              Pay & Consult Now - ₹{doctor?.emergency_fee || 800}
-            </>
-          )}
-        </button>
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                        <Clock className="mx-auto text-green-600 mb-1" size={16} />
+                        <div className="text-xs text-gray-600">Response</div>
+                        <div className="font-semibold text-sm">Instant</div>
+                    </div>
+                </div>
 
-        {/* Response Time */}
-        <div className="mt-3 text-center text-sm text-gray-600">
-          <Clock size={14} className="inline mr-1" />
-          Typical response time: 2-5 minutes
-        </div>
-      </div>
-    </div>
-  );
+                {/* Emergency Consultation Button */}
+                <button
+                    onClick={() => setIsPaymentModalOpen(true)}
+                    className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-4 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 font-semibold flex items-center justify-center gap-2 shadow-lg"
+                >
+                    <Video size={18} />
+                    Emergency Consult - ₹{emergencyFee}
+                </button>
+
+                {/* Contact Info */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>{doctor.hospital || 'Medical Center'}</span>
+                        <div className="flex items-center gap-1">
+                            <Phone size={12} />
+                            <span>Available 24/7</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Payment Modal */}
+            <PaymentModal />
+        </>
+    );
 }
 
 export default EmergencyDoctorCard;
