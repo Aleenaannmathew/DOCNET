@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  Lock, 
-  Mail, 
-  Phone, 
-  User, 
-  Stethoscope, 
-  GraduationCap, 
+import {
+  Lock,
+  Mail,
+  Phone,
+  User,
+  Stethoscope,
+  GraduationCap,
   Building,
-  Shield, 
-  Calendar, 
+  Shield,
+  Calendar,
   Globe,
   FileText
 } from 'lucide-react';
@@ -77,14 +77,13 @@ const LanguageSelect = ({ field, form, ...props }) => {
       <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
         <Globe size={18} />
       </div>
-      
+
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full pl-12 pr-4 py-3 rounded-lg border ${
-          form.errors[field.name] && form.touched[field.name]
-            ? 'border-red-500 focus:ring-red-500' 
-            : 'border-gray-300 focus:ring-teal-500'
-        } focus:ring-2 focus:border-transparent outline-none cursor-pointer min-h-[48px] flex flex-wrap items-center gap-2`}
+        className={`w-full pl-12 pr-4 py-3 rounded-lg border ${form.errors[field.name] && form.touched[field.name]
+          ? 'border-red-500 focus:ring-red-500'
+          : 'border-gray-300 focus:ring-teal-500'
+          } focus:ring-2 focus:border-transparent outline-none cursor-pointer min-h-[48px] flex flex-wrap items-center gap-2`}
       >
         {selectedLanguages.length === 0 ? (
           <span className="text-gray-400">Select Languages</span>
@@ -113,9 +112,8 @@ const LanguageSelect = ({ field, form, ...props }) => {
             <div
               key={language}
               onClick={() => handleLanguageToggle(language)}
-              className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${
-                selectedLanguages.includes(language) ? 'bg-teal-50 text-teal-700' : ''
-              }`}
+              className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${selectedLanguages.includes(language) ? 'bg-teal-50 text-teal-700' : ''
+                }`}
             >
               <div className="flex items-center justify-between">
                 <span>{language}</span>
@@ -148,17 +146,16 @@ const CustomField = ({ icon: Icon, name, type, placeholder, error, touched }) =>
         name={name}
         type={type}
         placeholder={placeholder}
-        className={`w-full pl-12 pr-4 py-3 rounded-xl border ${
-          error && touched
-            ? 'border-red-400 focus:ring-red-400' 
-            : 'border-gray-200 focus:ring-blue-500'
-        } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
+        className={`w-full pl-12 pr-4 py-3 rounded-xl border ${error && touched
+          ? 'border-red-400 focus:ring-red-400'
+          : 'border-gray-200 focus:ring-blue-500'
+          } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
       />
     </div>
-    <ErrorMessage 
-      name={name} 
-      component="p" 
-      className="text-red-500 text-sm mt-1 ml-1" 
+    <ErrorMessage
+      name={name}
+      component="p"
+      className="text-red-500 text-sm mt-1 ml-1"
     />
   </div>
 );
@@ -171,16 +168,15 @@ const CustomFieldNoIcon = ({ name, type, placeholder, error, touched, min, max }
       placeholder={placeholder}
       min={min}
       max={max}
-      className={`w-full px-4 py-3 rounded-xl border ${
-        error && touched
-          ? 'border-red-400 focus:ring-red-400' 
-          : 'border-gray-200 focus:ring-blue-500'
-      } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
+      className={`w-full px-4 py-3 rounded-xl border ${error && touched
+        ? 'border-red-400 focus:ring-red-400'
+        : 'border-gray-200 focus:ring-blue-500'
+        } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
     />
-    <ErrorMessage 
-      name={name} 
-      component="p" 
-      className="text-red-500 text-sm mt-1 ml-1" 
+    <ErrorMessage
+      name={name}
+      component="p"
+      className="text-red-500 text-sm mt-1 ml-1"
     />
   </div>
 );
@@ -189,52 +185,54 @@ const validationSchema = Yup.object({
   username: Yup.string()
     .min(3, 'Username must be at least 3 characters')
     .required('Username is required'),
-  
+
   email: Yup.string()
     .email('Please enter a valid email')
     .required('Email is required'),
-  
+
   phone: Yup.string()
     .matches(/^[0-9]{10,15}$/, 'Phone number must be 10-15 digits only')
     .required('Phone number is required'),
-  
+
   password: Yup.string()
     .min(8, 'Password must be at least 8 characters')
     .required('Password is required'),
-  
+
   password2: Yup.string()
     .oneOf([Yup.ref('password')], 'Passwords do not match')
     .required('Please confirm your password'),
-  
+
   registration_id: Yup.string()
     .required('Registration ID is required'),
-  
+
   hospital: Yup.string(),
-  
+
   specialization: Yup.string()
     .min(3, 'Specialization must be at least 3 characters')
     .required('Specialization is required'),
-  
+
   languages: Yup.array()
     .min(1, 'At least one language is required')
     .required('Language selection is required'),
-  
+
   age: Yup.number()
     .min(21, 'Age must be between 21 and 80')
     .max(80, 'Age must be between 21 and 80')
     .required('Age is required'),
-  
+
   gender: Yup.string()
     .required('Gender is required'),
-  
+
   experience: Yup.number()
     .min(0, 'Experience cannot be negative')
     .required('Years of experience is required'),
-  
+
+  prefer_24hr_consultation: Yup.boolean(),
+
   agreeToTerms: Yup.boolean()
     .oneOf([true], 'You must agree to the terms and conditions')
     .required('You must agree to the terms and conditions'),
-  
+
   medicalEthics: Yup.boolean()
     .oneOf([true], 'You must commit to medical ethics')
     .required('You must commit to medical ethics')
@@ -253,6 +251,7 @@ const initialValues = {
   age: '',
   gender: '',
   experience: '',
+  prefer_24hr_consultation: false,
   agreeToTerms: false,
   medicalEthics: false
 };
@@ -265,7 +264,7 @@ export default function DoctorRegister() {
   const handleSubmit = async (values, { setErrors }) => {
     setIsLoading(true);
     setGeneralError('');
-    
+
     try {
       const data = new FormData();
       data.append('username', values.username);
@@ -281,6 +280,7 @@ export default function DoctorRegister() {
       data.append('age', values.age);
       data.append('gender', values.gender);
       data.append('experience', values.experience);
+      data.append('prefer_24hr_consultation', values.prefer_24hr_consultation);
       data.append('agreeToTerms', values.agreeToTerms);
       data.append('medicalEthics', values.medicalEthics);
 
@@ -289,9 +289,9 @@ export default function DoctorRegister() {
       console.log("Registration response", response.data);
 
       if (response.data && response.data.user_id) {
-        navigate('/doctor/doctor-verify-otp', { 
+        navigate('/doctor/doctor-verify-otp', {
           state: {
-            userId: response.data.user_id, 
+            userId: response.data.user_id,
             email: response.data.email,
             userType: 'doctor'
           }
@@ -302,17 +302,17 @@ export default function DoctorRegister() {
       }
     } catch (error) {
       console.error('Registration failed:', error);
-      
+
       if (error.response && error.response.data) {
         const serverErrors = error.response.data;
-        
+
         const newErrors = {};
         Object.keys(serverErrors).forEach(key => {
-          newErrors[key] = Array.isArray(serverErrors[key]) 
-            ? serverErrors[key][0] 
+          newErrors[key] = Array.isArray(serverErrors[key])
+            ? serverErrors[key][0]
             : serverErrors[key];
         });
-        
+
         setErrors(newErrors);
       } else {
         setGeneralError('Registration failed. Please try again later.');
@@ -338,7 +338,7 @@ export default function DoctorRegister() {
             <div className="absolute bottom-32 left-16 w-12 h-12 border-2 border-white rounded-full"></div>
             <div className="absolute bottom-16 right-20 w-24 h-24 border-2 border-white rounded-full"></div>
           </div>
-          
+
           <div className="relative z-10">
             <div className="flex items-center mb-8">
               <Stethoscope className="mr-3" size={32} />
@@ -353,7 +353,7 @@ export default function DoctorRegister() {
                 Connect with patients, collaborate with peers, and advance your medical practice in a trusted digital ecosystem.
               </p>
             </div>
-            
+
             {/* Professional Features */}
             <div className="space-y-4">
               <div className="flex items-center">
@@ -453,21 +453,20 @@ export default function DoctorRegister() {
                         <Field
                           as="select"
                           name="gender"
-                          className={`w-full px-4 py-3 rounded-lg border ${
-                            errors.gender && touched.gender
-                              ? 'border-red-500 focus:ring-red-500' 
-                              : 'border-gray-300 focus:ring-teal-500'
-                          } focus:ring-2 focus:border-transparent outline-none`}
+                          className={`w-full px-4 py-3 rounded-lg border ${errors.gender && touched.gender
+                            ? 'border-red-500 focus:ring-red-500'
+                            : 'border-gray-300 focus:ring-teal-500'
+                            } focus:ring-2 focus:border-transparent outline-none`}
                         >
                           <option value="">Select Gender</option>
                           {genderOptions.map(option => (
                             <option key={option} value={option.toLowerCase()}>{option}</option>
                           ))}
                         </Field>
-                        <ErrorMessage 
-                          name="gender" 
-                          component="p" 
-                          className="text-red-500 text-sm mt-1" 
+                        <ErrorMessage
+                          name="gender"
+                          component="p"
+                          className="text-red-500 text-sm mt-1"
                         />
                       </div>
                       <CustomField
@@ -496,11 +495,10 @@ export default function DoctorRegister() {
                           <Field
                             as="select"
                             name="specialization"
-                            className={`w-full pl-12 pr-4 py-3 rounded-lg border ${
-                              errors.specialization && touched.specialization
-                                ? 'border-red-500 focus:ring-red-500' 
-                                : 'border-gray-300 focus:ring-teal-500'
-                            } focus:ring-2 focus:border-transparent outline-none`}
+                            className={`w-full pl-12 pr-4 py-3 rounded-lg border ${errors.specialization && touched.specialization
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-teal-500'
+                              } focus:ring-2 focus:border-transparent outline-none`}
                           >
                             <option value="">Select Specialization</option>
                             {specializations.map(spec => (
@@ -508,10 +506,10 @@ export default function DoctorRegister() {
                             ))}
                           </Field>
                         </div>
-                        <ErrorMessage 
-                          name="specialization" 
-                          component="p" 
-                          className="text-red-500 text-sm mt-1" 
+                        <ErrorMessage
+                          name="specialization"
+                          component="p"
+                          className="text-red-500 text-sm mt-1"
                         />
                       </div>
                       <CustomFieldNoIcon
@@ -564,10 +562,32 @@ export default function DoctorRegister() {
                     </div>
                   </div>
 
+
+
                   {/* Agreement Section */}
                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
                     <div className="space-y-4">
                       <div className="flex items-start">
+
+                        <Field
+                          type="checkbox"
+                          name="prefer_24hr_consultation"
+                          id="prefer_24hr_consultation"
+                          className="mt-1 mr-2"
+                        />
+                        <div className="flex flex-col">
+                          <label htmlFor="prefer_24hr_consultation" className="text-sm text-red-700">
+                            I offer 24-hour consultation services (OPTIONAL)
+                          </label>
+                          <ErrorMessage
+                            name="agreeToTerms"
+                            component="p"
+                            className="text-red-500 text-sm mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+
                         <Field
                           type="checkbox"
                           name="agreeToTerms"
@@ -578,10 +598,10 @@ export default function DoctorRegister() {
                           <label htmlFor="agreeToTerms" className="text-sm text-gray-700 leading-relaxed">
                             I agree to the <span className="text-blue-600 font-medium hover:underline cursor-pointer">Terms of Service</span> and <span className="text-blue-600 font-medium hover:underline cursor-pointer">Privacy Policy</span>
                           </label>
-                          <ErrorMessage 
-                            name="agreeToTerms" 
-                            component="p" 
-                            className="text-red-500 text-sm mt-1" 
+                          <ErrorMessage
+                            name="agreeToTerms"
+                            component="p"
+                            className="text-red-500 text-sm mt-1"
                           />
                         </div>
                       </div>
@@ -596,10 +616,10 @@ export default function DoctorRegister() {
                           <label htmlFor="medicalEthics" className="text-sm text-gray-700 leading-relaxed">
                             I commit to upholding medical ethics and professional standards
                           </label>
-                          <ErrorMessage 
-                            name="medicalEthics" 
-                            component="p" 
-                            className="text-red-500 text-sm mt-1" 
+                          <ErrorMessage
+                            name="medicalEthics"
+                            component="p"
+                            className="text-red-500 text-sm mt-1"
                           />
                         </div>
                       </div>
@@ -625,7 +645,7 @@ export default function DoctorRegister() {
                   {/* Sign In Link */}
                   <div className="text-center text-gray-600 pt-4">
                     Already have an account?{' '}
-                    <span 
+                    <span
                       className="text-blue-600 font-medium cursor-pointer hover:underline transition-colors duration-200"
                       onClick={() => navigate('/login')}
                     >

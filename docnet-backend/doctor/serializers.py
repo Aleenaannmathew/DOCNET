@@ -57,6 +57,7 @@ class DoctorRegistrationSerializer(serializers.Serializer):
     experience = serializers.IntegerField(
         validators=[MinValueValidator(0)]
     )
+    prefer_24hr_consultation = serializers.BooleanField(required=False, default=False)
     
     def validate_username(self, value):
         if User.objects.filter(username=value).exists():
@@ -97,6 +98,7 @@ class DoctorRegistrationSerializer(serializers.Serializer):
             'age': validated_data.pop('age'),
             'gender': validated_data.pop('gender'),
             'experience': validated_data.pop('experience'),
+            'prefer_24hr_consultation': validated_data.pop('prefer_24hr_consultation',False),
         }
         
        
@@ -154,7 +156,8 @@ class DoctorLoginSerializer(serializers.Serializer):
                     'languages': doctor_profile.languages,
                     'age': doctor_profile.age,
                     'gender': doctor_profile.gender,
-                    'experience': doctor_profile.experience
+                    'experience': doctor_profile.experience,
+                    'prefer_24hr_consultation': doctor_profile.prefer_24hr_consultation,
                 }
             except DoctorProfile.DoesNotExist:
                 raise serializers.ValidationError('Doctor profile not found. Please contact support.')

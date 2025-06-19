@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User, LogOut, Settings, Calendar, UserCircle, Heart } from 'lucide-react';
 import { logout } from '../../store/authSlice';
 
@@ -12,6 +12,24 @@ const Navbar = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Function to check if a path is active
+  const isActivePath = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  // Function to get navigation link classes
+  const getNavLinkClasses = (path) => {
+    const baseClasses = "font-medium transition-colors duration-200";
+    if (isActivePath(path)) {
+      return `${baseClasses} text-blue-600 border-b-2 border-blue-600`;
+    }
+    return `${baseClasses} text-gray-600 hover:text-blue-600`;
+  };
 
   const handleLoginClick = () => {
     navigate('/login');
@@ -61,6 +79,11 @@ const Navbar = () => {
     };
   }, [isProfileMenuOpen]);
 
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
   return (
     <nav className="bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-100 py-4 px-6 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -81,12 +104,12 @@ const Navbar = () => {
         
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
-          <a href="/" className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200">Home</a>
-          <a href="#services" className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200">Services</a>
-          <a href="/doctor-list" className="text-blue-600 font-medium border-b-2 border-blue-600">Doctors</a>
-          <a href="#about" className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200">About</a>
-          <a href="#contact" className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200">Contact</a>
-          <a href="#blog" className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-200">Blog</a>
+          <a href="/" className={getNavLinkClasses('/')}>Home</a>
+          <a href="#services" className={getNavLinkClasses('/services')}>Services</a>
+          <a href="/doctor-list" className={getNavLinkClasses('/doctor-list')}>Doctors</a>
+          <a href="/about" className={getNavLinkClasses('/about')}>About</a>
+          <a href="#contact" className={getNavLinkClasses('/contact')}>Contact</a>
+          <a href="#blog" className={getNavLinkClasses('/blog')}>Blog</a>
         </div>
         
         {/* Auth Section */}
@@ -185,12 +208,12 @@ const Navbar = () => {
         {isMenuOpen && (
           <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg border-t border-gray-200">
             <div className="px-6 py-4 space-y-4">
-              <a href="/" className="block text-gray-600 hover:text-blue-600 font-medium">Home</a>
-              <a href="#services" className="block text-gray-600 hover:text-blue-600 font-medium">Services</a>
-              <a href="/doctor-list" className="block text-blue-600 font-medium">Doctors</a>
-              <a href="#about" className="block text-gray-600 hover:text-blue-600 font-medium">About</a>
-              <a href="#contact" className="block text-gray-600 hover:text-blue-600 font-medium">Contact</a>
-              <a href="#blog" className="block text-gray-600 hover:text-blue-600 font-medium">Blog</a>
+              <a href="/" className={`block ${getNavLinkClasses('/')}`}>Home</a>
+              <a href="#services" className={`block ${getNavLinkClasses('/services')}`}>Services</a>
+              <a href="/doctor-list" className={`block ${getNavLinkClasses('/doctor-list')}`}>Doctors</a>
+              <a href="#about" className={`block ${getNavLinkClasses('/about')}`}>About</a>
+              <a href="#contact" className={`block ${getNavLinkClasses('/contact')}`}>Contact</a>
+              <a href="#blog" className={`block ${getNavLinkClasses('/blog')}`}>Blog</a>
               
               {isAuthenticated ? (
                 <div className="pt-4 border-t border-gray-200 space-y-3">

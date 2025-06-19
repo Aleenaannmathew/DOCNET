@@ -29,6 +29,7 @@ class DoctorProfile(models.Model):
     )
     location = models.CharField(max_length=255, blank=True, null=True)
     specialization = models.CharField(max_length=255, blank=True, null=True)
+    prefer_24hr_consultation = models.BooleanField(default=False, null=True)
     is_approved = models.BooleanField(null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
