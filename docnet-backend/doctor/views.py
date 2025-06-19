@@ -526,14 +526,11 @@ class ValidateVideoCallAPI(APIView):
             )
         
 class EmergencyStatusUpdateView(APIView):
-    """
-    API View to handle emergency status for doctors
-    Supports both GET (fetch) and POST (update) methods
-    """
+   
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Get current emergency status"""
+      
         logger.info(f"GET request for emergency status from user: {request.user}")
         
         try:
@@ -560,7 +557,7 @@ class EmergencyStatusUpdateView(APIView):
             )
 
     def post(self, request):
-        """Update emergency status"""
+      
         logger.info(f"POST request for emergency status from user: {request.user}, data: {request.data}")
         
         serializer = EmergencyStatusSerializer(data=request.data)
@@ -606,5 +603,5 @@ class EmergencyStatusUpdateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def options(self, request, *args, **kwargs):
-        """Handle preflight requests"""
+    
         return Response(status=status.HTTP_200_OK)

@@ -1,5 +1,7 @@
 from rest_framework import status
 from rest_framework.views import APIView
+from django.conf import settings
+from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -30,7 +32,8 @@ from .serializers import (
     VerifyPaymentSerializer,
     BookingHistorySerializer,
     AppointmentDetailSerializer,
-    BookingConfirmationSerializer  
+    BookingConfirmationSerializer,
+    EmergencyDoctorSerializer
 )
 from core.utils import (
     OTPManager, 
@@ -756,3 +759,18 @@ class BookingConfirmationByPaymentView(APIView):
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class EmergencyDoctorListView(generics.ListAPIView):
+    print("HII")
+    serializer_class = DoctorProfileSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['specialization', 'gender']
+    search_fields = ['user__first_name', 'user__last_name', 'specialization', 'hospital']
+    ordering_fields = ['experience', 'created_at']
+    ordering = ['-experience']
+
+    def get_queryset(self):
+        return DoctorProfile.objects.filter(
+            emergency_status=True,
+            is_approved=True,
+            user__is_active=True
+        ).select_related('user')

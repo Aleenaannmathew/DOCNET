@@ -17,6 +17,7 @@ import Confirmation from '../pages/PatientPages/Confirmation';
 import AboutPage from '../pages/PatientPages/AboutPage';
 import UserContact from '../pages/PatientPages/UserContact';
 import BlogPage from '../pages/PatientPages/BlogPage';
+import Emergency from '../pages/PatientPages/Emergency';
 
 
 
@@ -65,6 +66,7 @@ function UserRoutes() {
         <Route path='/about' element={<AboutPage/>}/>
         <Route path='/contact' element={<UserContact/>}/>
         <Route path='/blog' element={<BlogPage/>}/>
+        <Route path='/emergency-consultation' element={<Emergency/>}/>
         
       </Route>
 

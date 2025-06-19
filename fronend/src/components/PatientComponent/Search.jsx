@@ -1,7 +1,14 @@
 import React from 'react';
 import { Calendar, Heart, Play, Search, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 function SearchSection({ searchQuery, setSearchQuery }) {
+
+  const navigate = useNavigate();
+
+  const handleEmergencyClick = () => {
+    navigate('/emergency-consultation');
+  };
   return (
     <section className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-20">
       <div className="max-w-7xl mx-auto px-6">
@@ -13,11 +20,11 @@ function SearchSection({ searchQuery, setSearchQuery }) {
                 Find the Right <span className="text-blue-600">Doctor</span> for You
               </h1>
               <p className="text-xl text-gray-600 leading-relaxed">
-                Connect with qualified healthcare professionals in your area. 
+                Connect with qualified healthcare professionals in your area.
                 Book appointments, read reviews, and get the care you deserve.
               </p>
             </div>
-            
+
             {/* Search Bar */}
             <div className="space-y-4">
               <div className="relative">
@@ -32,14 +39,16 @@ function SearchSection({ searchQuery, setSearchQuery }) {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              
+
               {/* Quick Actions */}
               <div className="flex flex-wrap gap-3">
                 <button className="flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-full hover:bg-white hover:shadow-md transition-all duration-200">
                   <Calendar className="h-4 w-4 text-blue-600" />
                   <span className="text-sm font-medium">Book Appointment</span>
                 </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-full hover:bg-white hover:shadow-md transition-all duration-200">
+                <button
+                  onClick={handleEmergencyClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-sm border border-gray-200 rounded-full hover:bg-white hover:shadow-md transition-all duration-200">
                   <Heart className="h-4 w-4 text-red-500" />
                   <span className="text-sm font-medium">Emergency Care</span>
                 </button>
@@ -57,7 +66,7 @@ function SearchSection({ searchQuery, setSearchQuery }) {
               <div className="absolute top-4 right-4 w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
                 <Play className="h-6 w-6 text-white ml-1" />
               </div>
-              
+
               <div className="space-y-6">
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                   <div className="flex items-center gap-4 mb-4">

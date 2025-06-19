@@ -687,3 +687,37 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
                 'message': 'Please be available at your scheduled time.',
                 'requirements': ['Keep your phone accessible for communication']
             }
+
+class EmergencyDoctorSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    profile_image = serializers.ImageField(source='user.profile_image', read_only=True)
+    rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+    consultation_fee = serializers.SerializerMethodField()
+    emergency_fee = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DoctorProfile
+        fields = [
+            'id', 'username', 'email', 'profile_image', 'registration_id',
+            'hospital', 'languages', 'age', 'gender', 'experience',
+            'specialization', 'rating', 'total_reviews', 'consultation_fee',
+            'emergency_fee', 'slug', 'emergency_status'
+        ]
+    
+    def get_rating(self, obj):
+        # Implement your rating calculation logic
+        return 4.5  # placeholder
+    
+    def get_total_reviews(self, obj):
+        # Implement your review count logic
+        return 150  # placeholder
+    
+    def get_consultation_fee(self, obj):
+        # Base consultation fee
+        return 500  # placeholder - you can add this field to your model
+    
+    def get_emergency_fee(self, obj):
+        # Emergency consultation fee (usually higher)
+        return 800  # placeholder - you can add this field to your model
