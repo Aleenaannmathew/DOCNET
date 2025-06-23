@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { FiVideo} from 'react-icons/fi';
+import { FiVideo } from 'react-icons/fi';
 import axios from 'axios';
 import VideoCall from './Video';
 import { userAxios } from '../../axios/UserAxios';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const VideoCallButton = ({ slotId, token }) => {
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   const handleVideoCall = async () => {
     setLoading(true);
-    setError(null);
     
     try {
       const response = await userAxios.get(`/validate-videocall/${slotId}/`);
@@ -19,10 +19,10 @@ const VideoCallButton = ({ slotId, token }) => {
       if (response.data.valid) {
         setShowVideoCall(true);
       } else {
-        setError(response.data.error || 'Video call not available');
+        toast.error(response.data.error || 'Video call not available');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to start video call');
+      toast.error(err.response?.data?.error || 'Failed to start video call');
     } finally {
       setLoading(false);
     }
@@ -38,13 +38,7 @@ const VideoCallButton = ({ slotId, token }) => {
         <FiVideo className="w-4 h-4" />
         <span>{loading ? 'Checking...' : 'Video Call'}</span>
       </button>
-      
-      {error && (
-        <div className="mt-2 text-red-500 text-sm">
-          {error}
-        </div>
-      )}
-      
+
       {showVideoCall && (
         <VideoCall 
           slotId={slotId} 
@@ -52,6 +46,9 @@ const VideoCallButton = ({ slotId, token }) => {
           onEndCall={() => setShowVideoCall(false)} 
         />
       )}
+
+      {/* Toast Container */}
+      <ToastContainer position="top-right" autoClose={3000} />
     </>
   );
 };

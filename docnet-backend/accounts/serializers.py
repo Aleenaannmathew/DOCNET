@@ -411,7 +411,7 @@ class BookingHistorySerializer(serializers.ModelSerializer):
     end_time = serializers.TimeField(source='payment.slot.end_time', read_only=True)
     payment_status = serializers.CharField(source='payment.payment_status', read_only=True)
     amount = serializers.DecimalField(source='payment.amount', max_digits=10, decimal_places=2, read_only=True)
-    reason = serializers.CharField(source='reason', read_only=True)
+    reason = serializers.CharField(read_only=True)
 
     class Meta:
         model = Appointment
@@ -434,7 +434,7 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
     patient_email = serializers.CharField(source='payment.patient.email', read_only=True)
     patient_phone = serializers.CharField(source='payment.patient.phone', read_only=True)
     patient_profile_image = serializers.CharField(source='payment.patient.profile_image', read_only=True)
-    reason = serializers.CharField(source='reason', read_only = True)
+    reason = serializers.CharField(read_only = True)
     
     # Slot information
     appointment_date = serializers.DateField(source='payment.slot.date', read_only=True)

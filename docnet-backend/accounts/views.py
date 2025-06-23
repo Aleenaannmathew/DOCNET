@@ -562,8 +562,10 @@ class DoctorDetailView(APIView):
             return ResponseManager.error_response(error_message="Doctor not found", status_code=404)
         
 class DoctorSlotsView(APIView):
-    def get(self, request, slug): 
+    def get(self, request, slug):
+        now = localtime() 
         today = localtime().date()
+        current_time = now.time()
 
         slots = DoctorSlot.objects.filter(
             doctor__user__username=slug,
@@ -573,6 +575,8 @@ class DoctorSlotsView(APIView):
 
         slots_by_date = {}
         for slot in slots:
+            if slot.date == today and slot.start_time <= current_time:
+                continue
             date_str = slot.date.strftime('%Y-%m-%d')
             if date_str not in slots_by_date:
                 slots_by_date[date_str] = []
@@ -686,14 +690,14 @@ class ValidateVideoCallAPI(APIView):
             # Make slot_time timezone-aware
             slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            # start_window = slot_time - timedelta(minutes=15)
-            # end_window = slot_time + timedelta(minutes=slot.duration)
+            start_window = slot_time - timedelta(minutes=15)
+            end_window = slot_time + timedelta(minutes=slot.duration)
             
-            # if not (start_window <= now <= end_window):
-            #     return Response(
-            #         {"error": "Video call is only available during your scheduled time"},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
+            if not (start_window <= now <= end_window):
+                return Response(
+                    {"error": "Video call is only available during your scheduled time"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
                 
             return Response({
                 "valid": True,
