@@ -72,9 +72,9 @@ class UserRegistrationView(APIView):
                 user_logger.info(f"OTP generated for user {user.id}")
                 user_logger.debug(f"User registration - User ID: {user.id}, Email: {user.email}")
 
-                email_sent = EmailManager.send_registration_otp(user.email, otp, 'patient')
-                if not email_sent:
-                    user_logger.error(f"Failed to send OTP email to {user.email}")
+                email_queued = EmailManager.send_registration_otp(user.email, otp, 'patient')
+                if not email_queued:
+                    user_logger.error(f"Failed to queue OTP email for {user.email}")
 
                 return ResponseManager.success_response(
                     data={
@@ -149,12 +149,9 @@ class ResendOTPView(APIView):
             auth_logger.debug(f"New OTP generated for user {user.id}")
             
             # Send email
-            email_sent = EmailManager.send_registration_otp(user.email, otp, 'patient')
-            if not email_sent:
-                return ResponseManager.error_response(
-                    'Failed to send OTP email',
-                    status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            email_queued = EmailManager.send_registration_otp(user.email, otp, 'patient')
+            if not email_queued:
+                user_logger.error(f"Failed to queue OTP email for {user.email}")
             
             return ResponseManager.success_response(
                 message='OTP resent successfully'
@@ -275,12 +272,9 @@ class SendPasswordResetOTPView(APIView):
             # Generate and send password reset OTP
             otp = OTPManager.create_otp_verification(user, 'password_reset')
             
-            email_sent = EmailManager.send_password_reset_otp(user.email, otp, 'patient')
-            if not email_sent:
-                return ResponseManager.error_response(
-                    'Failed to send OTP email',
-                    status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            email_queued = EmailManager.send_registration_otp(user.email, otp, 'patient')
+            if not email_queued:
+                user_logger.error(f"Failed to queue OTP email for {user.email}")
             
             return ResponseManager.success_response(
                 data={'user_id': user.id, 'success': True},
@@ -777,13 +771,11 @@ class EmergencyDoctorListView(generics.ListAPIView):
         ).select_related('user')
     
 class CreateEmergencyPaymentView(APIView):
-    """
-    Create emergency payment order
-    """
+   
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print(request.data)
+        
         serializer = CreateEmergencyPaymentSerializer(
             data=request.data, 
             context={'request': request}
@@ -800,6 +792,7 @@ class CreateEmergencyPaymentView(APIView):
                     "razorpay_order": result["razorpay_order"],
                     "doctor_name": result["payment"].doctor.user.username,
                     "amount": str(result["payment"].amount),
+                    "reason": result["payment"].reason
                 }, status=status.HTTP_201_CREATED)
             except Exception as e:
                 return Response({
@@ -832,7 +825,8 @@ class VerifyEmergencyPaymentView(APIView):
                     "doctor_name": payment.doctor.user.username,
                     "doctor_specialization": payment.doctor.specialization,
                     "consultation_fee": str(payment.amount),
-                    "consultation_started": payment.consultation_started
+                    "consultation_started": payment.consultation_started,
+                    "reason":payment.reason
                 }, status=status.HTTP_200_OK)
             except Exception as e:
                 return Response({

@@ -14,6 +14,7 @@ import environ
 from pathlib import Path
 import os
 from datetime import timedelta,datetime
+from celery import Celery
 
 
 # Initialize environment variables
@@ -66,6 +67,8 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'django_filters',
     'channels',
+    'django_celery_beat',
+    'django_celery_results',
 
 ]
 
@@ -150,6 +153,14 @@ ACCOUNT_SIGNUP_FIELDS = {
     'username': {'required': False, 'label': 'Username'},
     'email': {'required': True, 'label': 'Email'},
 }
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0' 
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 
 # Password validation
@@ -281,6 +292,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = env('EMAIL_HOST_USER')
 
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'

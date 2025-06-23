@@ -353,6 +353,7 @@ class WalletSerializer(serializers.ModelSerializer):
 
 class AppointmentDetailsSerializer(serializers.ModelSerializer):
     # Patient information
+    reason = serializers.CharField(read_only=True)
     patient_name = serializers.CharField(source='payment.patient.username', read_only=True)
     patient_email = serializers.CharField(source='payment.patient.email', read_only=True)
     patient_phone = serializers.CharField(source='payment.patient.phone', read_only=True)
@@ -383,7 +384,7 @@ class AppointmentDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = [
-            'id', 'status', 'created_at', 'updated_at',
+            'id', 'status', 'created_at', 'updated_at','reason',
             # Patient fields
             'patient_name', 'patient_email', 'patient_phone', 'patient_profile_image',
             # Appointment fields

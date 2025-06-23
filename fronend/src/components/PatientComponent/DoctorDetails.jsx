@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   Star,
@@ -27,6 +27,173 @@ import { userAxios } from '../../axios/UserAxios';
 import { useSelector } from 'react-redux';
 import Navbar from './Navbar';
 
+const AppointmentModal = React.memo(({ 
+  isOpen, 
+  doctor, 
+  slotsLoading, 
+  availableSlots, 
+  selectedSlot, 
+  paymentLoading,
+  appointmentReason,
+  onClose,
+  onSlotSelect,
+  onPayment,
+  onReasonChange,
+  formatSlotDate,
+  formatSlotTime
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Book Appointment</h2>
+            <p className="text-gray-600 mt-1">with Dr. {doctor?.username}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            disabled={paymentLoading}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6">
+          {slotsLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading available slots...</p>
+            </div>
+          ) : availableSlots.length > 0 ? (
+            <div>
+              <h3 className="text-lg font-semibold mb-6 text-gray-900">Available Time Slots</h3>
+              <div className="space-y-3 mb-8">
+                {availableSlots.map((slot, index) => (
+                  <div
+                    key={slot.id || index}
+                    className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${selectedSlot?.id === slot.id
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                      }`}
+                    onClick={() => onSlotSelect(slot)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900 mb-1">
+                          {formatSlotDate(slot)}
+                        </div>
+                        <div className="text-blue-600 font-bold text-xl mb-2">
+                          {formatSlotTime(slot)}
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                            <span className={`w-2 h-2 rounded-full ${slot.type === 'Video Call' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
+                            {slot.type}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            {slot.duration} min
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        {selectedSlot?.id === slot.id && (
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                            <Check size={14} className="text-white" />
+                          </div>
+                        )}
+                        <Clock size={18} className="text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border border-blue-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-blue-900 text-lg">Consultation Fee</h4>
+                    <p className="text-blue-700 mt-1">Secure one-time payment</p>
+                  </div>
+                  <div className="text-3xl font-bold text-blue-900">
+                    ₹{selectedSlot?.fee || (availableSlots.length > 0 ? availableSlots[0].fee : 'N/A')}
+                  </div>
+                </div>
+              </div>
+
+              {selectedSlot && (
+                <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <h4 className="font-semibold mb-4 text-gray-900 text-lg">Appointment Summary</h4>
+                  
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for Appointment *
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Please describe your symptoms or reason for consultation"
+                      value={appointmentReason}
+                      onChange={(e) => onReasonChange(e.target.value)}
+                      required
+                    />
+                    <p className="mt-1 text-sm text-gray-500">
+                      This helps the doctor prepare for your consultation.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">DATE & TIME</p>
+                      <p className="text-gray-900">{formatSlotDate(selectedSlot)}</p>
+                      <p className="text-blue-600 font-semibold">{formatSlotTime(selectedSlot)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">CONSULTATION</p>
+                      <p className="text-gray-900">{selectedSlot.type}</p>
+                      <p className="text-gray-600">{selectedSlot.duration} minutes</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <button
+                      onClick={onPayment}
+                      disabled={paymentLoading || !appointmentReason.trim()}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-semibold"
+                    >
+                      {paymentLoading ? (
+                        <Loader size={20} className="animate-spin" />
+                      ) : (
+                        <CreditCard size={20} />
+                      )}
+                      {paymentLoading ? 'Processing Payment...' : `Pay ₹${selectedSlot?.fee} & Confirm`}
+                    </button>
+
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">🔐 Secure payment powered by Razorpay</p>
+                      <p className="text-xs text-gray-500 mt-1">UPI • Cards • Net Banking • Wallets</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Calendar size={64} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-600 mb-2 text-lg">No available slots</p>
+              <p className="text-sm text-gray-500">
+                Please try again later or contact the doctor directly.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 function DoctorDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -40,7 +207,8 @@ function DoctorDetailPage() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
-  const { user } = useSelector((state) => state.auth)
+  const [appointmentReason, setAppointmentReason] = useState('');
+  const { user } = useSelector((state) => state.auth);
 
   // Fetch doctor details
   useEffect(() => {
@@ -115,6 +283,7 @@ function DoctorDetailPage() {
 
   const handleBookAppointment = () => {
     setIsAppointmentModalOpen(true);
+    setAppointmentReason('');
     fetchDoctorSlots();
   };
 
@@ -130,6 +299,11 @@ function DoctorDetailPage() {
   };
 
   const handlePayment = async () => {
+    if (!appointmentReason.trim()) {
+      alert("Please enter the reason for your appointment");
+      return;
+    }
+
     setPaymentLoading(true);
 
     const res = await loadRazorpay();
@@ -143,12 +317,13 @@ function DoctorDetailPage() {
       const createRes = await userAxios.post("/payments/create/", {
         slot: selectedSlot.id,
         amount: selectedSlot.fee,
+        reason: appointmentReason
       });
 
       const { razorpay_order } = createRes.data;
 
       const options = {
-        key: "rzp_test_JFRhohewvJ81Dl", // Razorpay API key (test mode)
+        key: "rzp_test_JFRhohewvJ81Dl",
         amount: razorpay_order.amount,
         currency: razorpay_order.currency,
         name: "DOCNET Health",
@@ -164,16 +339,16 @@ function DoctorDetailPage() {
             });
 
             if (verifyRes.status === 201 || verifyRes.status === 200) {
-              // Close modal first
               setIsAppointmentModalOpen(false);
               setSelectedSlot(null);
+              setAppointmentReason('');
               setPaymentLoading(false);
 
               setTimeout(() => {
-              const paymentId = response.razorpay_payment_id;
-              console.log("Navigating to confirmation page with payment ID:", paymentId);
-              navigate(`/booking-confirmation/payment/${paymentId}`);
-            }, 100);
+                const paymentId = response.razorpay_payment_id;
+                console.log("Navigating to confirmation page with payment ID:", paymentId);
+                navigate(`/booking-confirmation/payment/${paymentId}`);
+              }, 100);
             } else {
               console.error("Payment verification failed:", verifyRes);
               alert("❌ Payment verification failed.");
@@ -181,9 +356,8 @@ function DoctorDetailPage() {
           } catch (error) {
             console.error("Payment verification error:", error);
             alert("❌ Error verifying payment: " + (error.response?.data?.message || error.message));
-          setPaymentLoading(false);
+            setPaymentLoading(false);
           }
-
           setPaymentLoading(false);
         },
         prefill: {
@@ -195,7 +369,6 @@ function DoctorDetailPage() {
         },
         modal: {
           ondismiss: function () {
-            // Handle case when user closes payment modal
             setPaymentLoading(false);
           }
         }
@@ -209,7 +382,6 @@ function DoctorDetailPage() {
       setPaymentLoading(false);
     }
   };
-
 
   const toggleFavorite = async () => {
     try {
@@ -246,11 +418,11 @@ function DoctorDetailPage() {
     ];
   };
 
-  const formatSlotTime = (slot) => {
+  const formatSlotTime = useCallback((slot) => {
     return slot.time || 'Time not specified';
-  };
+  }, []);
 
-  const formatSlotDate = (slot) => {
+  const formatSlotDate = useCallback((slot) => {
     if (slot.date) {
       return new Date(slot.date).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -260,146 +432,7 @@ function DoctorDetailPage() {
       });
     }
     return 'Date not specified';
-  };
-
-  const AppointmentModal = () => {
-    if (!isAppointmentModalOpen) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-          <div className="flex items-center justify-between p-6 border-b border-gray-100">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Book Appointment</h2>
-              <p className="text-gray-600 mt-1">with Dr. {doctor?.username}</p>
-            </div>
-            <button
-              onClick={() => {
-                setIsAppointmentModalOpen(false);
-                setSelectedSlot(null);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              disabled={paymentLoading}
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="p-6">
-            {slotsLoading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading available slots...</p>
-              </div>
-            ) : availableSlots.length > 0 ? (
-              <div>
-                <h3 className="text-lg font-semibold mb-6 text-gray-900">Available Time Slots</h3>
-                <div className="space-y-3 mb-8">
-                  {availableSlots.map((slot, index) => (
-                    <div
-                      key={slot.id || index}
-                      className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${selectedSlot?.id === slot.id
-                          ? 'border-blue-500 bg-blue-50 shadow-md'
-                          : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
-                        }`}
-                      onClick={() => setSelectedSlot(slot)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-900 mb-1">
-                            {formatSlotDate(slot)}
-                          </div>
-                          <div className="text-blue-600 font-bold text-xl mb-2">
-                            {formatSlotTime(slot)}
-                          </div>
-                          <div className="flex items-center gap-6">
-                            <div className="flex items-center gap-1 text-sm text-gray-600">
-                              <span className={`w-2 h-2 rounded-full ${slot.type === 'Video Call' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
-                              {slot.type}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {slot.duration} min
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center">
-                          {selectedSlot?.id === slot.id && (
-                            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                              <Check size={14} className="text-white" />
-                            </div>
-                          )}
-                          <Clock size={18} className="text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Consultation Fee Display */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border border-blue-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-blue-900 text-lg">Consultation Fee</h4>
-                      <p className="text-blue-700 mt-1">Secure one-time payment</p>
-                    </div>
-                    <div className="text-3xl font-bold text-blue-900">
-                      ₹{selectedSlot?.fee || (availableSlots.length > 0 ? availableSlots[0].fee : 'N/A')}
-                    </div>
-                  </div>
-                </div>
-
-                {selectedSlot && (
-                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                    <h4 className="font-semibold mb-4 text-gray-900 text-lg">Appointment Summary</h4>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">DATE & TIME</p>
-                        <p className="text-gray-900">{formatSlotDate(selectedSlot)}</p>
-                        <p className="text-blue-600 font-semibold">{formatSlotTime(selectedSlot)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">CONSULTATION</p>
-                        <p className="text-gray-900">{selectedSlot.type}</p>
-                        <p className="text-gray-600">{selectedSlot.duration} minutes</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <button
-                        onClick={handlePayment}
-                        disabled={paymentLoading}
-                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-semibold"
-                      >
-                        {paymentLoading ? (
-                          <Loader size={20} className="animate-spin" />
-                        ) : (
-                          <CreditCard size={20} />
-                        )}
-                        {paymentLoading ? 'Processing Payment...' : `Pay ₹${selectedSlot?.fee} & Confirm`}
-                      </button>
-
-                      <div className="text-center">
-                        <p className="text-xs text-gray-500">🔐 Secure payment powered by Razorpay</p>
-                        <p className="text-xs text-gray-500 mt-1">UPI • Cards • Net Banking • Wallets</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Calendar size={64} className="mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-600 mb-2 text-lg">No available slots</p>
-                <p className="text-sm text-gray-500">
-                  Please try again later or contact the doctor directly.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -431,7 +464,6 @@ function DoctorDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <Navbar />
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="container mx-auto px-6 py-6">
@@ -444,7 +476,6 @@ function DoctorDetailPage() {
           </button>
 
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Doctor Image */}
             <div className="flex-shrink-0">
               <div className="relative">
                 <div className="w-40 h-40 rounded-2xl overflow-hidden shadow-lg">
@@ -468,7 +499,6 @@ function DoctorDetailPage() {
               </div>
             </div>
 
-            {/* Doctor Info */}
             <div className="flex-1">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -511,7 +541,10 @@ function DoctorDetailPage() {
                   onClick={toggleFavorite}
                   className={`p-3 rounded-full transition-colors ${isFavorite ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                 >
-
+                  <Star 
+                    size={20} 
+                    className={isFavorite ? 'fill-current' : ''} 
+                  />
                 </button>
               </div>
 
@@ -522,14 +555,12 @@ function DoctorDetailPage() {
                 >
                   Book Appointment
                 </button>
-
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="container mx-auto px-6">
           <nav className="flex space-x-8">
@@ -559,10 +590,8 @@ function DoctorDetailPage() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="container mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
           <div className="lg:col-span-2">
             {activeTab === 'overview' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
@@ -729,11 +758,7 @@ function DoctorDetailPage() {
             )}
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-
-
-            {/* Quick Info */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
               <h3 className="font-bold mb-6 text-gray-900 text-lg">Quick Info</h3>
               <div className="space-y-4">
@@ -779,7 +804,6 @@ function DoctorDetailPage() {
               </div>
             </div>
 
-            {/* Available Slots Preview */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
               <h3 className="font-bold mb-6 text-gray-900 text-lg">Available This Week</h3>
               <div className="space-y-4">
@@ -815,8 +839,25 @@ function DoctorDetailPage() {
         </div>
       </div>
 
-      {/* Appointment Modal */}
-      <AppointmentModal />
+      <AppointmentModal
+        isOpen={isAppointmentModalOpen}
+        doctor={doctor}
+        slotsLoading={slotsLoading}
+        availableSlots={availableSlots}
+        selectedSlot={selectedSlot}
+        paymentLoading={paymentLoading}
+        appointmentReason={appointmentReason}
+        onClose={() => {
+          setIsAppointmentModalOpen(false);
+          setSelectedSlot(null);
+          setAppointmentReason('');
+        }}
+        onSlotSelect={setSelectedSlot}
+        onPayment={handlePayment}
+        onReasonChange={setAppointmentReason}
+        formatSlotDate={formatSlotDate}
+        formatSlotTime={formatSlotTime}
+      />
     </div>
   );
 }

@@ -24,12 +24,12 @@ import {
   CreditCard,
   DollarSign,
   Video,
-  MessageCircle
+  MessageCircle,
+  ClipboardListIcon
 } from 'lucide-react';
 import { doctorAxios } from '../../axios/DoctorAxios';
 import VideoCallButton from '../Constants/VideoCallButton';
 import { useSelector } from 'react-redux';
-
 
 const PatientAppointmentDetails = () => {
   const { appointmentId } = useParams();
@@ -166,6 +166,8 @@ const PatientAppointmentDetails = () => {
         updatedData.diagnosis = diagnosis;
         updatedData.prescription = prescription;
         updatedData.follow_up_date = followUpDate;
+
+        
         setAppointment(updatedData);
       } else {
         alert('Failed to save changes: ' + response.data.message);
@@ -311,6 +313,13 @@ const PatientAppointmentDetails = () => {
                   <Mail className="w-5 h-5 text-gray-400" />
                   <div>
                     <p className="text-gray-900">{appointment.patient_email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <ClipboardListIcon className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="text-gray-900">{appointment.reason}</p>
                   </div>
                 </div>
                 

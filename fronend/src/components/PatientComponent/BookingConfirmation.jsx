@@ -257,6 +257,10 @@ export default function AppointmentConfirmation() {
                                     <label className="text-sm font-medium text-gray-500">Phone Number</label>
                                     <p className="text-gray-900 font-medium">{bookingData.patient_phone}</p>
                                 </div>
+                                <div>
+                                    <label className="text-sm font-medium text-gray-500">Reason</label>
+                                    <p className="text-gray-900 font-medium">{bookingData.reason}</p>
+                                </div>
                                 <div className="md:col-span-2">
                                     <label className="text-sm font-medium text-gray-500">Email</label>
                                     <p className="text-gray-900 font-medium">{bookingData.patient_email}</p>

@@ -308,17 +308,7 @@ const DoctorSlots = () => {
     }
   };
 
-  const deleteSlot = async (slotId) => {
-    try {
-      await doctorAxios.delete(`/slots/${slotId}/`);
-      await fetchSlotsForWeek();
-      setShowSlotDetailsModal(false);
-      toast.success('Slot deleted successfully');
-    } catch (error) {
-      console.error('Error deleting slot:', error);
-      toast.error('Failed to delete slot');
-    }
-  };
+  
 
 
   const getSlotsForDate = (date) => {
@@ -690,12 +680,7 @@ const DoctorSlots = () => {
                       >
                         <Edit size={18} />
                       </button>
-                      <button
-                        onClick={() => deleteSlot(slot.id)}
-                        className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      
                     </div>
                   </div>
                 </div>
@@ -813,13 +798,7 @@ const DoctorSlots = () => {
               <Edit size={18} />
               <span>Edit</span>
             </button>
-            <button
-              onClick={() => deleteSlot(selectedSlot.id)}
-              className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 font-medium"
-            >
-              <Trash2 size={18} />
-              <span>Delete</span>
-            </button>
+           
           </div>
         </div>
       </div>
@@ -917,12 +896,7 @@ const DoctorSlots = () => {
                         >
                           <Edit size={18} />
                         </button>
-                        <button
-                          onClick={() => deleteSlot(slot.id)}
-                          className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                       
                       </div>
                     </div>
                   </div>

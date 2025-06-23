@@ -12,6 +12,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
 from rest_framework.response import Response
 from accounts.models import OTPVerification
+from accounts.tasks import send_registration_otp_task, send_password_reset_otp_task
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -55,38 +59,22 @@ class OTPManager:
 class EmailManager:
     @staticmethod
     def send_registration_otp(email, otp, user_type='user'):
-        subject = f'DOCNET - {user_type.title()} Email Verification'
-        message = f'Your OTP for DOCNET registration is: {otp}'
-
         try:
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
+            task = send_registration_otp_task.delay(email,otp)
+            logger.info(f"Registration OTP task queued for {email}, Task ID: {task.id}")
             return True
         except Exception as e:
-            print(f"Failed to send OTP email: {str(e)}")
+            logger.error(f"Failed to queue registration OTP email task: {str(e)}")
             return False
         
     @staticmethod
     def send_password_reset_otp(email, otp, user_type='user'):
-        subject = f'DOCNET {user_type.title()} Password Reset OTP'
-        message = f'Your OTP for password reset is: {otp}'
-
         try:
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
+            task = send_password_reset_otp_task.delay(email, otp)
+            logger.info(f"Password reset OTP task queued for {email}, Task ID: {task.id}")
             return True
         except Exception as e:
-            print(f"Failed to send password reset email: {str(e)}")
+            logger.error(f"Failed to queue password reset OTP email task: {str(e)}")
             return False
         
 class ValidationManager:

@@ -1,558 +1,297 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { FiVideo, FiMic } from 'react-icons/fi';
 import { MdMicOff, MdPhoneDisabled, MdVideocamOff } from 'react-icons/md';
-import SimplePeer from 'simple-peer';
-import { jwtDecode } from 'jwt-decode';
 
 const VideoCall = ({ slotId, token, onEndCall }) => {
-  const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
-  const [micMuted, setMicMuted] = useState(false);
-  const [videoOff, setVideoOff] = useState(false);
-  const [callStarted, setCallStarted] = useState(false);
-  const [error, setError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('Initializing...');
-  const [debugInfo, setDebugInfo] = useState('');
-  const [connectedUsers, setConnectedUsers] = useState(new Set());
-  
-  const socketRef = useRef(null);
-  const peersRef = useRef({});
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
-  const currentUser = jwtDecode(token).user_id;
-  const roomName = slotId;
-  const isInitializedRef = useRef(false);
-  const pendingSignalsRef = useRef({});
+  const pcRef = useRef(null);
+  const wsRef = useRef(null);
+  const pendingCandidates = useRef([]);
+  const isRemoteDescSet = useRef(false);
+  const offerRetryRef = useRef(null);
+  const localStreamRef = useRef(null);
+
+  const [status, setStatus] = useState('Initializing...');
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
+  const [error, setError] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [hasRemoteStream, setHasRemoteStream] = useState(false);
+  const [remotePeerConnected, setRemotePeerConnected] = useState(false);
+  const [refsReady, setRefsReady] = useState(false); // NEW
+
+  // Decode token to get current user
+  const currentUser = (() => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user_id || payload.userId || payload.id;
+    } catch (e) {
+      console.error('Error decoding token:', e);
+      return Math.random().toString(36).substr(2, 9);
+    }
+  })();
 
   const addDebug = (message) => {
-    console.log(message);
-    setDebugInfo(prev => `${prev}\n${new Date().toLocaleTimeString()}: ${message}`);
-  };
-
-  const connectWebSocket = () => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      return;
-    }
-
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
-
-    const wsUrl = `ws://127.0.0.1:8000/ws/videocall/${roomName}/?token=${encodeURIComponent(token)}`;
-    addDebug(`Connecting to WebSocket: ${wsUrl}`);
-    
-    socketRef.current = new WebSocket(wsUrl);
-
-    socketRef.current.onopen = () => {
-      addDebug('WebSocket connected successfully');
-      setConnectionStatus('Connected');
-      setError(null);
-      reconnectAttemptsRef.current = 0;
-    };
-
-    socketRef.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        addDebug(`Received message: ${JSON.stringify(data)}`);
-        
-        switch (data.type) {
-          case 'join-confirmation':
-            addDebug(`Successfully joined room ${data.room} as user ${data.userId}`);
-            setConnectionStatus('Waiting for participant...');
-            break;
-            
-          case 'user-connected':
-            if (data.userId !== currentUser) {
-              addDebug(`User ${data.userId} connected to room`);
-              setConnectedUsers(prev => new Set([...prev, data.userId]));
-              
-              if (localStream && !peersRef.current[data.userId]) {
-                setTimeout(() => {
-                  if (!peersRef.current[data.userId]) {
-                    handleUserConnected(data.userId);
-                  }
-                }, 1500);
-              }
-            }
-            break;
-            
-          case 'user-disconnected':
-            addDebug(`User ${data.userId} disconnected from room`);
-            setConnectedUsers(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(data.userId);
-              return newSet;
-            });
-            handleUserDisconnected(data.userId);
-            break;
-            
-          case 'signal':
-            handleSignal(data);
-            break;
-            
-          default:
-            addDebug(`Unknown message type: ${data.type}`);
-        }
-      } catch (err) {
-        addDebug(`Error parsing message: ${err.message}`);
-      }
-    };
-
-    socketRef.current.onerror = (error) => {
-      addDebug(`WebSocket error: ${error.message || 'Unknown error'}`);
-      setConnectionStatus('Connection Error');
-      setError('Failed to connect to video call service. Please try again.');
-    };
-
-    socketRef.current.onclose = (event) => {
-      addDebug(`WebSocket closed: ${event.code} ${event.reason || 'No reason provided'}`);
-      setConnectionStatus('Disconnected');
-
-      if (event.code === 4004) {
-        setError('Invalid appointment or access denied.');
-        return;
-      }
-      
-      if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
-        const delay = Math.min(5000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
-        reconnectAttemptsRef.current++;
-        addDebug(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
-        setTimeout(connectWebSocket, delay);
-      } else if (event.code !== 1000) {
-        setError('Connection failed. Please refresh the page and try again.');
-      }
-    };
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`${timestamp}: ${message}`);
   };
 
   useEffect(() => {
-    if (isInitializedRef.current) return;
-    isInitializedRef.current = true;
-
-    const getMediaStream = async () => {
-      try {
-        addDebug('Requesting media permissions...');
-        setConnectionStatus('Requesting camera access...');
-        
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user'
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-        
-        addDebug(`Obtained local stream with ${stream.getTracks().length} tracks`);
-        setLocalStream(stream);
-        
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-          addDebug('Set local video stream');
-        }
-
-        connectWebSocket();
-        
-      } catch (err) {
-        addDebug(`Failed to get media: ${err.name} - ${err.message}`);
-        setError(`Could not access camera/microphone: ${err.message}`);
-        setConnectionStatus('Media Access Failed');
-      }
-    };
-
-    getMediaStream();
-
-    return () => {
-      addDebug('Cleaning up resources...');
-      if (socketRef.current) {
-        socketRef.current.close(1000, 'Component unmounting');
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => {
-          track.stop();
-          addDebug(`Stopped ${track.kind} track`);
-        });
-      }
-      Object.values(peersRef.current).forEach(peer => {
-        if (peer && typeof peer.destroy === 'function') {
-          peer.destroy();
-        }
-      });
-      peersRef.current = {};
-    };
+    // Check for refs after mount
+    if (localVideoRef.current && remoteVideoRef.current) {
+      setRefsReady(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (localStream && connectedUsers.size > 0) {
-      addDebug(`Local stream available, checking ${connectedUsers.size} connected users`);
-      connectedUsers.forEach(userId => {
-        if (!peersRef.current[userId]) {
-          addDebug(`Creating delayed connection to existing user ${userId}`);
-          setTimeout(() => {
-            if (!peersRef.current[userId] && localStream) {
-              handleUserConnected(userId);
-            }
-          }, 1000);
-        }
-      });
-    }
-  }, [localStream, connectedUsers]);
+    if (!refsReady) return;
 
-  useEffect(() => {
-    if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        { urls: 'stun:stun.relay.metered.ca:80' }
+      ]
+    });
+    pcRef.current = pc;
 
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(err => {
-        addDebug(`Error playing remote video: ${err.message}`);
-      });
-    }
-  }, [remoteStream]);
+    const start = async () => {
+      try {
+        addDebug('Requesting media access...');
+        setStatus('Requesting camera access...');
 
-  const handleUserConnected = (userId) => {
-    addDebug(`Handling user connected: ${userId}`);
-    
-    if (peersRef.current[userId]) {
-      addDebug(`Peer already exists for ${userId}, skipping creation`);
-      return;
-    }
-
-    if (!localStream) {
-      addDebug(`Cannot create peer for ${userId} - no local stream`);
-      return;
-    }
-
-    if (socketRef.current?.readyState !== WebSocket.OPEN) {
-      addDebug(`Cannot create peer for ${userId} - WebSocket not ready`);
-      return;
-    }
-
-    const shouldInitiate = currentUser < userId;
-    
-    addDebug(`Creating peer connection to ${userId} as ${shouldInitiate ? 'initiator' : 'receiver'}`);
-    
-    try {
-      const Peer = SimplePeer.default || SimplePeer;
-      const peer = new Peer({
-        initiator: shouldInitiate,
-        trickle: true,
-        stream: localStream,
-        config: { 
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
-          ]
-        }
-      });
-
-      setupPeerEvents(peer, userId);
-      peersRef.current[userId] = peer;
-
-      if (pendingSignalsRef.current[userId]) {
-        addDebug(`Processing ${pendingSignalsRef.current[userId].length} pending signals for ${userId}`);
-        pendingSignalsRef.current[userId].forEach(signal => {
-          try {
-            if (peer && typeof peer.signal === 'function') {
-              peer.signal(signal);
-            }
-          } catch (err) {
-            addDebug(`Error processing pending signal: ${err.message}`);
-          }
+        const localStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
         });
-        delete pendingSignalsRef.current[userId];
-      }
-    } catch (err) {
-      addDebug(`Error creating peer for ${userId}: ${err.stack}`);
-      setError(`Failed to create connection with participant: ${err.message}`);
-    }
-  };
 
-  const handleSignal = ({ callerId, signal }) => {
-    addDebug(`Received signal from ${callerId}, signal type: ${signal.type || 'unknown'}`);
-    
-    if (callerId === currentUser) {
-      addDebug(`Ignoring signal from self`);
-      return;
-    }
-
-    if (!localStream) {
-      addDebug(`Cannot handle signal - no local stream available`);
-      return;
-    }
-
-    if (!peersRef.current[callerId]) {
-      addDebug(`No peer exists for ${callerId}, storing signal for later`);
-      
-      if (!pendingSignalsRef.current[callerId]) {
-        pendingSignalsRef.current[callerId] = [];
-      }
-      pendingSignalsRef.current[callerId].push(signal);
-
-      const shouldInitiate = currentUser < callerId;
-      if (!shouldInitiate) {
-        addDebug(`Creating peer for ${callerId} as receiver`);
-        
-        try {
-          const Peer = SimplePeer.default || SimplePeer;
-          const peer = new Peer({
-            initiator: false,
-            trickle: true,
-            stream: localStream,
-            config: { 
-              iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' }
-              ]
-            }
-          });
-
-          setupPeerEvents(peer, callerId);
-          peersRef.current[callerId] = peer;
-
-          pendingSignalsRef.current[callerId].forEach(pendingSignal => {
-            try {
-              if (peer && typeof peer.signal === 'function') {
-                peer.signal(pendingSignal);
-              }
-            } catch (err) {
-              addDebug(`Error processing stored signal: ${err.message}`);
-            }
-          });
-          delete pendingSignalsRef.current[callerId];
-        } catch (err) {
-          addDebug(`Error creating receiver peer for ${callerId}: ${err.message}`);
+        localStreamRef.current = localStream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStream;
+          localVideoRef.current.play().catch(e => addDebug(`Local video play error: ${e.message}`));
         }
+
+        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+        const wsUrl = `ws://127.0.0.1:8000/ws/videocall/${slotId}/?token=${encodeURIComponent(token)}`;
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          addDebug('WebSocket connected');
+          setStatus('Connected to server');
+        };
+
+        ws.onerror = () => {
+          setError('Failed to connect to video call service');
+          setStatus('Connection failed');
+        };
+
+        ws.onclose = (event) => {
+          addDebug(`WebSocket closed: ${event.code}`);
+          setStatus('Disconnected');
+        };
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate && ws.readyState === WebSocket.OPEN) {
+            if (isRemoteDescSet.current) {
+              ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate }));
+            } else {
+              pendingCandidates.current.push(e.candidate);
+            }
+          }
+        };
+
+        pc.ontrack = (e) => {
+          addDebug(`Remote track: ${e.track.kind}`);
+          const remoteStream = e.streams?.[0];
+          if (!remoteStream) return;
+
+          setRemotePeerConnected(true);
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = remoteStream;
+            remoteVideoRef.current.play()
+              .then(() => {
+                setHasRemoteStream(true);
+                setStatus('Call Active');
+              })
+              .catch(e => {
+                setStatus('Click video to play');
+                addDebug(`Remote video play error: ${e.message}`);
+              });
+          }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          const state = pc.iceConnectionState;
+          addDebug(`ICE connection state: ${state}`);
+          if (state === 'connected' || state === 'completed') {
+            setIsConnected(true);
+            setStatus('Call Active');
+          } else if (state === 'disconnected') {
+            setStatus('Reconnecting...');
+            setIsConnected(false);
+          } else if (state === 'failed') {
+            setStatus('Connection failed');
+            setError('Connection failed');
+          } else if (state === 'closed') {
+            setStatus('Call ended');
+          }
+        };
+
+        ws.onmessage = async (event) => {
+          const msg = JSON.parse(event.data);
+          addDebug(`Received: ${msg.type}`);
+
+          if (msg.type === 'joined') {
+            setStatus(msg.isOfferer ? 'Initiating call...' : 'Waiting for call...');
+            if (msg.isOfferer) {
+              const sendOffer = async () => {
+                const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+                await pc.setLocalDescription(offer);
+                ws.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }));
+              };
+
+              await sendOffer();
+              offerRetryRef.current = setInterval(() => {
+                if (pc.signalingState === 'have-local-offer') {
+                  sendOffer();
+                } else {
+                  clearInterval(offerRetryRef.current);
+                  offerRetryRef.current = null;
+                }
+              }, 3000);
+            }
+          }
+
+          if (msg.type === 'offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
+            isRemoteDescSet.current = true;
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ type: 'answer', sdp: answer.sdp }));
+
+            pendingCandidates.current.forEach(c => ws.send(JSON.stringify({ type: 'ice', candidate: c })));
+            pendingCandidates.current = [];
+          }
+
+          if (msg.type === 'answer') {
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: msg.sdp }));
+            isRemoteDescSet.current = true;
+            if (offerRetryRef.current) {
+              clearInterval(offerRetryRef.current);
+              offerRetryRef.current = null;
+            }
+            pendingCandidates.current.forEach(c => ws.send(JSON.stringify({ type: 'ice', candidate: c })));
+            pendingCandidates.current = [];
+          }
+
+          if (msg.type === 'ice' && msg.candidate) {
+            const candidate = new RTCIceCandidate(msg.candidate);
+            if (pc.remoteDescription) {
+              await pc.addIceCandidate(candidate);
+            } else {
+              pendingCandidates.current.push(candidate);
+            }
+          }
+        };
+      } catch (err) {
+        addDebug(`Start error: ${err.message}`);
+        setError('Could not access media devices');
+        setStatus('Error');
       }
-      return;
-    }
+    };
 
-    try {
-      const peer = peersRef.current[callerId];
-      if (peer && typeof peer.signal === 'function') {
-        peer.signal(signal);
-        addDebug(`Successfully signaled peer ${callerId}`);
-      } else {
-        addDebug(`Peer ${callerId} is not valid or doesn't have signal method`);
+    start();
+
+    return () => {
+      if (offerRetryRef.current) clearInterval(offerRetryRef.current);
+      if (pcRef.current) pcRef.current.close();
+      if (wsRef.current) wsRef.current.close();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
       }
-    } catch (err) {
-      addDebug(`Error signaling peer ${callerId}: ${err.message}`);
-    }
-  };
+    };
+  }, [refsReady, slotId, token]);
 
-  const setupPeerEvents = (peer, userId) => {
-    if (!peer) {
-      addDebug(`Cannot setup events for null peer ${userId}`);
-      return;
-    }
-
-    peer.on('signal', signal => {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        addDebug(`Sending signal to ${userId}, type: ${signal.type || 'unknown'}`);
-        socketRef.current.send(JSON.stringify({
-          type: 'signal',
-          userToSignal: userId,
-          callerId: currentUser,
-          signal
-        }));
-      } else {
-        addDebug(`Cannot send signal - WebSocket not ready`);
-      }
-    });
-
-    peer.on('stream', stream => {
-      addDebug(`Received remote stream from ${userId}`);
-      setRemoteStream(stream);
-      setCallStarted(true);
-      setConnectionStatus('Call Active');
-    });
-
-    peer.on('error', err => {
-      addDebug(`Peer error with ${userId}: ${err.message}`);
-      delete peersRef.current[userId];
-      setError(`Connection error with participant: ${err.message}`);
-    });
-
-    peer.on('close', () => {
-      addDebug(`Peer connection closed with ${userId}`);
-      delete peersRef.current[userId];
-      if (Object.keys(peersRef.current).length === 0) {
-        setRemoteStream(null);
-        setCallStarted(false);
-        setConnectionStatus('Participant disconnected');
-      }
-    });
-
-    peer.on('connect', () => {
-      addDebug(`Peer data channel connected with ${userId}`);
-    });
-  };
-
-  const handleUserDisconnected = (userId) => {
-    addDebug(`User disconnected: ${userId}`);
-    if (peersRef.current[userId]) {
-      const peer = peersRef.current[userId];
-      if (peer && typeof peer.destroy === 'function') {
-        peer.destroy();
-      }
-      delete peersRef.current[userId];
-    }
-    
-    delete pendingSignalsRef.current[userId];
-    
-    if (Object.keys(peersRef.current).length === 0) {
-      setRemoteStream(null);
-      setCallStarted(false);
-      setConnectionStatus('Waiting for participant...');
-    }
-  };
-
-  const toggleMic = () => {
-    if (localStream) {
-      const enabled = !micMuted;
-      localStream.getAudioTracks().forEach(track => {
-        track.enabled = enabled;
-        addDebug(`${enabled ? 'Enabled' : 'Disabled'} microphone`);
-      });
-      setMicMuted(!enabled);
+  const toggleMute = () => {
+    const tracks = localStreamRef.current?.getAudioTracks();
+    if (tracks) {
+      tracks.forEach(t => (t.enabled = !t.enabled));
+      setIsMuted(!isMuted);
     }
   };
 
   const toggleVideo = () => {
-    if (localStream) {
-      const enabled = !videoOff;
-      localStream.getVideoTracks().forEach(track => {
-        track.enabled = enabled;
-        addDebug(`${enabled ? 'Enabled' : 'Disabled'} video`);
-      });
-      setVideoOff(!enabled);
+    const tracks = localStreamRef.current?.getVideoTracks();
+    if (tracks) {
+      tracks.forEach(t => (t.enabled = !t.enabled));
+      setIsVideoOff(!isVideoOff);
     }
   };
 
   const endCall = () => {
-    addDebug('Ending call...');
-    
-    if (socketRef.current) {
-      socketRef.current.close(1000, 'Call ended by user');
-    }
-    
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        track.stop();
-        addDebug(`Stopped ${track.kind} track`);
-      });
-    }
-    
-    Object.values(peersRef.current).forEach(peer => {
-      if (peer && typeof peer.destroy === 'function') {
-        peer.destroy();
-      }
-    });
-    peersRef.current = {};
-    
-    if (onEndCall) {
-      onEndCall();
-    }
+    if (wsRef.current) wsRef.current.close();
+    if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
+    if (pcRef.current) pcRef.current.close();
+    if (onEndCall) onEndCall();
+  };
+
+  const tryPlayRemoteVideo = () => {
+    remoteVideoRef.current?.play().catch(e => addDebug(`Manual play failed: ${e.message}`));
   };
 
   return (
     <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col">
-      {error && (
-        <div className="bg-red-500 p-4 text-center flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-4 text-white hover:text-gray-200">
-            ×
-          </button>
-        </div>
-      )}
-
       <div className="bg-gray-800 p-2 text-center text-sm">
-        Status: {connectionStatus} | Room: {roomName} | User: {currentUser} | Connected: {connectedUsers.size}
+        <div>Status: {status}</div>
+        <div className="text-xs text-gray-400 mt-1">
+          Room: {slotId} | User: {currentUser} | ICE: {isConnected ? 'Connected' : 'Not Connected'} |
+          Remote Video: {hasRemoteStream ? 'Yes' : 'No'} | Peer: {remotePeerConnected ? 'Yes' : 'No'}
+        </div>
       </div>
 
-      <div className="flex-1 relative">
-        <div className="absolute inset-0 bg-black">
-          {remoteStream ? (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-xl mb-4">
-                  {connectionStatus === 'Call Active' ? 'Connected' : connectionStatus}
-                </p>
-                {connectionStatus === 'Waiting for participant...' && (
-                  <p className="text-sm text-gray-400">
-                    {connectedUsers.size > 0 ? 'Connecting to participant...' : 'Share the room ID with the other participant'}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="flex-1 relative bg-black">
+        <video
+          ref={remoteVideoRef}
+          className="w-full h-full object-cover"
+          autoPlay
+          playsInline
+          onClick={tryPlayRemoteVideo}
+          style={{ display: hasRemoteStream ? 'block' : 'none' }}
+        />
 
-        <div className="absolute bottom-20 right-4 w-1/4 max-w-xs bg-black rounded-lg overflow-hidden shadow-lg">
-          {localStream ? (
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className={`w-full h-full object-cover ${videoOff ? 'opacity-20' : ''}`}
-            />
-          ) : (
-            <div className="aspect-video bg-gray-700 flex items-center justify-center">
-              <span className="text-sm">No camera</span>
-            </div>
-          )}
+        {!hasRemoteStream && (
+          <div className="flex items-center justify-center h-full text-center">
+            <p className="text-xl">{status}</p>
+          </div>
+        )}
+
+        <div className="absolute bottom-20 right-4 w-1/4 max-w-xs border-2 border-gray-600 rounded overflow-hidden">
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            playsInline
+            className={`w-full h-full object-cover ${isVideoOff ? 'opacity-30' : ''}`}
+          />
         </div>
       </div>
 
       <div className="bg-gray-800 p-4 flex justify-center space-x-6">
-        <button
-          onClick={toggleMic}
-          className={`p-3 rounded-full transition-colors ${micMuted ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-          title={micMuted ? 'Unmute microphone' : 'Mute microphone'}
-        >
-          {micMuted ? <MdMicOff size={24} /> : <FiMic size={24} />}
+        <button onClick={toggleMute} className={`p-4 rounded-full ${isMuted ? 'bg-red-500' : 'bg-gray-700'}`}>
+          {isMuted ? <MdMicOff size={24} /> : <FiMic size={24} />}
         </button>
-        
-        <button
-          onClick={toggleVideo}
-          className={`p-3 rounded-full transition-colors ${videoOff ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-          title={videoOff ? 'Turn on camera' : 'Turn off camera'}
-        >
-          {videoOff ? <MdVideocamOff size={24} /> : <FiVideo size={24} />}
+        <button onClick={toggleVideo} className={`p-4 rounded-full ${isVideoOff ? 'bg-red-500' : 'bg-gray-700'}`}>
+          {isVideoOff ? <MdVideocamOff size={24} /> : <FiVideo size={24} />}
         </button>
-        
-        <button
-          onClick={endCall}
-          className="p-3 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
-          title="End call"
-        >
+        <button onClick={endCall} className="p-4 rounded-full bg-red-600">
           <MdPhoneDisabled size={24} />
         </button>
       </div>
-
-      {process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-16 left-4 max-w-md max-h-40 overflow-auto bg-black bg-opacity-75 p-2 text-xs">
-          <pre className="whitespace-pre-wrap">{debugInfo}</pre>
-        </div>
-      )}
     </div>
   );
 };

@@ -6,9 +6,11 @@ from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from accounts.models import Appointment
 from urllib.parse import parse_qs
-import asyncio
 
 logger = logging.getLogger(__name__)
+
+# Global rooms dictionary to track connections
+rooms = {}
 
 class VideoCallConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -17,6 +19,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         self.user_id = None
         
         try:
+            # Parse token from query string
             query_string = self.scope['query_string'].decode()
             query_params = parse_qs(query_string)
             
@@ -31,6 +34,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 access_token = AccessToken(token)
                 self.user_id = access_token['user_id']
                 
+                # Validate appointment access
                 if not await self.validate_appointment(self.room_name, self.user_id):
                     logger.error(f"Invalid appointment for room {self.room_name}")
                     await self.close(code=4004)
@@ -41,27 +45,31 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 await self.close(code=4003)
                 return
             
-            # Accept the connection first
+            # Accept connection
             await self.accept()
-            logger.info(f"User {self.user_id} accepted connection to room {self.room_name}")
+            logger.info(f"User {self.user_id} connected to room {self.room_name}")
             
-            # Add to group
+            # Add to channel layer group
             await self.channel_layer.group_add(
                 self.room_group_name,
                 self.channel_name
             )
-            logger.info(f"User {self.user_id} added to group {self.room_group_name}")
             
-            # Immediately notify other users that this user connected
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'user_connected',
-                    'user_id': self.user_id,
-                }
-            )
+            # Track room connections
+            is_offerer = False
+            if self.room_name not in rooms:
+                rooms[self.room_name] = [self.channel_name]
+                is_offerer = True
+            else:
+                rooms[self.room_name].append(self.channel_name)
             
-            logger.info(f"User {self.user_id} connection setup completed for room {self.room_name}")
+            # Send joined confirmation
+            await self.send(text_data=json.dumps({
+                "type": "joined",
+                "isOfferer": is_offerer,
+                "userId": self.user_id,
+                "room": self.room_name
+            }))
             
         except Exception as e:
             logger.error(f"Error in connect: {e}")
@@ -70,21 +78,19 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         logger.info(f"User {getattr(self, 'user_id', 'unknown')} disconnecting from room {getattr(self, 'room_name', 'unknown')} with code {close_code}")
         
-        if hasattr(self, 'user_id') and self.user_id and hasattr(self, 'room_group_name'):
-            # Notify other users about disconnection
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'user_disconnected',
-                    'user_id': self.user_id,
-                }
-            )
-            
-            # Remove from group
+        # Remove from channel layer group
+        if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
             )
+        
+        # Clean up room tracking
+        if hasattr(self, 'room_name') and self.room_name in rooms:
+            if self.channel_name in rooms[self.room_name]:
+                rooms[self.room_name].remove(self.channel_name)
+            if not rooms[self.room_name]:
+                del rooms[self.room_name]
 
     async def receive(self, text_data):
         try:
@@ -93,77 +99,27 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             
             logger.debug(f"Received message type {message_type} from user {self.user_id}")
             
-            if message_type == 'join-room':
-                # Handle join room request - send back confirmation
-                logger.info(f"User {self.user_id} requesting to join room {data.get('room')}")
-                await self.send(text_data=json.dumps({
-                    'type': 'join-confirmation',
-                    'room': self.room_name,
-                    'userId': self.user_id
-                }))
-                
-            elif message_type == 'signal':
-                # Forward signaling data between peers
-                target_user = data.get('userToSignal')
-                caller_id = data.get('callerId')
-                signal = data.get('signal')
-                
-                logger.debug(f"Forwarding signal from {caller_id} to {target_user}")
-                
-                # Send signal to the specific target user
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'signal_message',
-                        'signal': signal,
-                        'caller_id': caller_id,
-                        'target_user': target_user
-                    }
-                )
+            # Forward all signaling messages to other participants
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "signal_message",
+                    "message": data,
+                    "sender_channel": self.channel_name,
+                    "sender_user": self.user_id
+                }
+            )
                 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON received from user {self.user_id}: {e}")
         except Exception as e:
             logger.error(f"Error in receive from user {self.user_id}: {e}")
 
-    async def user_connected(self, event):
-        """Handle user_connected group message"""
-        user_id = event['user_id']
-        
-        # Don't send notification to the user who just connected
-        if user_id != self.user_id:
-            await self.send(text_data=json.dumps({
-                'type': 'user-connected',
-                'userId': user_id
-            }))
-            logger.debug(f"Notified user {self.user_id} about user {user_id} connecting")
-
-    async def user_disconnected(self, event):
-        """Handle user_disconnected group message"""
-        user_id = event['user_id']
-        
-        # Don't send notification to the user who disconnected
-        if self.user_id != user_id:
-            await self.send(text_data=json.dumps({
-                'type': 'user-disconnected',
-                'userId': user_id
-            }))
-            logger.debug(f"Notified user {self.user_id} about user {user_id} disconnecting")
-
     async def signal_message(self, event):
-        """Handle signal_message group message"""
-        signal = event['signal']
-        caller_id = event['caller_id']
-        target_user = event.get('target_user')
-        
-        # Only send to the intended recipient
-        if target_user == self.user_id and caller_id != self.user_id:
-            await self.send(text_data=json.dumps({
-                'type': 'signal',
-                'signal': signal,
-                'callerId': caller_id
-            }))
-            logger.debug(f"Forwarded signal from {caller_id} to {self.user_id}")
+        """Handle signal_message group message - only send to other participants"""
+        if event["sender_channel"] != self.channel_name:
+            await self.send(text_data=json.dumps(event["message"]))
+            logger.debug(f"Forwarded message from user {event.get('sender_user')} to user {self.user_id}")
 
     @database_sync_to_async
     def validate_appointment(self, room_name, user_id):

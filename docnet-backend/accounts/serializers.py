@@ -306,22 +306,27 @@ class DoctorSlotViewSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class CreatePaymentSerializer(serializers.ModelSerializer):
+    reason = serializers.CharField(write_only=True, required=True)
     class Meta:
         model = Payment
-        fields = ['slot', 'amount']
+        fields = ['slot', 'amount', 'reason']
 
     def create(self, validated_data):
         request = self.context['request']
         slot = validated_data['slot']
         patient = request.user
         amount = validated_data.get('amount', slot.fee)
+        reason = validated_data.pop('reason')
 
         # Create Razorpay order
         client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl","sXYZOT0gNEqb4wh8rZ67jwYM"))
         razorpay_order = client.order.create({
             "amount": int(amount * 100),  # in paise
             "currency": "INR",
-            "payment_capture": 1
+            "payment_capture": 1,
+            "notes": {
+                "reason": reason
+            }
         })
 
         payment = Payment.objects.create(
@@ -332,9 +337,16 @@ class CreatePaymentSerializer(serializers.ModelSerializer):
             payment_id=razorpay_order['id']
         )
 
+        appointment = Appointment.objects.create(
+            payment=payment,
+            reason=reason,
+            status='scheduled'
+        )
+
         return {
             "payment": payment,
-            "order": razorpay_order
+            "order": razorpay_order,
+            "appointment": appointment
         }
 
 
@@ -369,7 +381,7 @@ class VerifyPaymentSerializer(serializers.Serializer):
         payment.save()
 
         # Create appointment
-        appointment = Appointment.objects.create(payment=payment)
+        appointment = Appointment.objects.get(payment=payment)
 
         slot_booking = payment.slot
         slot_booking.is_booked = True
@@ -399,6 +411,7 @@ class BookingHistorySerializer(serializers.ModelSerializer):
     end_time = serializers.TimeField(source='payment.slot.end_time', read_only=True)
     payment_status = serializers.CharField(source='payment.payment_status', read_only=True)
     amount = serializers.DecimalField(source='payment.amount', max_digits=10, decimal_places=2, read_only=True)
+    reason = serializers.CharField(source='reason', read_only=True)
 
     class Meta:
         model = Appointment
@@ -411,6 +424,7 @@ class BookingHistorySerializer(serializers.ModelSerializer):
             'end_time',
             'payment_status',
             'amount',
+            'reason',
             'created_at',
         ]
 
@@ -420,6 +434,7 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
     patient_email = serializers.CharField(source='payment.patient.email', read_only=True)
     patient_phone = serializers.CharField(source='payment.patient.phone', read_only=True)
     patient_profile_image = serializers.CharField(source='payment.patient.profile_image', read_only=True)
+    reason = serializers.CharField(source='reason', read_only = True)
     
     # Slot information
     appointment_date = serializers.DateField(source='payment.slot.date', read_only=True)
@@ -450,7 +465,7 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
             # Patient fields
             'patient_name', 'patient_email', 'patient_phone', 'patient_profile_image',
             # Appointment fields
-            'appointment_date', 'appointment_time', 'duration', 'consultation_type','slot_id', 'slot_notes',
+            'appointment_date', 'appointment_time', 'duration', 'consultation_type','slot_id', 'slot_notes','reason',
             # Payment fields
             'payment_amount', 'payment_status', 'payment_id', 'payment_method', 
             'razorpay_payment_id', 'payment_date',
@@ -490,6 +505,7 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
     appointment_id = serializers.IntegerField(source='id', read_only=True)
     appointment_status = serializers.CharField(source='status', read_only=True)
     booking_date = serializers.DateTimeField(source='created_at', read_only=True)
+    reason = serializers.CharField(read_only=True)
     
     # Patient Information - Add error handling for missing relationships
     patient_name = serializers.SerializerMethodField()
@@ -526,7 +542,7 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
         model = Appointment
         fields = [
             # Appointment fields
-            'appointment_id', 'appointment_status', 'booking_date',
+            'appointment_id', 'appointment_status', 'booking_date','reason',
             # Patient fields
             'patient_name', 'patient_email', 'patient_phone',
             # Doctor fields
@@ -725,10 +741,11 @@ class EmergencyDoctorSerializer(serializers.ModelSerializer):
 
 class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
     doctor_id = serializers.IntegerField()
+    reason = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = EmergencyPayment
-        fields = ['doctor_id', 'amount']
+        fields = ['doctor_id', 'amount','reason']
 
     def validate(self, data):
         doctor_id = data.get('doctor_id')
@@ -762,6 +779,7 @@ class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
         doctor = validated_data['doctor_id']
         patient = request.user
         amount = validated_data.get('amount', 800.00)
+        reason = validated_data.get('reason','')
 
         # Check for existing active consultation
         active_consultation = EmergencyPayment.objects.filter(
@@ -789,7 +807,8 @@ class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
                     "consultation_type": "emergency",
                     "doctor_id": str(doctor.id),
                     "patient_id": str(patient.id),
-                    "patient_name": patient.username
+                    "patient_name": patient.username,
+                    "reason": reason,
                 }
             })
 
@@ -801,7 +820,8 @@ class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
                     amount=amount,
                     payment_status='pending',
                     payment_id=razorpay_order['id'],
-                    razorpay_order_id=razorpay_order['id']
+                    razorpay_order_id=razorpay_order['id'],
+                    reason=reason,
                 )
 
             return {

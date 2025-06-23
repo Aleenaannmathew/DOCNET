@@ -38,9 +38,9 @@ class DoctorRegistrationView(APIView):
                 otp = OTPManager.create_otp_verification(user)
                 doctor_logger.info(f"New doctor user created - ID: {user.id}, Email: {user.email}")
 
-                email_sent = EmailManager.send_registration_otp(user.email, otp, 'doctor')
-                if not email_sent:
-                    doctor_logger.error(f"Failed to send OTP email to {user.email}")
+                email_queued = EmailManager.send_registration_otp(user.email, otp, 'doctor')
+                if not email_queued:
+                    doctor_logger.error(f"Failed to queue OTP email for {user.email}")
 
                 return ResponseManager.success_response(
                     data={
@@ -174,12 +174,9 @@ class DoctorSendPasswordResetOTPView(APIView):
             # Generate and send password reset OTP
             otp = OTPManager.create_otp_verification(user, 'password_reset')
             
-            email_sent = EmailManager.send_password_reset_otp(user.email, otp, 'doctor')
-            if not email_sent:
-                return ResponseManager.error_response(
-                    'Failed to send OTP email',
-                    status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            email_queued = EmailManager.send_registration_otp(user.email, otp, 'doctor')
+            if not email_queued:
+                doctor_logger.error(f"Failed to queue OTP email for {user.email}")
             
             return ResponseManager.success_response(
                 data={'user_id': user.id},

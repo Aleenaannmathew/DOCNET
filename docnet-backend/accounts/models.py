@@ -96,6 +96,7 @@ class Appointment(models.Model):
     )      
     payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name='appointments', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    reason = models.CharField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -130,6 +131,7 @@ class EmergencyPayment(models.Model):
     consultation_end_time = models.DateTimeField(null=True, blank=True)
     video_call_link = models.URLField(blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField(blank=True, null=True)
 
     class Meta:
         indexes = [
