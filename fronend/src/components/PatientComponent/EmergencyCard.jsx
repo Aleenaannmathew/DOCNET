@@ -5,6 +5,7 @@ import { userAxios } from '../../axios/UserAxios';
 function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
+    const [reason, setReason] = useState(''); // Add state for reason
 
     const emergencyFee = 800;
     console.log(doctor)
@@ -21,6 +22,12 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
     };
 
     const handleEmergencyConsultation = async () => {
+        // Validate reason before proceeding
+        if (!reason.trim()) {
+            alert("Please provide a reason for the emergency consultation.");
+            return;
+        }
+
         setPaymentLoading(true);
 
         const res = await loadRazorpay();
@@ -31,10 +38,11 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
         }
 
         try {
-            // Create emergency payment
+            // Create emergency payment with reason
             const createRes = await userAxios.post('/emergency-payments/create/', {
                 doctor_id: doctor.user_id, // doctor.user_id is correct
-                amount: emergencyFee       // e.g., 800
+                amount: emergencyFee,      // e.g., 800
+                reason: reason.trim()      // Add the reason field
             });
             console.log(createRes)
 
@@ -120,88 +128,7 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
         ));
     };
 
-    const PaymentModal = () => {
-        if (!isPaymentModalOpen) return null;
 
-        return (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
-                    <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900">Emergency Consultation</h2>
-                            <p className="text-gray-600 mt-1">with Dr. {doctor.user?.username || doctor.username}</p>
-                        </div>
-                        <button
-                            onClick={() => setIsPaymentModalOpen(false)}
-                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                            disabled={paymentLoading}
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="p-6">
-                        <div className="bg-red-50 rounded-xl p-6 mb-6 border border-red-100">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                                    <Video className="text-red-600" size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-red-900">Instant Video Call</h3>
-                                    <p className="text-red-700 text-sm">Connect immediately with the doctor</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2 text-sm text-red-700">
-                                <div className="flex items-center gap-2">
-                                    <Check size={16} className="text-red-600" />
-                                    <span>Immediate consultation</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Check size={16} className="text-red-600" />
-                                    <span>No appointment needed</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Check size={16} className="text-red-600" />
-                                    <span>Direct video call access</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 mb-6 border border-red-100">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="font-semibold text-red-900 text-lg">Emergency Fee</h4>
-                                    <p className="text-red-700 mt-1">One-time payment</p>
-                                </div>
-                                <div className="text-3xl font-bold text-red-900">
-                                    ₹{emergencyFee}
-                                </div>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleEmergencyConsultation}
-                            disabled={paymentLoading}
-                            className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-semibold"
-                        >
-                            {paymentLoading ? (
-                                <Loader size={20} className="animate-spin" />
-                            ) : (
-                                <CreditCard size={20} />
-                            )}
-                            {paymentLoading ? 'Processing Payment...' : `Pay ₹${emergencyFee} & Start Call`}
-                        </button>
-
-                        <div className="text-center mt-4">
-                            <p className="text-xs text-gray-500">🔐 Secure payment powered by Razorpay</p>
-                            <p className="text-xs text-gray-500 mt-1">UPI • Cards • Net Banking • Wallets</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <>
@@ -288,7 +215,104 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
             </div>
 
             {/* Payment Modal */}
-            <PaymentModal />
+            {isPaymentModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
+                        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">Emergency Consultation</h2>
+                                <p className="text-gray-600 mt-1">with Dr. {doctor.user?.username || doctor.username}</p>
+                            </div>
+                            <button
+                                onClick={() => setIsPaymentModalOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                disabled={paymentLoading}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6">
+                            {/* Reason Input Field */}
+                            <div className="mb-6">
+                                <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Reason for Emergency Consultation *
+                                </label>
+                                <textarea
+                                    id="reason"
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    placeholder="Please describe your medical emergency or urgent concern..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                                    rows={3}
+                                    maxLength={500}
+                                    disabled={paymentLoading}
+                                />
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {reason.length}/500 characters
+                                </div>
+                            </div>
+
+                            <div className="bg-red-50 rounded-xl p-6 mb-6 border border-red-100">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                        <Video className="text-red-600" size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-red-900">Instant Video Call</h3>
+                                        <p className="text-red-700 text-sm">Connect immediately with the doctor</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 text-sm text-red-700">
+                                    <div className="flex items-center gap-2">
+                                        <Check size={16} className="text-red-600" />
+                                        <span>Immediate consultation</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Check size={16} className="text-red-600" />
+                                        <span>No appointment needed</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Check size={16} className="text-red-600" />
+                                        <span>Direct video call access</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 mb-6 border border-red-100">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="font-semibold text-red-900 text-lg">Emergency Fee</h4>
+                                        <p className="text-red-700 mt-1">One-time payment</p>
+                                    </div>
+                                    <div className="text-3xl font-bold text-red-900">
+                                        ₹{emergencyFee}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleEmergencyConsultation}
+                                disabled={paymentLoading || !reason.trim()}
+                                className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-4 px-6 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg font-semibold"
+                            >
+                                {paymentLoading ? (
+                                    <Loader size={20} className="animate-spin" />
+                                ) : (
+                                    <CreditCard size={20} />
+                                )}
+                                {paymentLoading ? 'Processing Payment...' : `Pay ₹${emergencyFee} & Start Call`}
+                            </button>
+
+                            <div className="text-center mt-4">
+                                <p className="text-xs text-gray-500">🔐 Secure payment powered by Razorpay</p>
+                                <p className="text-xs text-gray-500 mt-1">UPI • Cards • Net Banking • Wallets</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

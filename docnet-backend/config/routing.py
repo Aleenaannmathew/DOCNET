@@ -13,6 +13,7 @@ application = ProtocolTypeRouter({
     'websocket': AuthMiddlewareStack(
         URLRouter([
             re_path(r'ws/videocall/(?P<room_name>\w+)/$', consumers.VideoCallConsumer.as_asgi()),
+            re_path(r'ws/emergency/(?P<room_name>\w+)/$', consumers.VideoCallConsumer.as_asgi()),
         ])
     ),
 })

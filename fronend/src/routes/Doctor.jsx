@@ -18,6 +18,7 @@ import Slots from '../pages/DoctorPages/Slots';
 import PatientAppointments from '../pages/DoctorPages/PatientAppointments';
 import AppointmentDetails from '../pages/DoctorPages/AppointmentDetails';
 import Wallet from '../pages/DoctorPages/Wallet';
+import ListEmergencyPatients from '../pages/DoctorPages/ListEmergencyPatients';
 
 function DoctorRoutes() {
   return (
@@ -73,6 +74,7 @@ function DoctorRoutes() {
         <Route path="doctor-appointments" element={<PatientAppointments/>}/>
         <Route path="appointment-details/:appointmentId" element={<AppointmentDetails/>}/>
         <Route path="doctor-wallet" element={<Wallet/>}/>
+        <Route path="emergency-list" element={<ListEmergencyPatients/>}/>
       </Route>
 
       {/* Catch-all route */}

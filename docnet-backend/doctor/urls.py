@@ -1,7 +1,8 @@
 from django.urls import path
+from . import views
 from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView
 from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView, DoctorBookedPatientsView, DoctorWalletView
-from .views import DoctorAppointmentDetailView,EmergencyStatusUpdateView
+from .views import DoctorAppointmentDetailView,EmergencyStatusUpdateView,DoctorEmergencyConsultationListView,EmergencyConsultationDetailView,start_emergency_consultation,end_emergency_consultation
 
 
 urlpatterns = [
@@ -23,4 +24,19 @@ urlpatterns = [
     path('appointments/<int:appointment_id>/', DoctorAppointmentDetailView.as_view(), name='doctor-appointment-detail'),
     path('doctor-wallet/', DoctorWalletView.as_view(), name='doctor-wallet'),
     path('doctor-emergency-status/',EmergencyStatusUpdateView.as_view(), name='update_emergency_status'),
+    path('emergency-consultations/', 
+         DoctorEmergencyConsultationListView.as_view(), 
+         name='doctor-emergency-consultations'),
+    
+    path('emergency-consultations/<int:id>/', 
+         EmergencyConsultationDetailView.as_view(), 
+         name='emergency-consultation-detail'),
+    
+    path('emergency-consultations/<int:consultation_id>/start/', 
+         views.start_emergency_consultation, 
+         name='start-emergency-consultation'),
+    
+    path('emergency-consultations/<int:consultation_id>/end/', 
+         views.end_emergency_consultation, 
+         name='end-emergency-consultation'),
 ]

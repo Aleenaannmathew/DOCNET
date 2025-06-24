@@ -1,4 +1,4 @@
-// Updated React Component Code - Database-only Emergency Status
+// Updated React Component Code - Database-only Emergency Status with Emergency Appointments Navigation
 
 import {
   Calendar,
@@ -95,6 +95,7 @@ function DocSidebar() {
     if (path.includes('/dashboard')) setActiveTab('Dashboard')
     else if (path.includes('/patients')) setActiveTab('Patients')
     else if (path.includes('/doctor-appointments')) setActiveTab('Appointments')
+    else if (path.includes('/emergency-list')) setActiveTab('Appointments') // Emergency list also shows as Appointments active
     else if (path.includes('/analytics')) setActiveTab('Analytics')
     else if (path.includes('/doctor-wallet')) setActiveTab('Wallet')
     else if (path.includes('/settings')) setActiveTab('Settings')
@@ -125,7 +126,12 @@ function DocSidebar() {
     } else if (tab === 'Settings') {
       navigate('/doctor/settings')
     } else if (tab === 'Appointments') {
-      navigate('/doctor/doctor-appointments')
+      // Check if doctor is emergency 24hr consulting doctor
+      if (user?.doctor_profile?.prefer_24hr_consultation) {
+        navigate('/doctor/emergency-list')
+      } else {
+        navigate('/doctor/doctor-appointments')
+      }
     } else if (tab === 'Notifications') {
       navigate('/doctor/notifications')
     } else if (tab === 'Help & Support') {
@@ -307,4 +313,4 @@ function DocSidebar() {
   )
 }
 
-export default DocSidebar
+export default DocSidebar;

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, PatientProfile, Payment,Appointment
+from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -27,4 +27,7 @@ class AppointmentAdmin(admin.ModelAdmin):
     def payment_patient_username(self, obj):
         return obj.payment.patient.username if obj.payment else 'N/A'
     payment_patient_username.short_description = 'Patient Username'
-# Register your models here.
+
+@admin.register(EmergencyPayment)
+class EmergencyAdmin(admin.ModelAdmin):
+    list_display = ('id', 'consultation_start_time','consultation_end_time','reason')

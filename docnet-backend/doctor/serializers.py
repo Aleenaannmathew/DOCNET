@@ -4,7 +4,7 @@ from django.db import transaction
 import cloudinary
 from datetime import date
 import cloudinary.uploader
-from accounts.models import Appointment, PatientProfile
+from accounts.models import Appointment, PatientProfile, EmergencyPayment
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -431,3 +431,106 @@ class EmergencyStatusSerializer(serializers.Serializer):
         if not isinstance(value, bool):
             raise serializers.ValidationError("Emergency status must be a boolean value.")
         return value
+    
+class EmergencyPatientSerializer(serializers.ModelSerializer):
+    """Serializer for patient information in emergency consultations"""
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'phone', 'profile_image']
+
+class EmergencyDoctorSerializer(serializers.ModelSerializer):
+    """Serializer for doctor information in emergency consultations"""
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.CharField(source='user.email', read_only=True)
+    phone = serializers.CharField(source='user.phone', read_only=True)
+    profile_image = serializers.CharField(source='user.profile_image', read_only=True)
+    
+    class Meta:
+        model = DoctorProfile
+        fields = [
+            'id', 'username', 'email', 'phone', 'profile_image',
+            'registration_id', 'hospital', 'specialization', 
+            'experience', 'location', 'languages'
+        ]
+
+class EmergencyConsultationListSerializer(serializers.ModelSerializer):
+    """Serializer for listing emergency consultations"""
+    patient = EmergencyPatientSerializer(read_only=True)
+    doctor = EmergencyDoctorSerializer(read_only=True)
+    consultation_duration = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = EmergencyPayment
+        fields = [
+            'id', 'patient', 'doctor', 'amount', 'payment_status',
+            'consultation_started', 'consultation_start_time', 
+            'consultation_end_time', 'video_call_link', 'timestamp',
+            'reason', 'consultation_duration', 'status_display'
+        ]
+    
+    def get_consultation_duration(self, obj):
+        """Calculate consultation duration if both start and end times exist"""
+        if obj.consultation_start_time and obj.consultation_end_time:
+            duration = obj.consultation_end_time - obj.consultation_start_time
+            total_minutes = int(duration.total_seconds() / 60)
+            if total_minutes < 60:
+                return f"{total_minutes} min"
+            else:
+                hours = total_minutes // 60
+                minutes = total_minutes % 60
+                return f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+        return None
+    
+    def get_status_display(self, obj):
+        """Get display status based on payment status and consultation state"""
+        if obj.payment_status != 'success':
+            return obj.get_payment_status_display()
+        
+        if obj.consultation_end_time:
+            return 'Completed'
+        elif obj.consultation_started:
+            return 'In Progress'
+        elif obj.payment_status == 'success':
+            return 'Confirmed'
+        else:
+            return 'Pending'
+
+class EmergencyConsultationDetailSerializer(serializers.ModelSerializer):
+    """Detailed serializer for emergency consultation details"""
+    patient = EmergencyPatientSerializer(read_only=True)
+    doctor = EmergencyDoctorSerializer(read_only=True)
+    consultation_duration = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = EmergencyPayment
+        fields = '__all__'
+    
+    def get_consultation_duration(self, obj):
+        """Calculate consultation duration"""
+        if obj.consultation_start_time and obj.consultation_end_time:
+            duration = obj.consultation_end_time - obj.consultation_start_time
+            total_minutes = int(duration.total_seconds() / 60)
+            if total_minutes < 60:
+                return f"{total_minutes} min"
+            else:
+                hours = total_minutes // 60
+                minutes = total_minutes % 60
+                return f"{hours}h {minutes}m" if minutes > 0 else f"{hours}h"
+        return None
+    
+    def get_status_display(self, obj):
+        """Get display status"""
+        if obj.payment_status != 'success':
+            return obj.get_payment_status_display()
+        
+        if obj.consultation_end_time:
+            return 'Completed'
+        elif obj.consultation_started:
+            return 'In Progress'
+        elif obj.payment_status == 'success':
+            return 'Confirmed'
+        else:
+            return 'Pending'
+   

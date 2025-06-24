@@ -1,565 +1,240 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FiVideo, FiMic } from 'react-icons/fi';
-import { MdMicOff, MdPhoneDisabled, MdVideocamOff } from 'react-icons/md';
-import Peer from 'simple-peer';
-import { jwtDecode } from 'jwt-decode';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { 
+  AlertTriangle, Save, X, ChevronDown, ChevronRight, CheckCircle, FileText, 
+  User, Lock, Calendar, Stethoscope, Clipboard, Bell, HelpCircle, 
+  LogOut, Search, Edit3, Shield, Award, MapPin, Globe, Clock, 
+  Phone, Mail, Building2, Languages, Users, Heart, Filter,
+  MoreVertical, Eye, MessageCircle, Video, CheckSquare, XCircle,
+  Loader2, AlertCircle, Play, Square, Zap, Activity, Timer
+} from 'lucide-react';
+import { logout } from '../../store/authSlice';
+import DocSidebar from './DocSidebar';
+import { doctorAxios } from '../../axios/DoctorAxios';
 
-const VideoCall = ({ slotId, token, onEndCall }) => {
-  const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
-  const [micMuted, setMicMuted] = useState(false);
-  const [videoOff, setVideoOff] = useState(false);
-  const [callStarted, setCallStarted] = useState(false);
+const EmergencyConsultations = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user, token } = useSelector(state => state.auth);
+  const [activeTab, setActiveTab] = useState('Emergency Consultations');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [consultations, setConsultations] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('Initializing...');
-  const [debugInfo, setDebugInfo] = useState('');
-  const [connectedUsers, setConnectedUsers] = useState(new Set());
+  const [actionLoading, setActionLoading] = useState({});
 
-  const socketRef = useRef(null);
-  const peersRef = useRef({});
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
-  const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
-  const currentUser = jwtDecode(token).user_id;
-  const roomName = slotId;
-  const isInitializedRef = useRef(false);
-  const pendingSignalsRef = useRef({});
-
-  const addDebug = (message) => {
-    console.log(message);
-    setDebugInfo(prev => `${prev}\n${new Date().toLocaleTimeString()}: ${message}`);
-  };
-
-  const connectWebSocket = () => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      return;
-    }
-
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
-
-    const wsUrl = `ws://127.0.0.1:8000/ws/videocall/${roomName}/?token=${encodeURIComponent(token)}`;
-    addDebug(`Connecting to WebSocket: ${wsUrl}`);
-
-    socketRef.current = new WebSocket(wsUrl);
-
-    socketRef.current.onopen = () => {
-      addDebug('WebSocket connected successfully');
-      setConnectionStatus('Connected');
+  // Fetch emergency consultations from backend
+  const fetchEmergencyConsultations = async () => {
+    try {
+      setLoading(true);
       setError(null);
-      reconnectAttemptsRef.current = 0;
-    };
-
-    socketRef.current.onmessage = (messageEvent) => {
-  const data = JSON.parse(messageEvent.data);
-
-  if (data.type === 'signal') {
-    const { callerId, signal } = data;
-
-    // Validate signal object
-    if (!signal || typeof signal !== 'object') {
-      addDebug(`Invalid signal from ${callerId}, skipping`);
-      return;
+      const response = await doctorAxios.get('/emergency-consultations/');
+      
+      // Ensure the response data is an array
+      const data = response.data;
+      const consultationsData = Array.isArray(data) 
+        ? data 
+        : Array.isArray(data?.results) 
+          ? data.results 
+          : Array.isArray(data?.consultations) 
+            ? data.consultations 
+            : [];
+      
+      setConsultations(consultationsData);
+    } catch (error) {
+      console.error('Error fetching emergency consultations:', error);
+      setError('Failed to load emergency consultations. Please try again.');
+      setConsultations([]); // Reset to empty array on error
+      if (error.response?.status === 401) {
+        handleLogout();
+      }
+    } finally {
+      setLoading(false);
     }
+  };
 
-    let peer = peersRef.current[callerId];
-
-    if (!peer) {
-      addDebug(`No existing peer for ${callerId}, creating`);
-      peer = createPeer(callerId, localStream, false); // Responder
-      peersRef.current[callerId] = peer;
+  useEffect(() => {
+    if (user && token) {
+      fetchEmergencyConsultations();
     }
+  }, [user, token]);
 
+  // Helper function to format date and time
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return 'N/A';
     try {
-      peer.signal(signal);
-    } catch (err) {
-      addDebug(`Error processing signal from ${callerId}: ${err.message}`);
+      const date = new Date(dateTimeString);
+      return {
+        date: date.toLocaleDateString(),
+        time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+    } catch (error) {
+      return { date: 'N/A', time: 'N/A' };
     }
-  }
-};
+  };
 
-    socketRef.current.onerror = (error) => {
-      addDebug(`WebSocket error: ${error.message || 'Unknown error'}`);
-      setConnectionStatus('Connection Error');
-      setError('Failed to connect to video call service. Please try again.');
+  // Safe filtering function
+  const filteredConsultations = Array.isArray(consultations) ? consultations.filter(consultation => {
+    if (!consultation || typeof consultation !== 'object') return false;
+    
+    const matchesSearch = searchTerm === '' || 
+      (consultation.patient?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (consultation.reason && consultation.reason.toLowerCase().includes(searchTerm.toLowerCase())));
+
+    const today = new Date().toISOString().split('T')[0];
+    const consultationDate = consultation.timestamp ? new Date(consultation.timestamp).toISOString().split('T')[0] : null;
+    
+    switch (selectedFilter) {
+      case 'today':
+        return matchesSearch && consultationDate === today;
+      case 'active':
+        return matchesSearch && consultation.payment_status === 'success' && !consultation.consultation_end_time;
+      case 'completed':
+        return matchesSearch && consultation.consultation_end_time;
+      case 'pending':
+        return matchesSearch && consultation.payment_status === 'pending';
+      default:
+        return matchesSearch;
+    }
+  }) : [];
+
+  // Calculate filter counts with safe checks
+  const getFilterCounts = () => {
+    const today = new Date().toISOString().split('T')[0];
+    return {
+      all: consultations.length,
+      today: consultations.filter(c => c?.timestamp && new Date(c.timestamp).toISOString().split('T')[0] === today).length,
+      active: consultations.filter(c => c?.payment_status === 'success' && !c.consultation_end_time).length,
+      completed: consultations.filter(c => c?.consultation_end_time).length,
+      pending: consultations.filter(c => c?.payment_status === 'pending').length
     };
-
-    socketRef.current.onclose = (event) => {
-      addDebug(`WebSocket closed: ${event.code} ${event.reason || 'No reason provided'}`);
-      setConnectionStatus('Disconnected');
-
-      if (event.code === 4004) {
-        setError('Invalid appointment or access denied.');
-        return;
-      }
-
-      if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
-        const delay = Math.min(5000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
-        reconnectAttemptsRef.current++;
-        addDebug(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
-        setTimeout(connectWebSocket, delay);
-      } else if (event.code !== 1000) {
-        setError('Connection failed. Please refresh the page and try again.');
-      }
-    };
   };
 
-  // Check WebRTC support
-  const checkWebRTCSupport = () => {
-    if (!window.RTCPeerConnection) {
-      addDebug('WebRTC not supported in this browser');
-      setError('WebRTC is not supported in this browser. Please use a modern browser like Chrome, Firefox, or Safari.');
-      return false;
-    }
-    return true;
-  };
-
-  useEffect(() => {
-    if (isInitializedRef.current) return;
-    isInitializedRef.current = true;
-
-    // Check WebRTC support first
-    if (!checkWebRTCSupport()) {
-      return;
-    }
-
-    const getMediaStream = async () => {
-      try {
-        addDebug('Requesting media permissions...');
-        setConnectionStatus('Requesting camera access...');
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user'
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-
-        addDebug(`Obtained local stream with ${stream.getTracks().length} tracks`);
-        setLocalStream(stream);
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-          addDebug('Set local video stream');
-        }
-
-        connectWebSocket();
-
-      } catch (err) {
-        addDebug(`Failed to get media: ${err.name} - ${err.message}`);
-        setError(`Could not access camera/microphone: ${err.message}`);
-        setConnectionStatus('Media Access Failed');
-      }
-    };
-
-    getMediaStream();
-
-    return () => {
-      addDebug('Cleaning up resources...');
-      if (socketRef.current) {
-        socketRef.current.close(1000, 'Component unmounting');
-      }
-      if (localStream) {
-        localStream.getTracks().forEach(track => {
-          track.stop();
-          addDebug(`Stopped ${track.kind} track`);
-        });
-      }
-      Object.values(peersRef.current).forEach(peer => {
-        if (peer && typeof peer.destroy === 'function') {
-          peer.destroy();
-        }
-      });
-      peersRef.current = {};
-    };
-  }, []);
-
-  useEffect(() => {
-    if (localStream && connectedUsers.size > 0) {
-      addDebug(`Local stream available, checking ${connectedUsers.size} connected users`);
-      connectedUsers.forEach(userId => {
-        if (!peersRef.current[userId]) {
-          addDebug(`Creating delayed connection to existing user ${userId}`);
-          setTimeout(() => {
-            if (!peersRef.current[userId] && localStream) {
-              handleUserConnected(userId);
-            }
-          }, 1000);
-        }
-      });
-    }
-  }, [localStream, connectedUsers]);
-
-  useEffect(() => {
-    if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(err => {
-        addDebug(`Error playing remote video: ${err.message}`);
-      });
-    }
-  }, [remoteStream]);
-
-  const createPeer = (userId, stream, initiator = false) => {
-  addDebug(`Creating peer for ${userId}, initiator: ${initiator}`);
-
-  try {
-    const peer = new Peer({
-      initiator,
-      trickle: true,
-      stream,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-        ],
-      },
-    });
-
-    setupPeerEvents(peer, userId);
-    return peer;
-  } catch (err) {
-    addDebug(`Error creating peer for ${userId}: ${err.message}`);
-    throw err;
-  }
-};
-
-  const handleUserConnected = (userId) => {
-  addDebug(`Handling user connected: ${userId}`);
-
-  // Avoid duplicate peer creation
-  if (peersRef.current[userId]) {
-    addDebug(`Peer already exists for ${userId}, skipping creation`);
-    return;
-  }
-
-  // Make sure we have the local stream
-  if (!localStream) {
-    addDebug(`Cannot create peer for ${userId} - no local stream`);
-    return;
-  }
-
-  // Make sure WebSocket is ready
-  if (socketRef.current?.readyState !== WebSocket.OPEN) {
-    addDebug(`Cannot create peer for ${userId} - WebSocket not ready`);
-    return;
-  }
-
-  // Decide who should initiate the connection
-  const shouldInitiate = currentUser < userId;
-  addDebug(`Creating peer connection to ${userId} as ${shouldInitiate ? 'initiator' : 'receiver'}`);
-
-  try {
-    const peer = createPeer(userId, localStream, shouldInitiate);
-
-    if (!peer) throw new Error('Peer is undefined or invalid');
-
-    // Store the peer
-    peersRef.current[userId] = peer;
-
-    // If we received signals for this user before peer was created
-    const pendingSignals = pendingSignalsRef.current[userId];
-    if (pendingSignals && Array.isArray(pendingSignals)) {
-      addDebug(`Processing ${pendingSignals.length} pending signals for ${userId}`);
-      pendingSignals.forEach((signal, i) => {
-        try {
-          if (!signal || typeof signal !== 'object' || (!signal.type && !signal.candidate)) {
-            addDebug(`Skipping invalid signal at index ${i} for ${userId}: ${JSON.stringify(signal)}`);
-            return;
-          }
-          peer.signal(signal);
-        } catch (err) {
-          addDebug(`Error processing pending signal for ${userId}: ${err.message}`);
-        }
-      });
-      delete pendingSignalsRef.current[userId]; // Clean up after processing
-    }
-  } catch (err) {
-    addDebug(`Error creating peer for ${userId}: ${err.message}`);
-    setError(`Failed to create connection with participant: ${err.message}`);
-  }
-};
-
-  const handleSignal = ({ callerId, signal }) => {
-    addDebug(`Received signal from ${callerId}, signal type: ${signal.type || 'unknown'}`);
-
-    if (callerId === currentUser) {
-      addDebug(`Ignoring signal from self`);
-      return;
-    }
-
-    if (!localStream) {
-      addDebug(`Cannot handle signal - no local stream available`);
-      return;
-    }
-
-    if (!peersRef.current[callerId]) {
-      addDebug(`No peer exists for ${callerId}, storing signal for later`);
-
-      if (!pendingSignalsRef.current[callerId]) {
-        pendingSignalsRef.current[callerId] = [];
-      }
-      pendingSignalsRef.current[callerId].push(signal);
-
-      const shouldInitiate = currentUser < callerId;
-      if (!shouldInitiate) {
-        addDebug(`Creating peer for ${callerId} as receiver`);
-
-        try {
-          // Fixed: Remove .default access - SimplePeer is already the default export
-          const peer = createPeer(callerId, localStream, false);
-          peersRef.current[callerId] = peer;
-
-          // Process all pending signals
-          pendingSignalsRef.current[callerId].forEach(pendingSignal => {
-            try {
-              if (peer && typeof peer.signal === 'function') {
-                peer.signal(pendingSignal);
-              }
-            } catch (err) {
-              addDebug(`Error processing stored signal: ${err.message}`);
-            }
-          });
-          delete pendingSignalsRef.current[callerId];
-        } catch (err) {
-          addDebug(`Error creating receiver peer for ${callerId}: ${err.message}`);
-        }
-      }
-      return;
-    }
-
-    try {
-      const peer = peersRef.current[callerId];
-      if (peer && typeof peer.signal === 'function') {
-        peer.signal(signal);
-        addDebug(`Successfully signaled peer ${callerId}`);
-      } else {
-        addDebug(`Peer ${callerId} is not valid or doesn't have signal method`);
-      }
-    } catch (err) {
-      addDebug(`Error signaling peer ${callerId}: ${err.message}`);
-    }
-  };
-
-  const setupPeerEvents = (peer, userId) => {
-  if (!peer) {
-    addDebug(`Cannot setup events for null peer ${userId}`);
-    return;
-  }
-
-  peer.on('signal', signal => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      addDebug(`Sending signal to ${userId}, type: ${signal.type || 'candidate'}`);
-      socketRef.current.send(JSON.stringify({
-        type: 'signal',
-        userToSignal: userId,
-        callerId: currentUser,
-        signal
-      }));
-    } else {
-      addDebug(`Cannot send signal - WebSocket not ready`);
-    }
-  });
-
-  peer.on('stream', stream => {
-    addDebug(`Received remote stream from ${userId}`);
-    setRemoteStream(stream);
-    setCallStarted(true);
-    setConnectionStatus('Call Active');
-  });
-
-  peer.on('connect', () => {
-    addDebug(`Peer data channel connected with ${userId}`);
-  });
-
-  peer.on('error', err => {
-    addDebug(`Peer error with ${userId}: ${err.message}`);
-    delete peersRef.current[userId];
-    setError(`Connection error with participant: ${err.message}`);
-  });
-
-  peer.on('close', () => {
-    addDebug(`Peer connection closed with ${userId}`);
-    delete peersRef.current[userId];
-    if (Object.keys(peersRef.current).length === 0) {
-      setRemoteStream(null);
-      setCallStarted(false);
-      setConnectionStatus('Participant disconnected');
-    }
-  });
-};
-
-  const handleUserDisconnected = (userId) => {
-    addDebug(`User disconnected: ${userId}`);
-    if (peersRef.current[userId]) {
-      const peer = peersRef.current[userId];
-      if (peer && typeof peer.destroy === 'function') {
-        peer.destroy();
-      }
-      delete peersRef.current[userId];
-    }
-
-    delete pendingSignalsRef.current[userId];
-
-    if (Object.keys(peersRef.current).length === 0) {
-      setRemoteStream(null);
-      setCallStarted(false);
-      setConnectionStatus('Waiting for participant...');
-    }
-  };
-
-  const toggleMic = () => {
-    if (localStream) {
-      const enabled = !micMuted;
-      localStream.getAudioTracks().forEach(track => {
-        track.enabled = enabled;
-        addDebug(`${enabled ? 'Enabled' : 'Disabled'} microphone`);
-      });
-      setMicMuted(!enabled);
-    }
-  };
-
-  const toggleVideo = () => {
-    if (localStream) {
-      const enabled = !videoOff;
-      localStream.getVideoTracks().forEach(track => {
-        track.enabled = enabled;
-        addDebug(`${enabled ? 'Enabled' : 'Disabled'} video`);
-      });
-      setVideoOff(!enabled);
-    }
-  };
-
-  const endCall = () => {
-    addDebug('Ending call...');
-
-    if (socketRef.current) {
-      socketRef.current.close(1000, 'Call ended by user');
-    }
-
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        track.stop();
-        addDebug(`Stopped ${track.kind} track`);
-      });
-    }
-
-    Object.values(peersRef.current).forEach(peer => {
-      if (peer && typeof peer.destroy === 'function') {
-        peer.destroy();
-      }
-    });
-    peersRef.current = {};
-
-    if (onEndCall) {
-      onEndCall();
-    }
-  };
+  // ... [rest of your component code remains the same until the return statement]
 
   return (
-    <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col">
-      {error && (
-        <div className="bg-red-500 p-4 text-center flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-4 text-white hover:text-gray-200">
-            ×
-          </button>
-        </div>
-      )}
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-hidden">
+        <DocSidebar/>
 
-      <div className="bg-gray-800 p-2 text-center text-sm">
-        Status: {connectionStatus} | Room: {roomName} | User: {currentUser} | Connected: {connectedUsers.size}
-      </div>
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            {/* Header and stats cards remain the same */}
 
-      <div className="flex-1 relative">
-        <div className="absolute inset-0 bg-black">
-          {remoteStream ? (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-xl mb-4">
-                  {connectionStatus === 'Call Active' ? 'Connected' : connectionStatus}
-                </p>
-                {connectionStatus === 'Waiting for participant...' && (
-                  <p className="text-sm text-gray-400">
-                    {connectedUsers.size > 0 ? 'Connecting to participant...' : 'Share the room ID with the other participant'}
-                  </p>
+            {/* Filters */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6">
+              {/* Filter UI remains the same */}
+            </div>
+
+            {/* Error State */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
+                  <div>
+                    <h3 className="text-red-800 font-medium">Error</h3>
+                    <p className="text-red-600 text-sm">{error}</p>
+                  </div>
+                  <button
+                    onClick={fetchEmergencyConsultations}
+                    className="ml-auto px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-red-500 mr-3" />
+                  <span className="text-gray-600">Loading emergency consultations...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Consultations List */}
+            {!loading && !error && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                {filteredConsultations.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No emergency consultations found</h3>
+                    <p className="text-gray-500">
+                      {selectedFilter === 'all' 
+                        ? 'No emergency consultations have been scheduled yet.'
+                        : `No ${selectedFilter} emergency consultations found.`
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      {/* Table headers remain the same */}
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredConsultations.map((consultation) => {
+                          // Add null checks for consultation properties
+                          const patientName = consultation.patient?.username || 'Unknown';
+                          const patientEmail = consultation.patient?.email || '';
+                          const patientPhone = consultation.patient?.phone || '';
+                          const patientImage = consultation.patient?.profile_image || 
+                            `https://ui-avatars.com/api/?name=${patientName.split(' ').join('+')}&background=random&color=fff&size=128`;
+
+                          const dateTime = formatDateTime(consultation.timestamp);
+                          const startDateTime = formatDateTime(consultation.consultation_start_time);
+                          const endDateTime = formatDateTime(consultation.consultation_end_time);
+                          
+                          return (
+                            <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10">
+                                    <img
+                                      className="h-10 w-10 rounded-full object-cover"
+                                      src={patientImage}
+                                      alt={patientName}
+                                    />
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {patientName}
+                                    </div>
+                                    {patientEmail && (
+                                      <div className="text-sm text-gray-500">
+                                        {patientEmail}
+                                      </div>
+                                    )}
+                                    {patientPhone && (
+                                      <div className="text-sm text-gray-500 flex items-center">
+                                        <Phone className="w-3 h-3 mr-1" />
+                                        {patientPhone}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              {/* Rest of the table cells with proper null checks */}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-
-        <div className="absolute bottom-20 right-4 w-1/4 max-w-xs bg-black rounded-lg overflow-hidden shadow-lg">
-          {localStream ? (
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className={`w-full h-full object-cover ${videoOff ? 'opacity-20' : ''}`}
-            />
-          ) : (
-            <div className="aspect-video bg-gray-700 flex items-center justify-center">
-              <span className="text-sm">No camera</span>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </main>
       </div>
-
-      <div className="bg-gray-800 p-4 flex justify-center space-x-6">
-        <button
-          onClick={toggleMic}
-          className={`p-3 rounded-full transition-colors ${micMuted ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-          title={micMuted ? 'Unmute microphone' : 'Mute microphone'}
-        >
-          {micMuted ? <MdMicOff size={24} /> : <FiMic size={24} />}
-        </button>
-
-        <button
-          onClick={toggleVideo}
-          className={`p-3 rounded-full transition-colors ${videoOff ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-          title={videoOff ? 'Turn on camera' : 'Turn off camera'}
-        >
-          {videoOff ? <MdVideocamOff size={24} /> : <FiVideo size={24} />}
-        </button>
-
-        <button
-          onClick={endCall}
-          className="p-3 rounded-full bg-red-600 hover:bg-red-700 transition-colors"
-          title="End call"
-        >
-          <MdPhoneDisabled size={24} />
-        </button>
-      </div>
-
-      {process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-16 left-4 max-w-md max-h-40 overflow-auto bg-black bg-opacity-75 p-2 text-xs">
-          <pre className="whitespace-pre-wrap">{debugInfo}</pre>
-        </div>
-      )}
     </div>
   );
 };
 
-export default VideoCall;
+export default EmergencyConsultations;

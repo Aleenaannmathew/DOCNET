@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.core.mail import send_mail
 from django.conf import settings
 import random, re,requests
@@ -15,13 +16,13 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.permissions import IsAuthenticated
-from accounts.models import OTPVerification
+from accounts.models import EmergencyPayment
 from django.utils import timezone
 import logging
 from rest_framework.decorators import api_view, permission_classes
 from accounts.models import Appointment
 from .models import DoctorProfile, DoctorSlot, Wallet
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
@@ -602,3 +603,136 @@ class EmergencyStatusUpdateView(APIView):
     def options(self, request, *args, **kwargs):
     
         return Response(status=status.HTTP_200_OK)
+
+class DoctorEmergencyConsultationListView(generics.ListAPIView):
+    """List all emergency consultations for a doctor"""
+    serializer_class = EmergencyConsultationListSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        # Ensure user is a doctor
+        if not hasattr(self.request.user, 'doctor_profile'):
+            return EmergencyPayment.objects.none()
+        
+        doctor_profile = self.request.user.doctor_profile
+        queryset = EmergencyPayment.objects.filter(
+            doctor=doctor_profile
+        ).select_related('patient', 'doctor__user').order_by('-timestamp')
+        
+        # Filter by status if provided
+        status_filter = self.request.query_params.get('status', None)
+        if status_filter:
+            if status_filter == 'today':
+                today = timezone.now().date()
+                queryset = queryset.filter(timestamp__date=today)
+            elif status_filter == 'active':
+                queryset = queryset.filter(
+                    payment_status='success',
+                    consultation_end_time__isnull=True
+                )
+            elif status_filter == 'completed':
+                queryset = queryset.filter(consultation_end_time__isnull=False)
+            elif status_filter == 'pending':
+                queryset = queryset.filter(payment_status='pending')
+        
+        # Search functionality
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(patient__username__icontains=search) |
+                Q(patient__email__icontains=search) |
+                Q(reason__icontains=search)
+            )
+        
+        return queryset
+
+class EmergencyConsultationDetailView(generics.RetrieveAPIView):
+    """Get detailed view of an emergency consultation"""
+    serializer_class = EmergencyConsultationDetailSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+    
+    def get_queryset(self):
+        if not hasattr(self.request.user, 'doctor_profile'):
+            return EmergencyPayment.objects.none()
+        
+        return EmergencyPayment.objects.filter(
+            doctor=self.request.user.doctor_profile
+        ).select_related('patient', 'doctor__user')
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_emergency_consultation(request, consultation_id):
+    """Start an emergency consultation"""
+    try:
+        if not hasattr(request.user, 'doctor_profile'):
+            return Response(
+                {'error': 'Only doctors can start consultations'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        consultation = EmergencyPayment.objects.get(
+            id=consultation_id,
+            doctor=request.user.doctor_profile,
+            payment_status='success'
+        )
+        
+        if consultation.consultation_started:
+            return Response(
+                {'error': 'Consultation already started'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        consultation.start_consultation()
+        
+        return Response({
+            'message': 'Consultation started successfully',
+            'consultation_start_time': consultation.consultation_start_time
+        })
+        
+    except EmergencyPayment.DoesNotExist:
+        return Response(
+            {'error': 'Consultation not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def end_emergency_consultation(request, consultation_id):
+    """End an emergency consultation"""
+    try:
+        if not hasattr(request.user, 'doctor_profile'):
+            return Response(
+                {'error': 'Only doctors can end consultations'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        consultation = EmergencyPayment.objects.get(
+            id=consultation_id,
+            doctor=request.user.doctor_profile,
+            consultation_started=True,
+            consultation_end_time__isnull=True
+        )
+        
+        consultation.end_consultation()
+        
+        return Response({
+            'message': 'Consultation ended successfully',
+            'consultation_end_time': consultation.consultation_end_time
+        })
+        
+    except EmergencyPayment.DoesNotExist:
+        return Response(
+            {'error': 'Active consultation not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
