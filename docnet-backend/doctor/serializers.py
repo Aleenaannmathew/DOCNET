@@ -465,7 +465,7 @@ class EmergencyConsultationListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'patient', 'doctor', 'amount', 'payment_status',
             'consultation_started', 'consultation_start_time', 
-            'consultation_end_time', 'video_call_link', 'timestamp',
+            'consultation_end_time', 'timestamp',
             'reason', 'consultation_duration', 'status_display'
         ]
     

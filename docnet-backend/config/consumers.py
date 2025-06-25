@@ -4,7 +4,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from accounts.models import Appointment
+from accounts.models import Appointment, EmergencyPayment
 from urllib.parse import parse_qs
 
 logger = logging.getLogger(__name__)
@@ -17,6 +17,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f'videocall_{self.room_name}'
         self.user_id = None
+        self.is_emergency = self.room_name.startswith('emergency_')
         
         try:
             # Parse token from query string
@@ -34,11 +35,18 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 access_token = AccessToken(token)
                 self.user_id = access_token['user_id']
                 
-                # Validate appointment access
-                if not await self.validate_appointment(self.room_name, self.user_id):
-                    logger.error(f"Invalid appointment for room {self.room_name}")
-                    await self.close(code=4004)
-                    return
+                # Validate appointment/emergency access
+                if self.is_emergency:
+                    emergency_id = self.room_name.replace('emergency_', '')
+                    if not await self.validate_emergency_consultation(emergency_id, self.user_id):
+                        logger.error(f"Invalid emergency consultation for room {self.room_name}")
+                        await self.close(code=4004)
+                        return
+                else:
+                    if not await self.validate_appointment(self.room_name, self.user_id):
+                        logger.error(f"Invalid appointment for room {self.room_name}")
+                        await self.close(code=4004)
+                        return
                     
             except (InvalidToken, TokenError) as e:
                 logger.error(f"Invalid token: {e}")
@@ -47,7 +55,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             
             # Accept connection
             await self.accept()
-            logger.info(f"User {self.user_id} connected to room {self.room_name}")
+            logger.info(f"User {self.user_id} connected to room {self.room_name} (emergency: {self.is_emergency})")
             
             # Add to channel layer group
             await self.channel_layer.group_add(
@@ -68,8 +76,19 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 "type": "joined",
                 "isOfferer": is_offerer,
                 "userId": self.user_id,
-                "room": self.room_name
+                "room": self.room_name,
+                "isEmergency": self.is_emergency
             }))
+            
+            # Notify other participants
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "user_joined",
+                    "userId": self.user_id,
+                    "sender_channel": self.channel_name
+                }
+            )
             
         except Exception as e:
             logger.error(f"Error in connect: {e}")
@@ -77,6 +96,17 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         logger.info(f"User {getattr(self, 'user_id', 'unknown')} disconnecting from room {getattr(self, 'room_name', 'unknown')} with code {close_code}")
+        
+        # Notify other participants about disconnection
+        if hasattr(self, 'room_group_name') and hasattr(self, 'user_id'):
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "user_left",
+                    "userId": self.user_id,
+                    "sender_channel": self.channel_name
+                }
+            )
         
         # Remove from channel layer group
         if hasattr(self, 'room_group_name'):
@@ -99,16 +129,24 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             
             logger.debug(f"Received message type {message_type} from user {self.user_id}")
             
-            # Forward all signaling messages to other participants
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    "type": "signal_message",
-                    "message": data,
-                    "sender_channel": self.channel_name,
-                    "sender_user": self.user_id
-                }
-            )
+            # Handle different message types
+            if message_type in ['offer', 'answer', 'ice-candidate', 'chat']:
+                # Forward signaling messages to other participants
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "signal_message",
+                        "message": data,
+                        "sender_channel": self.channel_name,
+                        "sender_user": self.user_id
+                    }
+                )
+            elif message_type == 'ping':
+                # Handle ping/pong for connection health
+                await self.send(text_data=json.dumps({
+                    "type": "pong",
+                    "timestamp": data.get('timestamp')
+                }))
                 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON received from user {self.user_id}: {e}")
@@ -121,9 +159,25 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps(event["message"]))
             logger.debug(f"Forwarded message from user {event.get('sender_user')} to user {self.user_id}")
 
+    async def user_joined(self, event):
+        """Handle user_joined group message - notify about new participant"""
+        if event["sender_channel"] != self.channel_name:
+            await self.send(text_data=json.dumps({
+                "type": "user_joined",
+                "userId": event["userId"]
+            }))
+
+    async def user_left(self, event):
+        """Handle user_left group message - notify about participant leaving"""
+        if event["sender_channel"] != self.channel_name:
+            await self.send(text_data=json.dumps({
+                "type": "user_left",
+                "userId": event["userId"]
+            }))
+
     @database_sync_to_async
     def validate_appointment(self, room_name, user_id):
-        """Validate that the user has permission to join this video call"""
+        """Validate that the user has permission to join this regular video call"""
         try:
             appointment = Appointment.objects.select_related(
                 'payment__slot__doctor__user', 
@@ -146,4 +200,33 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             return False
         except Exception as e:
             logger.error(f"Error validating appointment for room {room_name}, user {user_id}: {e}")
+            return False
+
+    @database_sync_to_async
+    def validate_emergency_consultation(self, emergency_id, user_id):
+        """Validate that the user has permission to join this emergency video call"""
+        try:
+            emergency_payment = EmergencyPayment.objects.select_related(
+                'doctor__user', 
+                'patient'
+            ).get(
+                id=emergency_id,
+                payment_status='success'
+            )
+            
+            is_doctor = emergency_payment.doctor.user.id == user_id
+            is_patient = emergency_payment.patient.id == user_id
+            
+            # Check that consultation hasn't ended
+            consultation_active = not emergency_payment.consultation_end_time
+            
+            logger.info(f"Emergency validation for room {emergency_id}, user {user_id}: doctor={is_doctor}, patient={is_patient}, active={consultation_active}")
+            
+            return (is_doctor or is_patient) and consultation_active
+            
+        except EmergencyPayment.DoesNotExist:
+            logger.error(f"No valid emergency consultation found for room {emergency_id}")
+            return False
+        except Exception as e:
+            logger.error(f"Error validating emergency consultation for room {emergency_id}, user {user_id}: {e}")
             return False

@@ -13,6 +13,7 @@ import { logout } from '../../store/authSlice';
 import DocSidebar from './DocSidebar';
 import { doctorAxios } from '../../axios/DoctorAxios';
 import VideoCallButton from '../Constants/VideoCallButton';
+import EmergencyVideoCallButton from '../Constants/EmergencyVideoButton';
 
 const EmergencyConsultations = () => {
     const dispatch = useDispatch();
@@ -36,6 +37,7 @@ const EmergencyConsultations = () => {
 
             // Ensure the response data is an array
             const data = response.data;
+            console.log(data)
             const consultationsData = Array.isArray(data)
                 ? data
                 : Array.isArray(data?.results)
@@ -391,8 +393,8 @@ const EmergencyConsultations = () => {
                                                 key={filter.key}
                                                 onClick={() => setSelectedFilter(filter.key)}
                                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${selectedFilter === filter.key
-                                                        ? 'bg-red-100 text-red-800 border border-red-200'
-                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                    ? 'bg-red-100 text-red-800 border border-red-200'
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                     }`}
                                             >
                                                 {filter.label} ({filter.count})
@@ -571,16 +573,20 @@ const EmergencyConsultations = () => {
                                                                             </button>
                                                                         )}
 
-                                                                    {/* Video Call Button */}
-                                                                    {/* {consultation.payment_status === 'success' &&
-                                                                        consultation.consultation_started &&
+                                                                    {/* Emergency Video Call Button */}
+                                                                    {consultation.payment_status === 'success' &&
                                                                         !consultation.consultation_end_time && (
-                                                                            <VideoCallButton
-                                                                                slotId={emergencyId}
+                                                                            <EmergencyVideoCallButton
+                                                                                emergencyId={consultation.id}
                                                                                 token={token}
-                                                                                isEmergency={true}
+                                                                                isDoctor={user?.role === 'doctor'}
+                                                                                isPatient={user?.role === 'patient'}
+                                                                                consultationStarted={consultation.consultation_started}
+                                                                                consultationEnded={!!consultation.consultation_end_time}
+                                                                                size="small"
+                                                                                className="mr-2"
                                                                             />
-                                                                        )} */}
+                                                                        )}
 
                                                                     {/* End Consultation Button */}
                                                                     {consultation.payment_status === 'success' &&

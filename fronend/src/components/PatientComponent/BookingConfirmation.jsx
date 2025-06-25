@@ -21,7 +21,7 @@ import Navbar from './Navbar';
 
 export default function AppointmentConfirmation() {
     const [searchParams] = useSearchParams();
-    const { payment_id: urlPaymentId } = useParams(); // Get payment_id from URL params
+    const { payment_id: urlPaymentId } = useParams(); 
     const navigate = useNavigate();
     const [bookingData, setBookingData] = useState(null);
     const [loading, setLoading] = useState(true);

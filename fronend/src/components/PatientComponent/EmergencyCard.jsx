@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Star, Clock, Phone, Video, User, Award, CreditCard, Loader, X, Check } from 'lucide-react';
 import { userAxios } from '../../axios/UserAxios';
+import { useNavigate } from 'react-router-dom';
 
 function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
+    const navigate = useNavigate();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentLoading, setPaymentLoading] = useState(false);
     const [reason, setReason] = useState(''); // Add state for reason
@@ -40,9 +42,9 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
         try {
             // Create emergency payment with reason
             const createRes = await userAxios.post('/emergency-payments/create/', {
-                doctor_id: doctor.user_id, // doctor.user_id is correct
-                amount: emergencyFee,      // e.g., 800
-                reason: reason.trim()      // Add the reason field
+                doctor_id: doctor.user_id, 
+                amount: emergencyFee,      
+                reason: reason.trim()     
             });
             console.log(createRes)
 
@@ -67,27 +69,23 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
                         });
 
                         const verifyData = verifyRes.data;
+                        console.log("**",verifyData)
 
                         // Close modal
                         setIsPaymentModalOpen(false);
                         setPaymentLoading(false);
 
                         // Redirect to video call
-                        if (verifyData.video_call_link) {
-                            window.open(verifyData.video_call_link, '_blank');
-                        }
-
-                        // Call success callback
                         if (onPaymentSuccess) {
                             onPaymentSuccess({
                                 paymentId: verifyData.payment_id,
                                 doctorName: verifyData.doctor_name,
-                                videoLink: verifyData.video_call_link,
                                 amount: verifyData.consultation_fee
                             });
                         }
 
-                        alert("✅ Emergency consultation payment successful! Video call will open shortly.");
+                        navigate(`/emergency-confirmation/payment/${verifyData.payment_id}`);
+
 
                     } catch (error) {
                         console.error("Emergency payment verification error:", error);

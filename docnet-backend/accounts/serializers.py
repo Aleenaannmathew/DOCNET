@@ -911,8 +911,260 @@ class EmergencyPaymentSerializer(serializers.ModelSerializer):
         model = EmergencyPayment
         fields = [
             'id', 'doctor_name', 'doctor_specialization', 'patient_name',
-            'amount', 'payment_status', 'video_call_link', 'consultation_started',
+            'amount', 'payment_status', 'consultation_started',
             'consultation_start_time', 'consultation_end_time', 'duration_minutes',
             'timestamp'
         ]
-
+class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
+    # Doctor related fields
+    doctor_full_name = serializers.SerializerMethodField()
+    doctor_initials = serializers.SerializerMethodField()
+    doctor_specialization = serializers.SerializerMethodField()
+    doctor_experience = serializers.SerializerMethodField()
+    doctor_hospital = serializers.SerializerMethodField()
+    doctor_availability_status = serializers.SerializerMethodField()
+    
+    # Patient related fields
+    patient_full_name = serializers.SerializerMethodField()
+    patient_age = serializers.SerializerMethodField()
+    patient_phone = serializers.SerializerMethodField()
+    patient_email = serializers.SerializerMethodField()
+    
+    # Consultation related fields
+    consultation_id = serializers.SerializerMethodField()
+    consultation_status = serializers.SerializerMethodField()
+    consultation_date = serializers.SerializerMethodField()
+    consultation_time = serializers.SerializerMethodField()
+    duration_minutes = serializers.SerializerMethodField()
+    
+    # Payment related fields
+    formatted_amount = serializers.SerializerMethodField()
+    platform_fee = serializers.SerializerMethodField()
+    tax_amount = serializers.SerializerMethodField()
+    total_amount = serializers.SerializerMethodField()
+    payment_method_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = EmergencyPayment
+        fields = [
+            'id',
+            'consultation_id',
+            'consultation_status',
+            'consultation_date',
+            'consultation_time',
+            'duration_minutes',
+            'reason',
+            
+            # Doctor fields
+            'doctor_full_name',
+            'doctor_initials',
+            'doctor_specialization',
+            'doctor_experience',
+            'doctor_hospital',
+            'doctor_availability_status',
+            
+            # Patient fields
+            'patient_full_name',
+            'patient_age',
+            'patient_phone',
+            'patient_email',
+            
+            # Payment fields
+            'formatted_amount',
+            'platform_fee',
+            'tax_amount',
+            'total_amount',
+            'payment_method_display',
+            'payment_status',
+            'consultation_started',
+            'consultation_start_time',
+            'consultation_end_time',
+        ]
+    
+    # Doctor methods
+    def get_doctor_full_name(self, obj):
+        """Get doctor's full name"""
+        if hasattr(obj, 'doctor') and obj.doctor:
+            if hasattr(obj.doctor, 'user'):
+                first_name = getattr(obj.doctor.user, 'first_name', '') or ''
+                last_name = getattr(obj.doctor.user, 'last_name', '') or ''
+                if first_name or last_name:
+                    return f"Dr. {first_name} {last_name}".strip()
+                return f"Dr. {obj.doctor.user.username}"
+            return f"Dr. {getattr(obj.doctor, 'full_name', 'Unknown')}"
+        return "Doctor information not available"
+    
+    def get_doctor_initials(self, obj):
+        """Get doctor's initials"""
+        if hasattr(obj, 'doctor') and obj.doctor:
+            if hasattr(obj.doctor, 'user'):
+                first_name = getattr(obj.doctor.user, 'first_name', '') or ""
+                last_name = getattr(obj.doctor.user, 'last_name', '') or ""
+                if first_name and last_name:
+                    return f"{first_name[:1]}{last_name[:1]}".upper()
+                elif first_name:
+                    return first_name[:2].upper()
+                else:
+                    return "DR"
+            return "DR"
+        return "DR"
+    
+    def get_doctor_specialization(self, obj):
+        """Get doctor's specialization"""
+        if hasattr(obj, 'doctor') and obj.doctor:
+            return getattr(obj.doctor, 'specialization', 'General Medicine')
+        return "General Medicine"
+    
+    def get_doctor_experience(self, obj):
+        """Get doctor's experience"""
+        if hasattr(obj, 'doctor') and obj.doctor:
+            experience = getattr(obj.doctor, 'experience_years', 0)
+            return f"{experience} years experience" if experience else "Experienced"
+        return "Experienced"
+    
+    def get_doctor_hospital(self, obj):
+        """Get doctor's hospital/clinic"""
+        if hasattr(obj, 'doctor') and obj.doctor:
+            return getattr(obj.doctor, 'hospital_name', 'Healthcare Center')
+        return "Healthcare Center"
+    
+    def get_doctor_availability_status(self, obj):
+        """Get doctor's availability status"""
+        if hasattr(obj, 'doctor') and obj.doctor:
+            return getattr(obj.doctor, 'availability_status', 'Available')
+        return "Available"
+    
+    # Patient methods
+    def get_patient_full_name(self, obj):
+        """Get patient's full name"""
+        if hasattr(obj, 'patient') and obj.patient:
+            first_name = getattr(obj.patient, 'first_name', '') or ''
+            last_name = getattr(obj.patient, 'last_name', '') or ''
+            if first_name or last_name:
+                return f"{first_name} {last_name}".strip()
+            return obj.patient.username
+        return "Patient information not available"
+    
+    def get_patient_age(self, obj):
+        """Get patient's age"""
+        if hasattr(obj, 'patient') and obj.patient:
+            if hasattr(obj.patient, 'date_of_birth') and obj.patient.date_of_birth:
+                from datetime import date
+                today = date.today()
+                age = today.year - obj.patient.date_of_birth.year - ((today.month, today.day) < (obj.patient.date_of_birth.month, obj.patient.date_of_birth.day))
+                return age
+            return getattr(obj.patient, 'age', 'Not specified')
+        return "Not specified"
+    
+    def get_patient_phone(self, obj):
+        """Get patient's phone number"""
+        if hasattr(obj, 'patient') and obj.patient:
+            return getattr(obj.patient, 'phone', getattr(obj.patient, 'phone_number', 'Not provided'))
+        return "Not provided"
+    
+    def get_patient_email(self, obj):
+        """Get patient's email"""
+        if hasattr(obj, 'patient') and obj.patient:
+            return getattr(obj.patient, 'email', 'Not provided')
+        return "Not provided"
+    
+    # Consultation methods
+    def get_consultation_id(self, obj):
+        """Get consultation ID"""
+        return f"EC-{obj.id:06d}"  # Format: EC-000001
+    
+    def get_consultation_status(self, obj):
+        """Get consultation status based on payment and consultation state"""
+        if hasattr(obj, 'consultation_end_time') and obj.consultation_end_time:
+            return 'ended'
+        elif hasattr(obj, 'consultation_started') and obj.consultation_started:
+            return 'active'
+        elif hasattr(obj, 'payment_status') and obj.payment_status == 'success':
+            return 'confirmed'
+        else:
+            return 'pending'
+    
+    def get_consultation_date(self, obj):
+        """Get consultation date"""
+        if hasattr(obj, 'consultation_date') and obj.consultation_date:
+            return obj.consultation_date.strftime('%B %d, %Y')
+        elif hasattr(obj, 'created_at') and obj.created_at:
+            return obj.created_at.strftime('%B %d, %Y')
+        elif hasattr(obj, 'timestamp') and obj.timestamp:
+            return obj.timestamp.strftime('%B %d, %Y')
+        return timezone.now().strftime('%B %d, %Y')
+    
+    def get_consultation_time(self, obj):
+        """Get consultation time"""
+        if hasattr(obj, 'consultation_time') and obj.consultation_time:
+            return obj.consultation_time.strftime('%I:%M %p')
+        elif hasattr(obj, 'consultation_start_time') and obj.consultation_start_time:
+            return obj.consultation_start_time.strftime('%I:%M %p')
+        elif hasattr(obj, 'created_at') and obj.created_at:
+            return obj.created_at.strftime('%I:%M %p')
+        elif hasattr(obj, 'timestamp') and obj.timestamp:
+            return obj.timestamp.strftime('%I:%M %p')
+        return timezone.now().strftime('%I:%M %p')
+    
+    def get_duration_minutes(self, obj):
+        """Calculate consultation duration in minutes"""
+        if obj.consultation_start_time and obj.consultation_end_time:
+            duration = obj.consultation_end_time - obj.consultation_start_time
+            return int(duration.total_seconds() / 60)
+        return 0
+    
+    # Payment methods
+    def get_formatted_amount(self, obj):
+        """Get formatted consultation amount"""
+        if hasattr(obj, 'amount') and obj.amount:
+            return f"₹{obj.amount:,.2f}"
+        return "₹0.00"
+    
+    def get_platform_fee(self, obj):
+        """Get platform fee"""
+        if hasattr(obj, 'platform_fee') and obj.platform_fee:
+            return f"₹{obj.platform_fee:,.2f}"
+        # Calculate 10% platform fee if not stored
+        if hasattr(obj, 'amount') and obj.amount:
+            fee = Decimal(str(obj.amount)) * Decimal('0.10')
+            return f"₹{fee:,.2f}"
+        return "₹0.00"
+    
+    def get_tax_amount(self, obj):
+        """Get tax amount"""
+        if hasattr(obj, 'tax_amount') and obj.tax_amount:
+            return f"₹{obj.tax_amount:,.2f}"
+        # Calculate 18% GST if not stored
+        if hasattr(obj, 'amount') and obj.amount:
+            base_amount = Decimal(str(obj.amount))
+            platform_fee = base_amount * Decimal('0.10')
+            subtotal = base_amount + platform_fee
+            tax = subtotal * Decimal('0.18')
+            return f"₹{tax:,.2f}"
+        return "₹0.00"
+    
+    def get_total_amount(self, obj):
+        """Get total amount including all fees and taxes"""
+        if hasattr(obj, 'total_amount') and obj.total_amount:
+            return f"₹{obj.total_amount:,.2f}"
+        # Calculate total if not stored
+        if hasattr(obj, 'amount') and obj.amount:
+            base_amount = Decimal(str(obj.amount))
+            platform_fee = base_amount * Decimal('0.10')
+            subtotal = base_amount + platform_fee
+            tax = subtotal * Decimal('0.18')
+            total = subtotal + tax
+            return f"₹{total:,.2f}"
+        return "₹0.00"
+    
+    def get_payment_method_display(self, obj):
+        """Get payment method display text"""
+        if hasattr(obj, 'payment_method') and obj.payment_method:
+            method_map = {
+                'card': 'Credit/Debit Card',
+                'upi': 'UPI Payment',
+                'netbanking': 'Net Banking',
+                'wallet': 'Digital Wallet',
+            }
+            return method_map.get(obj.payment_method, obj.payment_method.title())
+        return "Online Payment"

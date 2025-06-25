@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView
-from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView
+from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
     path('login/', UserLoginView.as_view(),name='login'),
@@ -28,5 +28,10 @@ urlpatterns = [
     path('emergency-doctors/', EmergencyDoctorListView.as_view(), name='emergency-doctors'),
     path('emergency-payments/create/', CreateEmergencyPaymentView.as_view(), name='create-emergency-payment'),
     path('emergency-payments/verify/', VerifyEmergencyPaymentView.as_view(), name='verify-emergency-payment'),
-   
+    path('validate-emergency-video-call/<int:emergency_id>/', ValidateEmergencyVideoCallAPI.as_view(), name='validate-emergency-video-call'),
+    path(
+        'emergency-confirmation/payment/<int:payment_id>/', 
+        EmergencyConsultationConfirmationView.as_view(), 
+        name='emergency-consultation-confirmation'
+    ),
 ]
