@@ -13,7 +13,12 @@ from accounts.models import User, PatientProfile,Appointment,Payment
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
 from .serializers import PatientListSerializer, PatientDetailSerializer
 from rest_framework_simplejwt.exceptions import TokenError
-
+from django.db.models import Count, Sum, Q, F
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from accounts.models import User, Appointment, Payment, EmergencyPayment
+from doctor.models import DoctorProfile
 
 
 class AdminLoginView(APIView):
@@ -260,4 +265,47 @@ class AdminAppointmentListView(APIView):
         ).all().order_by('-created_at')
         
         serializer = AdminAppointmentListSerializer(appointments, many=True)
-        return Response(serializer.data)             
+        return Response(serializer.data)      
+
+    
+class AdminDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_authenticated or request.user.role != 'admin':
+            return Response({'detail': 'Not authorized'}, status=403)
+
+        total_doctors = DoctorProfile.objects.count()
+        total_patients = User.objects.filter(role='patient').count()
+        total_appointments = Appointment.objects.count()
+        total_revenue = Payment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or 0
+
+        monthly_revenue = [
+        {'month': 'January', 'revenue': 10000},
+        {'month': 'February', 'revenue': 12000},
+        {'month': 'March', 'revenue': 9000},
+        {'month': 'April', 'revenue': 15000},
+    ]
+
+        admin_profit = total_revenue * 0.1
+        data = {
+            'total_doctors': total_doctors,
+            'total_patients': total_patients,
+            'total_appointments': total_appointments,
+            'total_revenue': total_revenue,
+            'monthly_revenue': monthly_revenue,
+            'admin_profit': admin_profit,
+            'trends': {
+                'total_doctors_change': '+2.5%',
+                'total_patients_change': '+1.8%',
+                'total_appointments_change': '+3.2%',
+                'total_revenue_change': '+4.7%',
+            },
+            'recent_activities': [
+                {'title': 'New Doctor Registered', 'description': 'Dr. Smith added to the platform', 'time': '2 hours ago', 'status': 'info'},
+                {'title': 'Appointment Completed', 'description': 'Patient John Doe completed consultation', 'time': '5 hours ago', 'status': 'success'},
+                {'title': 'Payment Received', 'description': 'Payment from patient Jane Doe', 'time': '1 day ago', 'status': 'success'},
+            ]
+        }
+
+        return Response(data)
