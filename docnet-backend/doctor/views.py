@@ -1,10 +1,13 @@
 from rest_framework import status, generics, permissions
 from rest_framework.response import Response
+from django.http import HttpResponse
+import csv
+from decimal import Decimal
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from django.db import transaction
-from django.db.models import Q
+from django.db import transaction, models
+from django.db.models import Q, Sum, Count
 from django.core.mail import send_mail
 from django.conf import settings
 import random, re,requests
@@ -16,12 +19,18 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.permissions import IsAuthenticated
-from accounts.models import EmergencyPayment
+from accounts.models import EmergencyPayment, Appointment, Payment
+from django.utils.timezone import now, localdate, timedelta
+from decimal import Decimal
+from reportlab.pdfgen import canvas
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from django.utils import timezone
 import logging
 from rest_framework.decorators import api_view, permission_classes
 from accounts.models import Appointment
-from .models import DoctorProfile, DoctorSlot, Wallet
+from .models import DoctorProfile, DoctorSlot, Wallet,WalletHistory
 from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
@@ -736,3 +745,177 @@ def end_emergency_consultation(request, consultation_id):
             {'error': str(e)}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+class DoctorDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if not hasattr(user, 'doctor_profile'):
+            return Response({"detail": "Doctor profile not found."}, status=404)
+
+        doctor = user.doctor_profile
+
+        # Get Wallet balance
+        try:
+            wallet = doctor.wallet.first()  # Assuming one wallet per doctor
+            total_revenue = wallet.balance
+        except:
+            total_revenue = Decimal('0.00')
+
+        appointments = Appointment.objects.filter(payment__slot__doctor=doctor)
+        total_appointments = appointments.count()
+        completed_appointments = appointments.filter(status='completed').count()
+        today_appointments = appointments.filter(payment__slot__date=localdate()).count()
+
+        # Emergency appointments
+        emergency_payments = EmergencyPayment.objects.filter(doctor=doctor, payment_status='success')
+        total_emergency_revenue = emergency_payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        emergency_appointments = emergency_payments.count()
+
+        # Recent completed appointments (last 3)
+        recent_appointments = appointments.filter(status='completed').order_by('-created_at')[:3]
+        recent_list = []
+        for appt in recent_appointments:
+            recent_list.append({
+                "patient_name": appt.payment.patient.username,
+                "date": appt.payment.slot.date,
+                "time": appt.payment.slot.start_time.strftime("%I:%M %p"),
+                "condition": appt.reason or "General Consultation",
+                "status": appt.status
+            })
+
+        return Response({
+            "total_revenue": total_revenue,  # Now showing Wallet balance
+            "emergency_revenue": total_emergency_revenue,
+            "total_appointments": total_appointments,
+            "today_appointments": today_appointments,
+            "completed_appointments": completed_appointments,
+            "emergency_appointments": emergency_appointments,
+            "recent_appointments": recent_list
+        })
+
+
+class DoctorAnalyticsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        filter_type = request.query_params.get('filter', 'all')
+
+        if not hasattr(user, 'doctor_profile'):
+            return Response({"detail": "Doctor profile not found."}, status=404)
+
+        doctor = user.doctor_profile
+
+        try:
+            wallet = doctor.wallet.first()
+            balance = wallet.balance
+            transactions = wallet.history.all().order_by('-updated_date')
+        except:
+            return Response({"detail": "Wallet not found."}, status=404)
+
+        today = localdate()
+        current_month = today.month
+        current_year = today.year
+
+        today_start = today
+        week_start = today - timedelta(days=today.weekday())
+        month_start = today.replace(day=1)
+        year_start = today.replace(month=1, day=1)
+
+        if filter_type == 'daily':
+            filtered_txns = transactions.filter(updated_date__date=today)
+        elif filter_type == 'weekly':
+            filtered_txns = transactions.filter(updated_date__date__gte=week_start)
+        elif filter_type == 'monthly':
+            filtered_txns = transactions.filter(updated_date__month=current_month, updated_date__year=current_year)
+        elif filter_type == 'yearly':
+            filtered_txns = transactions.filter(updated_date__year=current_year)
+        else:
+            filtered_txns = transactions
+
+        txn_list = [{
+            "date": txn.updated_date.strftime('%Y-%m-%d %H:%M'),
+            "type": txn.type,
+            "amount": txn.amount,
+            "new_balance": txn.new_balance
+        } for txn in filtered_txns]
+
+        # Revenue Calculations (for all-time)
+        month_revenue = wallet.history.filter(updated_date__month=current_month, updated_date__year=current_year, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        week_revenue = wallet.history.filter(updated_date__date__gte=week_start, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        today_revenue = wallet.history.filter(updated_date__date=today, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        expected_weekly_revenue = (month_revenue / today.day) * 7 if today.day else Decimal('0.00')
+        expected_monthly_revenue = (month_revenue / today.day) * 30 if today.day else Decimal('0.00')
+
+        return Response({
+            "wallet_balance": balance,
+            "transactions": txn_list,
+            "monthly_revenue": month_revenue,
+            "weekly_revenue": week_revenue,
+            "today_revenue": today_revenue,
+            "expected_weekly_revenue": expected_weekly_revenue,
+            "expected_monthly_revenue": expected_monthly_revenue
+        })
+
+class DoctorCSVExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if not hasattr(user, 'doctor_profile'):
+            return Response({"detail": "Doctor profile not found."}, status=404)
+
+        doctor = user.doctor_profile
+
+        try:
+            wallet = doctor.wallet.first()
+            transactions = wallet.history.all().order_by('-updated_date')
+        except:
+            return Response({"detail": "Wallet not found."}, status=404)
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="wallet_transactions.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Date', 'Type', 'Amount', 'New Balance'])
+
+        for txn in transactions:
+            writer.writerow([txn.updated_date.strftime('%Y-%m-%d %H:%M'), txn.type, txn.amount, txn.new_balance])
+
+        return response
+
+class DoctorPDFExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if not hasattr(user, 'doctor_profile'):
+            return Response({"detail": "Doctor profile not found."}, status=404)
+
+        doctor = user.doctor_profile
+
+        try:
+            wallet = doctor.wallet.first()
+            transactions = wallet.history.all().order_by('-updated_date')[:10]
+        except:
+            return Response({"detail": "Wallet not found."}, status=404)
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="wallet_report.pdf"'
+
+        p = canvas.Canvas(response)
+        p.drawString(100, 800, f"Wallet Report for Dr. {doctor.user.username}")
+
+        y = 750
+        for txn in transactions:
+            p.drawString(100, y, f"{txn.updated_date.strftime('%Y-%m-%d %H:%M')} - {txn.type} - {txn.amount} - New Balance: {txn.new_balance}")
+            y -= 20
+
+        p.showPage()
+        p.save()
+        return response

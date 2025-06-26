@@ -249,7 +249,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_id = query_params.get("room_id", [None])[0]
         token = query_params.get("token", [None])[0]
 
-        if not token:
+        if not token or not self.room_id:
             await self.close()
             return
 
@@ -259,6 +259,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.scope['user'] = await database_sync_to_async(User.objects.get)(id=user_id)
             self.user = self.scope['user']
         except Exception as e:
+            print("Token error:", e)
             await self.close()
             return
 
@@ -272,7 +273,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # 🆕 Send chat history
+        # ✅ Send chat history after connecting
         messages = await self.get_chat_history()
         await self.send(text_data=json.dumps({
             'type': 'history',
@@ -286,11 +287,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
 
         if data.get('type') == 'typing':
-            await self.channel_layer.group_send({
-                'type': 'typing_status',
-                'user': self.user.username,
-                'is_typing': data.get('is_typing', False),
-            })
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'typing_status',
+                    'user': self.user.username,
+                    'is_typing': data.get('is_typing', False),
+                }
+            )
         else:
             await self.handle_message(data)
 
@@ -304,13 +308,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         message = await self.save_message(content, file_data)
 
-        await self.channel_layer.group_send({
-            'type': 'chat_message',
-            'sender': self.user.username,
-            'message': content,
-            'file': message.file.url if message.file else None,
-            'timestamp': str(message.timestamp),
-        })
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'chat_message',
+                'sender': self.user.username,
+                'message': content,
+                'file': message.file.url if message.file else None,
+                'timestamp': str(message.timestamp),
+            }
+        )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event))
@@ -340,11 +347,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if file_data:
             try:
                 format, imgstr = file_data.split(';base64,')
-                ext = format.split('/')[-1].split('+')[0]  # handle codecs like audio/webm;codecs=opus
+                ext = format.split('/')[-1].split('+')[0]  # handle formats like audio/webm;codecs=opus
                 file_name = f"{self.user.username}_{timezone.now().timestamp()}.{ext}"
                 msg.file.save(file_name, ContentFile(base64.b64decode(imgstr)), save=True)
             except Exception as e:
-                print("File save error:", e)
+                print("❌ File save error:", e)
         else:
             msg.save()
         return msg

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { doctorAxios } from '../../axios/DoctorAxios';
 import { ToastContainer, toast } from 'react-toastify';
