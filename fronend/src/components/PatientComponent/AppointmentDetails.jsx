@@ -7,6 +7,7 @@ import { logout } from '../../store/authSlice';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import VideoCallButton from '../Constants/VideoCallButton';
+import ChatAccessButton from '../Constants/MessageButton';
 
 export default function AppointmentDetails() {
   const [activeTab, setActiveTab] = useState('details');
@@ -324,10 +325,7 @@ export default function AppointmentDetails() {
                         {appointmentData.consultation_type === 'video' && appointmentData.status === 'scheduled' && (
                           <VideoCallButton slotId={appointmentData.slot_id} token={token} />
                         )}
-                        <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center space-x-2">
-                          <MessageCircle className="w-4 h-4" />
-                          <span>Message</span>
-                        </button>
+                        <ChatAccessButton slotId={appointmentData.slot_id} />
                       </div>
                     </div>
 

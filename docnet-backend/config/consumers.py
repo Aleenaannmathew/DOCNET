@@ -1,13 +1,22 @@
 import json
 import logging
+from django.utils import timezone
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from accounts.models import Appointment, EmergencyPayment
 from urllib.parse import parse_qs
+from django.core.files.base import ContentFile
+import base64
+from django.contrib.auth import get_user_model
+import uuid
+from accounts.models import Message,ChatRoom
+from datetime import  datetime
 
 logger = logging.getLogger(__name__)
+
+
 
 # Global rooms dictionary to track connections
 rooms = {}
@@ -230,3 +239,124 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Error validating emergency consultation for room {emergency_id}, user {user_id}: {e}")
             return False
+        
+
+User = get_user_model()
+
+class ChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        query_params = parse_qs(self.scope["query_string"].decode())
+        self.room_id = query_params.get("room_id", [None])[0]
+        token = query_params.get("token", [None])[0]
+
+        if not token:
+            await self.close()
+            return
+
+        try:
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+            self.scope['user'] = await database_sync_to_async(User.objects.get)(id=user_id)
+            self.user = self.scope['user']
+        except Exception as e:
+            await self.close()
+            return
+
+        self.room_group_name = f'chat_{self.room_id}'
+        self.room = await self.get_room(self.room_id)
+
+        if not self.room or not await self.is_valid_user() or not await self.is_chat_allowed():
+            await self.close()
+            return
+
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+        # 🆕 Send chat history
+        messages = await self.get_chat_history()
+        await self.send(text_data=json.dumps({
+            'type': 'history',
+            'messages': messages
+        }))
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+
+        if data.get('type') == 'typing':
+            await self.channel_layer.group_send({
+                'type': 'typing_status',
+                'user': self.user.username,
+                'is_typing': data.get('is_typing', False),
+            })
+        else:
+            await self.handle_message(data)
+
+    async def handle_message(self, data):
+        content = data.get('message', '')
+        file_data = data.get('file')
+
+        if not await self.is_chat_allowed():
+            await self.send(text_data=json.dumps({"error": "Chat period expired."}))
+            return
+
+        message = await self.save_message(content, file_data)
+
+        await self.channel_layer.group_send({
+            'type': 'chat_message',
+            'sender': self.user.username,
+            'message': content,
+            'file': message.file.url if message.file else None,
+            'timestamp': str(message.timestamp),
+        })
+
+    async def chat_message(self, event):
+        await self.send(text_data=json.dumps(event))
+
+    async def typing_status(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'typing',
+            'user': event['user'],
+            'is_typing': event['is_typing'],
+        }))
+
+    @database_sync_to_async
+    def get_room(self, room_id):
+        return ChatRoom.objects.filter(id=room_id).first()
+
+    @database_sync_to_async
+    def is_valid_user(self):
+        return self.room and self.user in [self.room.doctor, self.room.patient]
+
+    @database_sync_to_async
+    def is_chat_allowed(self):
+        return timezone.now() <= self.room.created_at + timezone.timedelta(days=7)
+
+    @database_sync_to_async
+    def save_message(self, content, file_data):
+        msg = Message(room=self.room, sender=self.user, content=content)
+        if file_data:
+            try:
+                format, imgstr = file_data.split(';base64,')
+                ext = format.split('/')[-1].split('+')[0]  # handle codecs like audio/webm;codecs=opus
+                file_name = f"{self.user.username}_{timezone.now().timestamp()}.{ext}"
+                msg.file.save(file_name, ContentFile(base64.b64decode(imgstr)), save=True)
+            except Exception as e:
+                print("File save error:", e)
+        else:
+            msg.save()
+        return msg
+
+    @database_sync_to_async
+    def get_chat_history(self):
+        return [
+            {
+                'sender': msg.sender.username,
+                'message': msg.content,
+                'file': msg.file.url if msg.file else None,
+                'timestamp': str(msg.timestamp),
+            }
+            for msg in self.room.messages.order_by('timestamp')
+        ]

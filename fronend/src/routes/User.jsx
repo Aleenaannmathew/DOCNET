@@ -19,6 +19,7 @@ import UserContact from '../pages/PatientPages/UserContact';
 import BlogPage from '../pages/PatientPages/BlogPage';
 import Emergency from '../pages/PatientPages/Emergency';
 import EmerConfirmationPage from '../pages/PatientPages/EmerConfirmationPage';
+import PatientChat from '../pages/PatientPages/PatientChat';
 
 
 
@@ -69,6 +70,8 @@ function UserRoutes() {
         <Route path='/blog' element={<BlogPage/>}/>
         <Route path='/emergency-consultation' element={<Emergency/>}/>
         <Route path='/emergency-confirmation/payment/:payment_id' element={<EmerConfirmationPage/>}/>
+        <Route path='/chat-room/:id' element={<PatientChat/>}/>
+       
         
       </Route>
 

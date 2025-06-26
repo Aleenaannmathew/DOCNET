@@ -30,6 +30,7 @@ import {
 import { doctorAxios } from '../../axios/DoctorAxios';
 import VideoCallButton from '../Constants/VideoCallButton';
 import { useSelector } from 'react-redux';
+import ChatAccessButton from '../Constants/MessageButton';
 
 const PatientAppointmentDetails = () => {
   const { appointmentId } = useParams();
@@ -268,13 +269,7 @@ const PatientAppointmentDetails = () => {
               
                 
               
-              <button
-                onClick={handleChat}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Chat</span>
-              </button>
+              <ChatAccessButton slotId={slotId} />
               
               <div className={`flex items-center space-x-2 px-4 py-2 rounded-full border ${getStatusColor(appointment.status)}`}>
                 {getStatusIcon(appointment.status)}

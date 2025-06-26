@@ -19,6 +19,7 @@ import PatientAppointments from '../pages/DoctorPages/PatientAppointments';
 import AppointmentDetails from '../pages/DoctorPages/AppointmentDetails';
 import Wallet from '../pages/DoctorPages/Wallet';
 import ListEmergencyPatients from '../pages/DoctorPages/ListEmergencyPatients';
+import DoctorChat from '../pages/DoctorPages/DoctorChat';
 
 function DoctorRoutes() {
   return (
@@ -75,6 +76,7 @@ function DoctorRoutes() {
         <Route path="appointment-details/:appointmentId" element={<AppointmentDetails/>}/>
         <Route path="doctor-wallet" element={<Wallet/>}/>
         <Route path="emergency-list" element={<ListEmergencyPatients/>}/>
+        <Route path="/chat-room/:id" element={<DoctorChat/>}/>
       </Route>
 
       {/* Catch-all route */}

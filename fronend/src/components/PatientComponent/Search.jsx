@@ -70,22 +70,6 @@ function SearchSection({ searchQuery, setSearchQuery }) {
               <div className="space-y-6">
                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                      <User className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Dr. Sarah Johnson</h3>
-                      <p className="text-sm text-gray-600">Cardiologist</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="h-4 w-4" />
-                    <span>Available Today</span>
-                  </div>
-                </div>
-
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-                  <div className="flex items-center gap-4 mb-4">
                     <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
                       <Heart className="h-6 w-6 text-white" />
                     </div>

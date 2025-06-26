@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { User, LogOut, Settings, Calendar, UserCircle, Heart } from 'lucide-react';
+import { User, LogOut, Settings, Calendar, UserCircle, Heart, MessageCircle } from 'lucide-react';
 import { logout } from '../../store/authSlice';
 
 const Navbar = () => {
@@ -64,6 +64,7 @@ const Navbar = () => {
     navigate('/user-profile');
     setIsProfileMenuOpen(false);
   };
+
 
   // Close profile menu when clicking outside
   useEffect(() => {
@@ -134,6 +135,15 @@ const Navbar = () => {
                     </div>
                   )}
                   <span className="font-medium text-gray-700">{user?.username || user?.name || "User"}</span>
+                </button>
+                
+                {/* Message Button */}
+                <button 
+                 
+                  className="flex items-center justify-center w-10 h-10 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
+                  title="Messages"
+                >
+                  <MessageCircle size={20} />
                 </button>
                 
                 {/* Logout Button */}
@@ -236,6 +246,12 @@ const Navbar = () => {
                     className="block w-full text-left text-gray-600 hover:text-blue-600 font-medium"
                   >
                     View Profile
+                  </button>
+                  <button
+                  
+                    className="block w-full text-left text-gray-600 hover:text-blue-600 font-medium"
+                  >
+                    Messages
                   </button>
                   <button
                     onClick={handleLogout}

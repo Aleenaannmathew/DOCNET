@@ -13,7 +13,7 @@ from datetime import timedelta, datetime
 from django.utils.timezone import localtime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment
+from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message
 from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
 from rest_framework import generics, filters
@@ -688,17 +688,16 @@ class ValidateVideoCallAPI(APIView):
             slot = appointment.payment.slot
             slot_time = datetime.combine(slot.date, slot.start_time)
             
-            # Make slot_time timezone-aware
-            # slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            # start_window = slot_time - timedelta(minutes=15)
-            # end_window = slot_time + timedelta(minutes=slot.duration)
+            start_window = slot_time - timedelta(minutes=15)
+            end_window = slot_time + timedelta(minutes=slot.duration)
             
-            # if not (start_window <= now <= end_window):
-            #     return Response(
-            #         {"error": "Video call is only available during your scheduled time"},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
+            if not (start_window <= now <= end_window):
+                return Response(
+                    {"error": "Video call is only available during your scheduled time"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
                 
             return Response({
                 "valid": True,
@@ -845,174 +844,6 @@ class VerifyEmergencyPaymentView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-# class EmergencyConsultationStatusView(APIView):
-#     """
-#     Get, start, or end emergency consultation
-#     """
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, payment_id):
-#         """Get consultation status"""
-#         try:
-#             payment = EmergencyPayment.objects.select_related(
-#                 'doctor__user', 'patient'
-#             ).get(
-#                 id=payment_id,
-#                 payment_status='success'
-#             )
-            
-#             # Check if user is authorized to view this consultation
-#             if request.user != payment.patient and request.user != payment.doctor.user:
-#                 return Response({
-#                     "error": "Not authorized to view this consultation"
-#                 }, status=status.HTTP_403_FORBIDDEN)
-            
-#             serializer = EmergencyPaymentSerializer(payment)
-#             return Response({
-#                 "success": True,
-#                 "data": serializer.data
-#             })
-            
-#         except EmergencyPayment.DoesNotExist:
-#             return Response({
-#                 "success": False,
-#                 "error": "Consultation not found"
-#             }, status=status.HTTP_404_NOT_FOUND)
-
-#     def post(self, request, payment_id):
-#         """Start or end consultation"""
-#         try:
-#             payment = EmergencyPayment.objects.get(
-#                 id=payment_id,
-#                 payment_status='success'
-#             )
-            
-#             # Check authorization
-#             if request.user != payment.patient and request.user != payment.doctor.user:
-#                 return Response({
-#                     "error": "Not authorized to modify this consultation"
-#                 }, status=status.HTTP_403_FORBIDDEN)
-            
-#             action = request.data.get('action')
-            
-#             if action == 'start':
-#                 if not payment.consultation_started:
-#                     payment.start_consultation()
-#                     return Response({
-#                         "success": True,
-#                         "message": "Consultation started",
-#                         "video_call_link": payment.video_call_link
-#                     })
-#                 else:
-#                     return Response({
-#                         "success": False,
-#                         "message": "Consultation already started"
-#                     }, status=status.HTTP_400_BAD_REQUEST)
-                    
-#             elif action == 'end':
-#                 if payment.consultation_started and not payment.consultation_end_time:
-#                     payment.end_consultation()
-#                     return Response({
-#                         "success": True,
-#                         "message": "Consultation ended",
-#                         "duration_minutes": payment.duration_minutes
-#                     })
-#                 else:
-#                     return Response({
-#                         "success": False,
-#                         "message": "Consultation not active or already ended"
-#                     }, status=status.HTTP_400_BAD_REQUEST)
-#             else:
-#                 return Response({
-#                     "success": False,
-#                     "error": "Invalid action. Use 'start' or 'end'"
-#                 }, status=status.HTTP_400_BAD_REQUEST)
-                
-#         except EmergencyPayment.DoesNotExist:
-#             return Response({
-#                 "success": False,
-#                 "error": "Consultation not found"
-#             }, status=status.HTTP_404_NOT_FOUND)
-
-
-# class PatientEmergencyHistoryView(generics.ListAPIView):
-#     """
-#     Get patient's emergency consultation history
-#     """
-#     serializer_class = EmergencyPaymentSerializer
-#     permission_classes = [IsAuthenticated]
-
-#     def get_queryset(self):
-#         return EmergencyPayment.objects.filter(
-#             patient=self.request.user,
-#             payment_status='success'
-#         ).select_related('doctor__user').order_by('-timestamp')
-
-
-# class DoctorEmergencyHistoryView(generics.ListAPIView):
-#     """
-#     Get doctor's emergency consultation history
-#     """
-#     serializer_class = EmergencyPaymentSerializer
-#     permission_classes = [IsAuthenticated]
-
-#     def get_queryset(self):
-#         try:
-#             doctor_profile = DoctorProfile.objects.get(user=self.request.user)
-#             return EmergencyPayment.objects.filter(
-#                 doctor=doctor_profile,
-#                 payment_status='success'
-#             ).select_related('patient').order_by('-timestamp')
-#         except DoctorProfile.DoesNotExist:
-#             return EmergencyPayment.objects.none()
-
-
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def emergency_stats(request):
-#     """
-#     Get emergency consultation statistics
-#     """
-#     if hasattr(request.user, 'doctor_profile'):
-#         # Doctor stats
-#         doctor_profile = request.user.doctor_profile
-#         total_emergency_consultations = EmergencyPayment.objects.filter(
-#             doctor=doctor_profile,
-#             payment_status='success'
-#         ).count()
-        
-#         active_consultations = EmergencyPayment.objects.filter(
-#             doctor=doctor_profile,
-#             payment_status='success',
-#             consultation_started=True,
-#             consultation_end_time__isnull=True
-#         ).count()
-        
-#         return Response({
-#             "total_emergency_consultations": total_emergency_consultations,
-#             "active_consultations": active_consultations,
-#             "emergency_status": doctor_profile.emergency_status
-#         })
-#     else:
-#         # Patient stats
-#         total_consultations = EmergencyPayment.objects.filter(
-#             patient=request.user,
-#             payment_status='success'
-#         ).count()
-        
-#         active_consultation = EmergencyPayment.objects.filter(
-#             patient=request.user,
-#             payment_status='success',
-#             consultation_started=True,
-#             consultation_end_time__isnull=True
-#         ).first()
-        
-#         return Response({
-#             "total_consultations": total_consultations,
-#             "has_active_consultation": bool(active_consultation),
-#             "active_consultation_id": active_consultation.id if active_consultation else None
-#         })  
-# 
 class ValidateEmergencyVideoCallAPI(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1169,3 +1000,52 @@ class EmergencyConsultationConfirmationView(APIView):
             "message": "Consultation ended successfully",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+
+class ValidateChatAccessAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slot_id):
+        user = request.user
+
+        try:
+            # Find a valid appointment
+            appointment = Appointment.objects.get(
+                payment__slot__id=slot_id,
+                payment__payment_status='success'
+            )
+
+            # Check if consultation is still valid
+            consultation_end = appointment.updated_at
+            if timezone.now() > consultation_end + timedelta(days=7):
+                return Response(
+                    {"error": "Chat window has expired"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            doctor_user = appointment.payment.slot.doctor.user
+            patient_user = appointment.payment.patient
+
+            # Determine if the logged-in user is doctor or patient
+            if user == doctor_user:
+                room, _ = ChatRoom.objects.get_or_create(
+                    doctor=doctor_user,
+                    patient=patient_user
+                )
+            elif user == patient_user:
+                room, _ = ChatRoom.objects.get_or_create(
+                    doctor=doctor_user,
+                    patient=patient_user
+                )
+            else:
+                return Response(
+                    {"error": "You are not authorized for this chat"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            return Response({"valid": True, "room_id": room.id})
+
+        except Appointment.DoesNotExist:
+            return Response(
+                {"error": "No valid completed appointment found"},
+                status=status.HTTP_400_BAD_REQUEST
+            )

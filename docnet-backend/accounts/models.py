@@ -153,3 +153,25 @@ class EmergencyPayment(models.Model):
         """Mark consultation as ended"""
         self.consultation_end_time = timezone.now()
         self.save()
+
+class ChatRoom(models.Model):
+    doctor = models.ForeignKey(User, related_name='chat_doctor', on_delete=models.CASCADE)
+    patient = models.ForeignKey(User, related_name='chat_patient', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"ChatRoom: {self.doctor.username} & {self.patient.username}"
+
+    @property
+    def is_active(self):
+        return timezone.now() <= self.created_at + timezone.timedelta(days=7)
+
+class Message(models.Model):
+    room = models.ForeignKey(ChatRoom, related_name='messages', on_delete=models.CASCADE)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField(blank=True)
+    file = models.FileField(upload_to='chat_uploads/', null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"From {self.sender.username} at {self.timestamp}"        

@@ -69,7 +69,6 @@ INSTALLED_APPS = [
     'channels',
     'django_celery_beat',
     'django_celery_results',
-
 ]
 
 SITE_ID = 1

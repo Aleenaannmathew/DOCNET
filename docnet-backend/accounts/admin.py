@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment
+from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -31,3 +31,20 @@ class AppointmentAdmin(admin.ModelAdmin):
 @admin.register(EmergencyPayment)
 class EmergencyAdmin(admin.ModelAdmin):
     list_display = ('id', 'consultation_start_time','consultation_end_time','reason')
+
+
+@admin.register(ChatRoom)
+class ChatRoomAdmin(admin.ModelAdmin):
+    list_display = ('id', 'doctor', 'patient', 'created_at', 'is_active')
+    list_filter = ('created_at',)
+    search_fields = ('doctor__username', 'patient__username')
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'room', 'sender', 'content_snippet', 'file', 'timestamp')
+    list_filter = ('timestamp',)
+    search_fields = ('sender__username', 'room__doctor__username', 'room__patient__username', 'content')
+
+    def content_snippet(self, obj):
+        return (obj.content[:50] + '...') if obj.content and len(obj.content) > 50 else obj.content
+    content_snippet.short_description = 'Content'
