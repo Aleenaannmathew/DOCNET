@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator
+from datetime import timedelta
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -105,6 +106,9 @@ class Appointment(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
         ]
+    @property
+    def consultation_end_time(self):
+        return self.created_at + timedelta(minutes=30)
     
     def __str__(self):
         return f"Appointment #{self.id} - {self.payment.patient.username} with slot {self.payment.slot}"

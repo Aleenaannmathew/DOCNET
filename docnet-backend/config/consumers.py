@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 import uuid
 from accounts.models import Message,ChatRoom
 from datetime import  datetime
-
+from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
@@ -242,8 +242,14 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         
 
 User = get_user_model()
-
+def get_absolute_url(path):
+        if not path:
+            return None
+        if path.startswith('http'):
+            return path
+        return f"{settings.DOMAIN_URL}{path}"
 class ChatConsumer(AsyncWebsocketConsumer):
+    
     async def connect(self):
         query_params = parse_qs(self.scope["query_string"].decode())
         self.room_id = query_params.get("room_id", [None])[0]
@@ -314,7 +320,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'type': 'chat_message',
                 'sender': self.user.username,
                 'message': content,
-                'file': message.file.url if message.file else None,
+                'file': get_absolute_url(message.file.url) if message.file else None,
                 'timestamp': str(message.timestamp),
             }
         )
@@ -347,7 +353,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if file_data:
             try:
                 format, imgstr = file_data.split(';base64,')
-                ext = format.split('/')[-1].split('+')[0]  # handle formats like audio/webm;codecs=opus
+                ext = format.split('/')[-1].split('+')[0]
                 file_name = f"{self.user.username}_{timezone.now().timestamp()}.{ext}"
                 msg.file.save(file_name, ContentFile(base64.b64decode(imgstr)), save=True)
             except Exception as e:
@@ -362,7 +368,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             {
                 'sender': msg.sender.username,
                 'message': msg.content,
-                'file': msg.file.url if msg.file else None,
+                'file': get_absolute_url(msg.file.url) if msg.file else None,
                 'timestamp': str(msg.timestamp),
             }
             for msg in self.room.messages.order_by('timestamp')

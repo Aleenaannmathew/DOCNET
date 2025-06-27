@@ -5,8 +5,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.conf import settings
+from django.utils import timezone
+from rest_framework.pagination import PageNumberPagination
+from django.db.models.functions import TruncMonth
 from doctor.models import DoctorProfile
-from .serializers import AdminLoginSerializer, AdminUserSerializer 
+from .serializers import AdminLoginSerializer, AdminUserSerializer, PaymentListSerializer 
 from django.shortcuts import get_object_or_404
 from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer, AdminAppointmentListSerializer
 from accounts.models import User, PatientProfile,Appointment,Payment
@@ -19,6 +22,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from accounts.models import User, Appointment, Payment, EmergencyPayment
 from doctor.models import DoctorProfile
+from decimal import Decimal
+from datetime import timedelta
 
 
 class AdminLoginView(APIView):
@@ -85,9 +90,6 @@ class AdminVerifyToken(APIView):
             'user': user_serializer.data
         }, status=status.HTTP_200_OK)
     
-
-
-
 class DoctorListView(APIView):
 
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -254,20 +256,71 @@ class PatientDetailView(APIView):
                 {"detail": f"Error retrieving patient details: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )   
+        
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100        
 
 class AdminAppointmentListView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        appointments = Appointment.objects.select_related(
-            'payment', 'payment__slot', 'payment__slot__doctor',
-            'payment__patient'
-        ).all().order_by('-created_at')
-        
-        serializer = AdminAppointmentListSerializer(appointments, many=True)
-        return Response(serializer.data)      
+        now = timezone.now()
+        threshold = now - timedelta(minutes=30)
 
-    
+        # Auto-update outdated scheduled appointments
+        Appointment.objects.filter(
+            status='scheduled',
+            created_at__lte=threshold
+        ).update(status='completed')
+
+        # Get filter parameters from request
+        search_term = request.query_params.get('search', '').strip()
+        status_filter = request.query_params.get('status', '').strip().lower()
+        date_filter = request.query_params.get('date_filter', '').strip().lower()
+
+        # Base queryset
+        queryset = Appointment.objects.select_related(
+            'payment', 'payment__slot', 'payment__slot__doctor__user',
+            'payment__patient'
+        ).order_by('-created_at')
+
+        # Apply filters
+        if search_term:
+            queryset = queryset.filter(
+                Q(payment__patient__user__first_name__icontains=search_term) |
+                Q(payment__patient__user__last_name__icontains=search_term) |
+                Q(payment__patient__user__email__icontains=search_term) |
+                Q(payment__slot__doctor__user__first_name__icontains=search_term) |
+                Q(payment__slot__doctor__user__last_name__icontains=search_term) |
+                Q(payment__slot__doctor__user__email__icontains=search_term)
+            )
+
+        if status_filter and status_filter != 'all':
+            queryset = queryset.filter(status__iexact=status_filter)
+
+        if date_filter and date_filter != 'all':
+            today = timezone.now().date()
+            if date_filter == 'today':
+                queryset = queryset.filter(payment__slot__date=today)
+            elif date_filter == 'tomorrow':
+                tomorrow = today + timedelta(days=1)
+                queryset = queryset.filter(payment__slot__date=tomorrow)
+            elif date_filter == 'week':
+                next_week = today + timedelta(days=7)
+                queryset = queryset.filter(
+                    payment__slot__date__range=[today, next_week]
+                )
+
+        # Pagination
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = AdminAppointmentListSerializer(page, many=True)
+
+        return paginator.get_paginated_response(serializer.data)
+
+
 class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -278,23 +331,36 @@ class AdminDashboardView(APIView):
         total_doctors = DoctorProfile.objects.count()
         total_patients = User.objects.filter(role='patient').count()
         total_appointments = Appointment.objects.count()
-        total_revenue = Payment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or 0
+        total_revenue = Payment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+
+        admin_profit = total_revenue * Decimal('0.1')
+
+        # Monthly Appointments Analytics
+        appointments_per_month = Appointment.objects.annotate(month=TruncMonth('created_at')) \
+            .values('month') \
+            .annotate(count=Count('id')) \
+            .order_by('month')
+
+        appointment_analytics = [
+            {'month': item['month'].strftime('%B'), 'appointments': item['count']}
+            for item in appointments_per_month
+        ]
 
         monthly_revenue = [
-        {'month': 'January', 'revenue': 10000},
-        {'month': 'February', 'revenue': 12000},
-        {'month': 'March', 'revenue': 9000},
-        {'month': 'April', 'revenue': 15000},
-    ]
+            {'month': 'January', 'revenue': 10000},
+            {'month': 'February', 'revenue': 12000},
+            {'month': 'March', 'revenue': 9000},
+            {'month': 'April', 'revenue': 15000},
+        ]
 
-        admin_profit = total_revenue * 0.1
         data = {
             'total_doctors': total_doctors,
             'total_patients': total_patients,
             'total_appointments': total_appointments,
-            'total_revenue': total_revenue,
+            'total_revenue': float(total_revenue),
             'monthly_revenue': monthly_revenue,
-            'admin_profit': admin_profit,
+            'admin_profit': float(admin_profit),
+            'appointment_analytics': appointment_analytics,
             'trends': {
                 'total_doctors_change': '+2.5%',
                 'total_patients_change': '+1.8%',
@@ -309,3 +375,32 @@ class AdminDashboardView(APIView):
         }
 
         return Response(data)
+    
+
+class AdminPaymentHistoryAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        status = request.query_params.get('status')
+        search = request.query_params.get('search')
+
+        queryset = Payment.objects.select_related('patient', 'slot__doctor__user').all()
+
+        if status:
+            queryset = queryset.filter(payment_status=status.lower())
+
+        if search:
+            queryset = queryset.filter(
+                Q(patient__username__icontains=search) |
+                Q(payment_id__icontains=search) |
+                Q(slot__doctor__user__username__icontains=search)
+            )
+
+        queryset = queryset.order_by('-timestamp')
+
+        # Apply pagination
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = PaymentListSerializer(page, many=True)
+
+        return paginator.get_paginated_response(serializer.data)

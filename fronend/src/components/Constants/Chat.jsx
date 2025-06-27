@@ -1,4 +1,3 @@
-// === FINAL ChatRoom.jsx with Voice Recording + History ===
 import React, { useEffect, useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
@@ -10,8 +9,9 @@ const ChatRoom = () => {
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [typingUser, setTypingUser] = useState(null);
+  const [modalImage, setModalImage] = useState(null);
   const { token, user } = useSelector((state) => state.auth);
-  const { id } = useParams(); 
+  const { id } = useParams();
   const scrollRef = useRef();
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef(null);
@@ -21,6 +21,7 @@ const ChatRoom = () => {
     if (!token || !id) return;
     const ws = new WebSocket(`ws://localhost:8000/ws/chat/?room_id=${id}&token=${token}`);
     setSocket(ws);
+
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.type === 'typing') {
@@ -31,6 +32,7 @@ const ChatRoom = () => {
         setMessages((prev) => [...prev, data]);
       }
     };
+
     ws.onclose = () => console.log('WebSocket disconnected');
     return () => ws.close();
   }, [id, token]);
@@ -86,7 +88,7 @@ const ChatRoom = () => {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFile(reader.result); // base64
+        setFile(reader.result);
         setFilePreview("voice_message.webm");
       };
       reader.readAsDataURL(audioBlob);
@@ -102,7 +104,7 @@ const ChatRoom = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100 relative">
       <div className="bg-blue-600 text-white px-4 py-3 font-bold text-lg">Chat Room #{id}</div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -111,15 +113,31 @@ const ChatRoom = () => {
           return (
             <div key={i} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
               <div className={`rounded-xl px-4 py-2 max-w-[70%] ${isSender ? 'bg-blue-500 text-white' : 'bg-white text-gray-800'} shadow-md`}>
-                <div className="text-sm">{msg.message}</div>
-                {msg.file && msg.file.endsWith('.pdf') && (
-                  <a href={msg.file} target="_blank" rel="noreferrer" className="text-xs underline block mt-1">📄 View PDF</a>
+                <div className="text-sm whitespace-pre-wrap">{msg.message}</div>
+
+                {/* === Render PDF === */}
+                {msg.file && msg.file.match(/\.pdf(\?.*)?$/i) && (
+                  <a href={msg.file} download className="text-xs underline block mt-1">📄 Download PDF</a>
                 )}
-                {msg.file && (msg.file.endsWith('.mp3') || msg.file.endsWith('.wav') || msg.file.endsWith('.webm')) && (
-                  <audio controls src={msg.file} className="mt-1 w-full" />
+
+                {/* === Render Audio === */}
+                {msg.file && msg.file.match(/\.(mp3|wav|webm)(\?.*)?$/i) && (
+                  <audio controls src={msg.file} className="mt-2 w-full min-w-[200px] max-w-full rounded shadow" />
                 )}
-                {msg.file && msg.file.match(/\.(jpeg|jpg|png|gif)$/i) && (
-                  <img src={msg.file} alt="sent" className="mt-1 max-w-xs rounded" />
+
+                {/* === Render Image with Modal Preview === */}
+                {msg.file && msg.file.match(/\.(jpeg|jpg|png|gif)(\?.*)?$/i) && (
+                  <img
+                    src={msg.file}
+                    alt="sent"
+                    onClick={() => setModalImage(msg.file)}
+                    className="mt-2 max-w-xs rounded cursor-pointer hover:opacity-80"
+                  />
+                )}
+
+                {/* === Fallback File === */}
+                {msg.file && !msg.file.match(/\.(pdf|mp3|wav|webm|jpeg|jpg|png|gif)(\?.*)?$/i) && (
+                  <a href={msg.file} download className="text-xs underline block mt-1">📎 Download File</a>
                 )}
               </div>
             </div>
@@ -143,13 +161,31 @@ const ChatRoom = () => {
         />
         <div className="flex flex-wrap justify-between items-center gap-2">
           <input type="file" accept="image/*,application/pdf,audio/*" onChange={handleFileChange} className="text-sm" />
-          <button onClick={recording ? stopRecording : startRecording} className={`text-white px-3 py-1 rounded ${recording ? 'bg-red-500' : 'bg-green-600'}`}>
+          <button
+            onClick={recording ? stopRecording : startRecording}
+            className={`text-white px-3 py-1 rounded ${recording ? 'bg-red-500' : 'bg-green-600'}`}
+          >
             {recording ? 'Stop Recording' : '🎤 Record Voice'}
           </button>
           {filePreview && <span className="text-xs text-gray-600">📎 {filePreview}</span>}
           <button onClick={sendMessage} className="bg-blue-600 text-white px-4 py-2 rounded">Send</button>
         </div>
       </div>
+
+      {/* === Image Modal === */}
+      {modalImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+          onClick={() => setModalImage(null)}
+        >
+          <img
+            src={modalImage}
+            alt="Preview"
+            className="max-h-[90vh] max-w-[90vw] rounded shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

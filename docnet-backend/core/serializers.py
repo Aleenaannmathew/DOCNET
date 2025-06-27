@@ -126,10 +126,14 @@ class AdminAppointmentListSerializer(serializers.ModelSerializer):
     slot = serializers.SerializerMethodField()
     patient = serializers.SerializerMethodField()
     payment = PaymentSummarySerializer(read_only=True)
+    completed_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Appointment
-        fields = ['id', 'status', 'created_at', 'updated_at', 'payment', 'slot', 'patient']
+        fields = [
+            'id', 'status', 'created_at', 'updated_at',
+            'payment', 'slot', 'patient', 'completed_info'
+        ]
 
     def get_slot(self, obj):
         if obj.payment and obj.payment.slot:
@@ -139,6 +143,34 @@ class AdminAppointmentListSerializer(serializers.ModelSerializer):
     def get_patient(self, obj):
         if obj.payment and obj.payment.patient:
             return PatientDetailSerializer(obj.payment.patient).data
+        return None
+
+    def get_completed_info(self, obj):
+        if obj.status == 'completed':
+            return {
+                'consultation_started_at': obj.created_at,
+                'consultation_ended_at': obj.consultation_end_time,
+                'doctor_name': obj.payment.slot.doctor.user.username if obj.payment and obj.payment.slot else None,
+            }
         return None     
     
-       
+class PaymentListSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.username')
+    patient_id = serializers.CharField(source='patient.id')
+    patient_avatar = serializers.CharField(source='patient.profile_image', allow_null=True)
+    doctor_name = serializers.CharField(source='slot.doctor.user.username', allow_null=True)
+    type = serializers.SerializerMethodField()
+    date = serializers.DateTimeField(source='timestamp', format='%b %d, %Y')
+    time = serializers.DateTimeField(source='timestamp', format='%I:%M %p')
+
+    class Meta:
+        model = Payment
+        fields = [
+            'id', 'payment_id', 'amount', 'payment_status',
+            'payment_method', 'date', 'time', 'type',
+            'patient_name', 'patient_id', 'patient_avatar',
+            'doctor_name'
+        ]
+
+    def get_type(self, obj):
+        return "Consultation"     

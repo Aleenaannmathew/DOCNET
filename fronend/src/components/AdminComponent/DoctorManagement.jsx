@@ -11,6 +11,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { adminAxios } from '../../axios/AdminAxios';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
+import AdminSidebar from './AdminSidebar';
 
 export default function DoctorsManagement() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -29,15 +30,7 @@ export default function DoctorsManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const menuItems = [
-    { name: 'Dashboard', icon: <BarChart3 size={20} />, path: '/admin/admin-dashboard' },
-    { name: 'Patients', icon: <Users size={20} />, path: '/admin/patient-list' },
-    { name: 'Doctors', icon: <UserRound size={20} />, path: '/admin/doctor-list' },
-    { name: 'Appointments', icon: <CalendarDays size={20} />, path: '/admin/appointment-list' },
-    { name: 'Payments', icon: <CreditCard size={20} />, path: '/admin/payment-list' },
-    { name: 'Reports', icon: <FileText size={20} />, path: '/admin/reports' },
-    { name: 'Settings', icon: <Settings size={20} />, path: '/admin/settings' }
-  ];
+ 
 
   // Fetch doctors from API
   useEffect(() => {
@@ -239,18 +232,6 @@ export default function DoctorsManagement() {
     }
   };
 
-  const handleLogout = async () => {
-    const result = await showConfirmationDialog(
-      'Logout',
-      'Are you sure you want to logout?',
-      'Logout'
-    );
-    
-    if (result.isConfirmed) {
-      dispatch(logout());
-      navigate('/admin/admin-login');
-    }
-  };
 
   const getStatusBadgeClass = (isApproved, isActive) => {
     if (!isActive) return 'bg-gray-100 text-gray-800 border border-gray-200';
@@ -287,56 +268,7 @@ export default function DoctorsManagement() {
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-800 font-sans">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-10
-      `}>
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-4 border-b">
-            <h2 className="text-2xl font-bold text-blue-700">DOCNET</h2>
-            <button className="p-1 rounded-full hover:bg-gray-100 lg:hidden" onClick={() => setSidebarOpen(false)}>
-              <X size={24} />
-            </button>
-          </div>
-          
-          <nav className="flex-1 overflow-y-auto py-2">
-            {menuItems.map((item, index) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={index}
-                  to={item.path || '#'}
-                  className={`flex items-center w-full p-3 mx-2 rounded-lg transition-colors
-                    ${isActive ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-blue-50'}
-                  `}
-                >
-                  <span className="mr-3">{item.icon}</span>
-                  <span className="font-medium">{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
-          
-          <div className="p-4 border-t">
-            <button 
-              onClick={handleLogout}
-              className="flex items-center w-full p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <LogOut size={20} className="mr-3" />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">

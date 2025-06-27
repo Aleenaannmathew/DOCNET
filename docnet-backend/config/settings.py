@@ -82,6 +82,8 @@ CORS_ALLOW_METHODS = [
     'OPTIONS',
 ]
 
+DOMAIN_URL = 'http://127.0.0.1:8000'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -94,6 +96,13 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10  
+    
+}
+
 
 ROOT_URLCONF = 'config.urls'
 

@@ -189,7 +189,7 @@ class DoctorSendPasswordResetOTPView(APIView):
                 doctor_logger.error(f"Failed to queue OTP email for {user.email}")
             
             return ResponseManager.success_response(
-                data={'user_id': user.id},
+                data={'user_id': user.id, 'success': True},
                 message='OTP sent successfully'
             )
             

@@ -7,6 +7,7 @@ import PatientList from '../pages/AdminPages/PatientList';
 import DoctorDetails from '../pages/AdminPages/DoctorDetails';
 import ProtectedRoute from './ProtectedRoute';
 import AppointmentList from '../pages/AdminPages/AppointmentList';
+import Payment from '../pages/AdminPages/Payment';
 
 
 
@@ -24,6 +25,7 @@ function AdminRoutes() {
         <Route path="doctor/:doctorId" element={<DoctorDetails />} />
         <Route path="patient-list" element={<PatientList />} />
         <Route path="appointment-list" element={<AppointmentList/>}/>
+        <Route path="payments" element={<Payment/>}/>
       </Route>
      
       {/* Catch-all route */}

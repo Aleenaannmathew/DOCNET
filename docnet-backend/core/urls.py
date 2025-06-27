@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import AdminLoginView, AdminVerifyToken, DoctorListView, DoctorDetailView, DoctorApprovalView, DoctorBlockView, AdminPatientListView, PatientDetailView, PatientStatusToggleView,AdminAppointmentListView,AdminDashboardView
-
+from .views import AdminPaymentHistoryAPIView
 
 urlpatterns = [
     path('admin-login/', AdminLoginView.as_view(), name='admin_login'),
@@ -14,5 +14,6 @@ urlpatterns = [
     path('patients/<int:patient_id>/toggle-status/', PatientStatusToggleView.as_view(), name='admin-patient-toggle-status'),
     path('appointments-list/', AdminAppointmentListView.as_view(), name='admin-appointment-list'),
     path('admin-dashboard/', AdminDashboardView.as_view(), name='admin_dashboard'),
+    path('admin-payments/', AdminPaymentHistoryAPIView.as_view(), name='admin-payments'),
   
 ]
