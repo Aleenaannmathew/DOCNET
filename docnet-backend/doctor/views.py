@@ -29,9 +29,9 @@ from rest_framework.response import Response
 from django.utils import timezone
 import logging
 from rest_framework.decorators import api_view, permission_classes
-from accounts.models import Appointment
+from accounts.models import Appointment,MedicalRecord
 from .models import DoctorProfile, DoctorSlot, Wallet,WalletHistory
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer,MedicalRecordSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
@@ -919,3 +919,71 @@ class DoctorPDFExportView(APIView):
         p.showPage()
         p.save()
         return response
+    
+
+class MedicalRecordAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, appointment_id):
+        try:
+            # Ensure the doctor has access to this appointment's medical records
+            appointment = Appointment.objects.get(
+                id=appointment_id,
+                payment__slot__doctor__user=request.user
+            )
+            record, created = MedicalRecord.objects.get_or_create(
+                appointment=appointment,
+                defaults={
+                    'patient': appointment.payment.patient,
+                    'doctor': appointment.payment.slot.doctor.user
+                }
+            )
+            serializer = MedicalRecordSerializer(record)
+            return Response(serializer.data)
+        except Appointment.DoesNotExist:
+            return Response({"detail": "Appointment not found or you don't have access."}, 
+                          status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request, appointment_id):
+        # Only allow doctors to update/create medical records
+        if request.user.role != 'doctor':
+            return Response(
+                {"error": "Only doctors are allowed to update medical records."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            appointment = Appointment.objects.get(
+                id=appointment_id,
+                payment__slot__doctor__user=request.user
+            )
+        except Appointment.DoesNotExist:
+            return Response(
+                {"error": "Appointment not found or you don't have access."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        data = request.data.copy()
+        data['appointment'] = appointment_id
+        data['patient'] = appointment.payment.patient.id
+        data['doctor'] = appointment.payment.slot.doctor.user.id
+
+        # Get or create medical record
+        record, created = MedicalRecord.objects.get_or_create(
+            appointment=appointment,
+            defaults={
+                'patient': appointment.payment.patient,
+                'doctor': appointment.payment.slot.doctor.user
+            }
+        )
+
+        serializer = MedicalRecordSerializer(record, data=data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            )
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

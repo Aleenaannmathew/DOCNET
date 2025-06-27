@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message
+from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message,MedicalRecord
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -48,3 +48,23 @@ class MessageAdmin(admin.ModelAdmin):
     def content_snippet(self, obj):
         return (obj.content[:50] + '...') if obj.content and len(obj.content) > 50 else obj.content
     content_snippet.short_description = 'Content'
+
+@admin.register(MedicalRecord)
+class MedicalRecordAdmin(admin.ModelAdmin):
+    list_display = ('id', 'appointment', 'patient', 'doctor', 'follow_up_date', 'created_at')
+    search_fields = ('appointment__id', 'patient__username', 'doctor__username', 'diagnosis', 'prescription')
+    list_filter = ('doctor', 'patient', 'follow_up_date', 'created_at')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ['appointment', 'patient', 'doctor']
+
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('appointment', 'patient', 'doctor')
+        }),
+        ('Medical Details', {
+            'fields': ('notes', 'diagnosis', 'prescription', 'follow_up_date')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )    

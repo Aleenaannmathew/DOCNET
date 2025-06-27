@@ -179,3 +179,37 @@ class Message(models.Model):
 
     def __str__(self):
         return f"From {self.sender.username} at {self.timestamp}"        
+    
+
+class MedicalRecord(models.Model):
+    appointment = models.OneToOneField(Appointment, on_delete=models.CASCADE, related_name='medical_record')
+    patient = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'role': 'patient'},
+        related_name='patient_medical_records'  # 👈 avoids clash
+    )
+    doctor = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        limit_choices_to={'role': 'doctor'},
+        related_name='doctor_medical_records'  # 👈 avoids clash
+    )
+
+    notes = models.TextField(blank=True, null=True)
+    diagnosis = models.TextField(blank=True, null=True)
+    prescription = models.TextField(blank=True, null=True)
+    follow_up_date = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['patient']),
+            models.Index(fields=['doctor']),
+        ]
+        verbose_name = "Medical Record"
+        verbose_name_plural = "Medical Records"
+
+    def __str__(self):
+        return f"Medical Record - Appointment #{self.appointment.id}"

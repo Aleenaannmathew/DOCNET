@@ -4,7 +4,7 @@ from django.db import transaction
 import cloudinary
 from datetime import date
 import cloudinary.uploader
-from accounts.models import Appointment, PatientProfile, EmergencyPayment
+from accounts.models import Appointment, PatientProfile, EmergencyPayment, MedicalRecord
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -533,4 +533,10 @@ class EmergencyConsultationDetailSerializer(serializers.ModelSerializer):
             return 'Confirmed'
         else:
             return 'Pending'
-   
+
+
+class MedicalRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MedicalRecord
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']

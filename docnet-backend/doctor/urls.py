@@ -3,7 +3,7 @@ from . import views
 from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView
 from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView, DoctorBookedPatientsView, DoctorWalletView
 from .views import DoctorAppointmentDetailView,EmergencyStatusUpdateView,DoctorEmergencyConsultationListView,EmergencyConsultationDetailView,start_emergency_consultation,end_emergency_consultation,DoctorDashboardView
-from .views import DoctorAnalyticsView, DoctorCSVExportView,DoctorPDFExportView
+from .views import DoctorAnalyticsView, DoctorCSVExportView,DoctorPDFExportView,MedicalRecordAPIView
 
 urlpatterns = [
     path('doctor-register/', DoctorRegistrationView.as_view(), name='doctor-register'),
@@ -28,6 +28,7 @@ urlpatterns = [
     path('doctor-analytics/',DoctorAnalyticsView.as_view(), name='doctor-analytics'),
     path('doctor-csv/',DoctorCSVExportView.as_view(), name='doctor-csv'),
     path('doctor-pdf/',DoctorPDFExportView.as_view(), name='doctor-pdf'),
+    path('medical-record/<int:appointment_id>/', MedicalRecordAPIView.as_view(), name='medical-record'),
     path('emergency-consultations/', 
          DoctorEmergencyConsultationListView.as_view(), 
          name='doctor-emergency-consultations'),

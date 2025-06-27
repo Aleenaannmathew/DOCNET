@@ -23,34 +23,34 @@ import {
   Info,
   CreditCard,
   DollarSign,
-  Video,
-  MessageCircle,
   ClipboardListIcon
 } from 'lucide-react';
 import { doctorAxios } from '../../axios/DoctorAxios';
-import VideoCallButton from '../Constants/VideoCallButton';
 import { useSelector } from 'react-redux';
+import VideoCallButton from '../Constants/VideoCallButton';
 import ChatAccessButton from '../Constants/MessageButton';
 
 const PatientAppointmentDetails = () => {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
+  const { token } = useSelector((state) => state.auth);
   
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [diagnosis, setDiagnosis] = useState('');
-  const [prescription, setPrescription] = useState('');
-  const [followUpDate, setFollowUpDate] = useState('');
+  const [medicalRecord, setMedicalRecord] = useState({
+    notes: '',
+    diagnosis: '',
+    prescription: '',
+    followUpDate: ''
+  });
   const [updating, setUpdating] = useState(false);
-  const {token} = useSelector((state)=>state.auth)
   const [slotId, setSlotId] = useState('');
 
-  // Fetch appointment details from API
+  // Fetch appointment and medical record details
   useEffect(() => {
-    const fetchAppointmentDetails = async () => {
+    const fetchData = async () => {
       if (!appointmentId) {
         setError('No appointment ID provided');
         setLoading(false);
@@ -59,77 +59,127 @@ const PatientAppointmentDetails = () => {
 
       try {
         setLoading(true);
-        // Replace 'doctorAxios' with your actual axios instance
-        const response = await doctorAxios.get(`/appointments/${appointmentId}/`);
-        console.log("app",response)
-        if (response.data.success) {
-          const appointmentData = response.data.data;
+        
+        // Fetch appointment details
+        const appointmentResponse = await doctorAxios.get(`/appointments/${appointmentId}/`);
+        if (appointmentResponse.data.success) {
+          const appointmentData = appointmentResponse.data.data;
           setAppointment(appointmentData);
           setSlotId(appointmentData.slot_id);
-          setNotes(appointmentData.slot_notes || '');
-          setDiagnosis(appointmentData.diagnosis || '');
-          setPrescription(appointmentData.prescription || '');
-          setFollowUpDate(appointmentData.follow_up_date || '');
+          
+          // Fetch medical record
+          try {
+            const recordResponse = await doctorAxios.get(`/medical-record/${appointmentId}/`);
+            setMedicalRecord({
+              notes: recordResponse.data.notes || '',
+              diagnosis: recordResponse.data.diagnosis || '',
+              prescription: recordResponse.data.prescription || '',
+              followUpDate: recordResponse.data.follow_up_date || ''
+            });
+          } catch (error) {
+            // Medical record doesn't exist yet, keep default empty values
+            console.log('No medical record found, will create new one when saved');
+          }
         } else {
-          setError(response.data.message || 'Failed to fetch appointment details');
+          setError(appointmentResponse.data.message || 'Failed to fetch appointment details');
         }
       } catch (err) {
-        console.error('Error fetching appointment details:', err);
-        setError(err.response?.data?.message || 'Failed to load appointment details');
+        console.error('Error fetching data:', err);
+        setError(err.response?.data?.message || 'Failed to load data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAppointmentDetails();
+    fetchData();
   }, [appointmentId]);
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setMedicalRecord(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSaveMedicalRecord = async () => {
+    try {
+      setUpdating(true);
+      
+      const payload = {
+        notes: medicalRecord.notes,
+        diagnosis: medicalRecord.diagnosis,
+        prescription: medicalRecord.prescription,
+        follow_up_date: medicalRecord.followUpDate || null
+      };
+
+      // Use POST to create or update medical record
+      const response = await doctorAxios.post(
+        `/medical-record/${appointmentId}/`,
+        payload
+      );
+
+      if (response.status === 201 || response.status === 200) {
+        setIsEditing(false);
+        // Update local state with the saved data
+        setMedicalRecord({
+          notes: response.data.notes || '',
+          diagnosis: response.data.diagnosis || '',
+          prescription: response.data.prescription || '',
+          followUpDate: response.data.follow_up_date || ''
+        });
+      } else {
+        throw new Error(response.data.message || 'Failed to save medical record');
+      }
+    } catch (err) {
+      console.error('Error saving medical record:', err);
+      alert(err.response?.data?.error || 'Failed to save medical record. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleStatusUpdate = async (newStatus) => {
+    try {
+      const response = await doctorAxios.patch(
+        `/doctor-appointment-details/${appointmentId}/`, 
+        { status: newStatus }
+      );
+
+      if (response.data.success) {
+        setAppointment(prev => ({ ...prev, status: newStatus }));
+      } else {
+        throw new Error(response.data.message || 'Failed to update status');
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+      alert(err.response?.data?.error || 'Failed to update status. Please try again.');
+    }
+  };
+
+  // Helper functions
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'confirmed': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'confirmed':
-        return <UserCheck className="w-4 h-4" />;
-      case 'pending':
-        return <Clock className="w-4 h-4" />;
-      case 'cancelled':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <Info className="w-4 h-4" />;
-    }
-  };
-
-  const getPaymentStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'completed':
-      case 'success':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'completed': return <CheckCircle className="w-4 h-4" />;
+      case 'confirmed': return <UserCheck className="w-4 h-4" />;
+      case 'pending': return <Clock className="w-4 h-4" />;
+      case 'cancelled': return <XCircle className="w-4 h-4" />;
+      default: return <Info className="w-4 h-4" />;
     }
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) return 'Not specified';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       year: 'numeric', 
@@ -146,70 +196,6 @@ const PatientAppointmentDetails = () => {
       minute: '2-digit', 
       hour12: true 
     });
-  };
-
-  const handleSave = async () => {
-    try {
-      setUpdating(true);
-      // Make API call to update appointment details
-      const response = await doctorAxios.patch(`/doctor-appointment-details/${appointmentId}/`, {
-        slot_notes: notes,
-        diagnosis: diagnosis,
-        prescription: prescription,
-        follow_up_date: followUpDate || null
-      });
-
-      if (response.data.success) {
-        setIsEditing(false);
-        // Optionally refresh the appointment data
-        const updatedData = { ...appointment };
-        updatedData.slot_notes = notes;
-        updatedData.diagnosis = diagnosis;
-        updatedData.prescription = prescription;
-        updatedData.follow_up_date = followUpDate;
-
-        
-        setAppointment(updatedData);
-      } else {
-        alert('Failed to save changes: ' + response.data.message);
-      }
-    } catch (err) {
-      console.error('Error saving appointment details:', err);
-      alert('Failed to save changes. Please try again.');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleStatusUpdate = async (newStatus) => {
-    try {
-      const response = await doctorAxios.patch(`/doctor-appointment-details/${appointmentId}/`, {
-        status: newStatus
-      });
-
-      if (response.data.success) {
-        setAppointment(prev => ({ ...prev, status: newStatus }));
-      } else {
-        alert('Failed to update status: ' + response.data.message);
-      }
-    } catch (err) {
-      console.error('Error updating status:', err);
-      alert('Failed to update status. Please try again.');
-    }
-  };
-
-  const handleVideoCall = () => {
-    // Add your video call logic here
-    // This could navigate to a video call page or open a video call modal
-    console.log('Starting video call for appointment:', appointmentId);
-    // Example: navigate(`/video-call/${appointmentId}`);
-  };
-
-  const handleChat = () => {
-    // Add your chat logic here
-    // This could navigate to a chat page or open a chat modal
-    console.log('Opening chat for appointment:', appointmentId);
-    // Example: navigate(`/chat/${appointmentId}`);
   };
 
   if (loading) {
@@ -232,7 +218,7 @@ const PatientAppointmentDetails = () => {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <XCircle className="text-red-500" size={32} />
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Appointment Not Found</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Error Loading Appointment</h2>
           <p className="text-gray-600 mb-6">{error || 'The appointment details could not be loaded.'}</p>
           <button
             onClick={() => navigate(-1)}
@@ -265,10 +251,7 @@ const PatientAppointmentDetails = () => {
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* Video Call and Chat Buttons */}
-              
-                
-              
+              <VideoCallButton slotId={slotId} token={token} />
               <ChatAccessButton slotId={slotId} />
               
               <div className={`flex items-center space-x-2 px-4 py-2 rounded-full border ${getStatusColor(appointment.status)}`}>
@@ -284,9 +267,9 @@ const PatientAppointmentDetails = () => {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Patient Information */}
+          {/* Patient Information Column */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Patient Basic Info */}
+            {/* Patient Basic Info Card */}
             <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-6">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
@@ -337,7 +320,7 @@ const PatientAppointmentDetails = () => {
               </div>
             </div>
 
-            {/* Patient Profile */}
+            {/* Patient Medical Profile Card */}
             {appointment.patient_profile && (
               <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-6">
                 <div className="flex items-center space-x-3 mb-6">
@@ -389,7 +372,7 @@ const PatientAppointmentDetails = () => {
               </div>
             )}
 
-            {/* Payment Information */}
+            {/* Payment Information Card */}
             <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-6">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
@@ -406,7 +389,7 @@ const PatientAppointmentDetails = () => {
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Status</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(appointment.payment_status)}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${appointment.payment_status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                     {appointment.payment_status}
                   </span>
                 </div>
@@ -433,9 +416,9 @@ const PatientAppointmentDetails = () => {
             </div>
           </div>
 
-          {/* Appointment Details & Medical Records */}
+          {/* Appointment Details & Medical Records Column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Appointment Info */}
+            {/* Appointment Details Card */}
             <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
@@ -523,16 +506,14 @@ const PatientAppointmentDetails = () => {
                 </div>
               </div>
             </div>
-                  <VideoCallButton slotId={slotId} token={token} />
-            {/* Medical Records */}
+
+            {/* Medical Records Card */}
             <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 p-6">
               <div className="flex items-center justify-between mb-6">
-
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
                     <Stethoscope className="text-white" size={20} />
                   </div>
-
                   <h2 className="text-lg font-bold text-gray-800">Medical Records</h2>
                 </div>
                 
@@ -547,67 +528,76 @@ const PatientAppointmentDetails = () => {
               </div>
               
               <div className="space-y-6">
-                {/* Notes */}
+                {/* Notes Field */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Appointment Notes
                   </label>
                   {isEditing ? (
                     <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
+                      name="notes"
+                      value={medicalRecord.notes}
+                      onChange={handleInputChange}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       rows="3"
                       placeholder="Enter appointment notes..."
                     />
                   ) : (
                     <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <p className="text-gray-900">{notes || 'No notes recorded'}</p>
+                      <p className="text-gray-900 whitespace-pre-wrap">
+                        {medicalRecord.notes || 'No notes recorded'}
+                      </p>
                     </div>
                   )}
                 </div>
                 
-                {/* Diagnosis */}
+                {/* Diagnosis Field */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Diagnosis
                   </label>
                   {isEditing ? (
                     <textarea
-                      value={diagnosis}
-                      onChange={(e) => setDiagnosis(e.target.value)}
+                      name="diagnosis"
+                      value={medicalRecord.diagnosis}
+                      onChange={handleInputChange}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       rows="3"
                       placeholder="Enter diagnosis..."
                     />
                   ) : (
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-gray-900">{diagnosis || 'No diagnosis recorded'}</p>
+                      <p className="text-gray-900 whitespace-pre-wrap">
+                        {medicalRecord.diagnosis || 'No diagnosis recorded'}
+                      </p>
                     </div>
                   )}
                 </div>
                 
-                {/* Prescription */}
+                {/* Prescription Field */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Prescription
                   </label>
                   {isEditing ? (
                     <textarea
-                      value={prescription}
-                      onChange={(e) => setPrescription(e.target.value)}
+                      name="prescription"
+                      value={medicalRecord.prescription}
+                      onChange={handleInputChange}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       rows="4"
                       placeholder="Enter prescription details..."
                     />
                   ) : (
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-gray-900">{prescription || 'No prescription recorded'}</p>
+                      <p className="text-gray-900 whitespace-pre-wrap">
+                        {medicalRecord.prescription || 'No prescription recorded'}
+                      </p>
                     </div>
                   )}
                 </div>
                 
-                {/* Follow-up Date */}
+                {/* Follow-up Date Field */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Follow-up Date
@@ -615,20 +605,21 @@ const PatientAppointmentDetails = () => {
                   {isEditing ? (
                     <input
                       type="date"
-                      value={followUpDate}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      name="followUpDate"
+                      value={medicalRecord.followUpDate}
+                      onChange={handleInputChange}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   ) : (
                     <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
                       <p className="text-gray-900">
-                        {followUpDate ? formatDate(followUpDate) : 'No follow-up scheduled'}
+                        {medicalRecord.followUpDate ? formatDate(medicalRecord.followUpDate) : 'No follow-up scheduled'}
                       </p>
                     </div>
                   )}
                 </div>
                 
-                {/* Save Button */}
+                {/* Save/Cancel Buttons */}
                 {isEditing && (
                   <div className="flex justify-end space-x-3">
                     <button
@@ -639,7 +630,7 @@ const PatientAppointmentDetails = () => {
                       Cancel
                     </button>
                     <button
-                      onClick={handleSave}
+                      onClick={handleSaveMedicalRecord}
                       disabled={updating}
                       className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50"
                     >
