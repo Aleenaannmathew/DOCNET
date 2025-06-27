@@ -10,7 +10,7 @@ import cloudinary
 import cloudinary.uploader
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User ,PatientProfile
+from .models import User ,PatientProfile,MedicalRecord,Notification
 from doctor.models import DoctorProfile, Wallet, WalletHistory
 from rest_framework import serializers
 from .models import Payment, Appointment,EmergencyPayment
@@ -1168,3 +1168,101 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
             }
             return method_map.get(obj.payment_method, obj.payment_method.title())
         return "Online Payment"
+    
+class MedicalRecordSerializer(serializers.ModelSerializer):
+    doctor_info = serializers.SerializerMethodField()
+    patient_info = serializers.SerializerMethodField()
+    appointment_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = MedicalRecord
+        fields = [
+            'id',
+            'appointment_info',
+            'patient_info',
+            'doctor_info',
+            'notes',
+            'diagnosis',
+            'prescription',
+            'follow_up_date',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_doctor_info(self, obj):
+        """Get doctor information safely"""
+        if hasattr(obj, 'doctor') and obj.doctor:
+            doctor_profile = DoctorProfile.objects.filter(user=obj.doctor).first()
+            if doctor_profile:
+                return {
+                    'id': obj.doctor.id,
+                    'name': obj.doctor.username,
+                    'registration_id': doctor_profile.registration_id,
+                    'specialization': doctor_profile.specialization,
+                    'hospital': doctor_profile.hospital
+                }
+        return None
+
+    def get_patient_info(self, obj):
+        """Get patient information safely through appointment"""
+        if hasattr(obj, 'appointment') and obj.appointment:
+            if hasattr(obj.appointment, 'payment') and obj.appointment.payment:
+                patient = obj.appointment.payment.patient
+                return {
+                    'id': patient.id,
+                    'name': patient.username,
+                    'email': patient.email,
+                    'phone': patient.phone
+                }
+        return None
+
+    def get_appointment_info(self, obj):
+        """Get basic appointment information"""
+        if hasattr(obj, 'appointment') and obj.appointment:
+            return {
+                'id': obj.appointment.id,
+                'status': obj.appointment.status,
+                'reason': obj.appointment.reason,
+                'date': obj.appointment.created_at.strftime('%Y-%m-%d')
+            }
+        return None
+
+    def to_representation(self, instance):
+        """Handle null values and format dates"""
+        representation = super().to_representation(instance)
+        
+        # Format dates
+        if instance.follow_up_date:
+            representation['follow_up_date'] = instance.follow_up_date.strftime('%Y-%m-%d')
+        if instance.created_at:
+            representation['created_at'] = instance.created_at.strftime('%Y-%m-%d %H:%M')
+        if instance.updated_at:
+            representation['updated_at'] = instance.updated_at.strftime('%Y-%m-%d %H:%M')
+            
+        # Handle null values
+        for field in ['notes', 'diagnosis', 'prescription']:
+            if representation[field] is None:
+                representation[field] = ""
+                
+        return representation
+    
+class NotificationSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    receiver_username = serializers.CharField(source='receiver.username', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'sender',
+            'sender_username',
+            'receiver',
+            'receiver_username',
+            'message',
+            'is_read',
+            'notification_type',
+            'created_at',
+            'object_id',
+            'content_type',
+        ]    

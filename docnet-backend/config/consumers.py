@@ -248,6 +248,8 @@ def get_absolute_url(path):
         if path.startswith('http'):
             return path
         return f"{settings.DOMAIN_URL}{path}"
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
@@ -373,3 +375,46 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
             for msg in self.room.messages.order_by('timestamp')
         ]
+    
+class NotificationConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        # Extract query parameters
+        query_params = parse_qs(self.scope["query_string"].decode())
+        token = query_params.get("token", [None])[0]
+
+        if not token:
+            await self.close()
+            return
+
+        try:
+            # Decode JWT token
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+
+            # Fetch user asynchronously
+            self.scope['user'] = await database_sync_to_async(User.objects.get)(id=user_id)
+            self.user = self.scope['user']
+
+            # Create group name using user ID
+            self.group_name = f'notifications_{self.user.id}'
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+
+            await self.accept()
+
+        except Exception as e:
+            print("Token error:", e)
+            await self.close()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'group_name'):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        pass  # Optional: handle incoming messages if needed
+
+    async def send_notification(self, event):
+        await self.send(text_data=json.dumps({
+            'message': event['message'],
+            'notification_type': event['notification_type'],
+            'sender': event['sender'],
+        }))

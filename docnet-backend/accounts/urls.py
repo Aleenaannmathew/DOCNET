@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView
-from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI
+from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI, MedicalRecordListView, MedicalRecordDetailView,UserNotificationListView
+
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
     path('login/', UserLoginView.as_view(),name='login'),
@@ -30,5 +31,8 @@ urlpatterns = [
     path('emergency-payments/verify/', VerifyEmergencyPaymentView.as_view(), name='verify-emergency-payment'),
     path('validate-emergency-video-call/<int:emergency_id>/', ValidateEmergencyVideoCallAPI.as_view(), name='validate-emergency-video-call'),
     path('emergency-confirmation/payment/<int:payment_id>/',EmergencyConsultationConfirmationView.as_view(),name='emergency-consultation-confirmation'),
-    path('validate-chat/<int:slot_id>/',ValidateChatAccessAPI.as_view(), name='validate-chat')
+    path('validate-chat/<int:slot_id>/',ValidateChatAccessAPI.as_view(), name='validate-chat'),
+    path('records/', MedicalRecordListView.as_view(), name='medical-records-list'),
+    path('records/<int:pk>/', MedicalRecordDetailView.as_view(), name='medical-record-detail'),
+    path('user-notifications/', UserNotificationListView.as_view(), name='doctor-notifications'),
 ]

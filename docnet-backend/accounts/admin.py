@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message,MedicalRecord
+from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message,MedicalRecord,Notification
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -68,3 +68,21 @@ class MedicalRecordAdmin(admin.ModelAdmin):
             'fields': ('created_at', 'updated_at')
         }),
     )    
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'sender', 'receiver', 'notification_type', 'is_read', 'created_at')
+    list_filter = ('notification_type', 'is_read', 'created_at')
+    search_fields = ('sender__username', 'receiver__username', 'message')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at',)
+
+    # Optional: Show sender and receiver in a readable way
+    def sender_username(self, obj):
+        return obj.sender.username
+
+    def receiver_username(self, obj):
+        return obj.receiver.username
+
+    sender_username.short_description = 'Sender'
+    receiver_username.short_description = 'Receiver'

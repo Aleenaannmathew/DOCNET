@@ -21,6 +21,7 @@ import Wallet from '../pages/DoctorPages/Wallet';
 import ListEmergencyPatients from '../pages/DoctorPages/ListEmergencyPatients';
 import DoctorChat from '../pages/DoctorPages/DoctorChat';
 import DoctorAnalyticsPage from '../pages/DoctorPages/DoctorAnalyticsPage';
+import DocNotifications from '../pages/DoctorPages/DocNotifications';
 
 function DoctorRoutes() {
   return (
@@ -79,6 +80,7 @@ function DoctorRoutes() {
         <Route path="emergency-list" element={<ListEmergencyPatients/>}/>
         <Route path="/chat-room/:id" element={<DoctorChat/>}/>
         <Route path="doctor-analytics" element={<DoctorAnalyticsPage/>}/>
+        <Route path="doctor-notification" element={<DocNotifications/>}/>
       </Route>
 
       {/* Catch-all route */}

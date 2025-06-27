@@ -28,8 +28,10 @@ import {
   History,
   Bell,
   HelpCircle,
-  LogOut
+  LogOut,
+  Sidebar
 } from 'lucide-react';
+import PatientSidebar from './SideBar';
 
 const validationSchema = Yup.object({
   username: Yup.string()
@@ -119,15 +121,6 @@ const UserProfile = () => {
   const [profileFetched, setProfileFetched] = useState(false);
   const [imageError, setImageError] = useState('');
 
-  const sidebarItems = [
-    { name: 'Profile Information', icon: User },
-    { name: 'Change Password', icon: Lock },
-    { name: 'Booking History', icon: History },
-    { name: 'Medical Records', icon: FileText },
-    { name: 'Notifications', icon: Bell },
-    { name: 'Help & Support', icon: HelpCircle },
-    { name: 'Logout', icon: LogOut }
-  ];
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -312,39 +305,6 @@ const UserProfile = () => {
     }
   };
 
-  const handleTabClick = (tab) => {
-    if (tab === 'Logout') {
-      handleLogout();
-    } else if (tab === 'Change Password') {
-      navigate('/new-password');
-    } else if (tab === 'Booking History') {
-      navigate('/booking-history')
-    } else {
-      setActiveTab(tab);
-    }
-  };
-
-  const handleLogout = async () => {
-    try{
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        await userAxios.post('/logout/', {
-          refresh: refreshToken
-        });
-      }
-      dispatch(logout());
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-
-      dispatch(logout());
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      navigate('/login')
-    }
-  }
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
@@ -472,50 +432,7 @@ const UserProfile = () => {
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             
-            {/* Sidebar */}
-            <div className="lg:col-span-1">
-              {/* Mobile Dropdown */}
-              <div className="lg:hidden mb-6">
-                <select 
-                  className="w-full p-4 bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={activeTab}
-                  onChange={(e) => {
-                    if (e.target.value === 'Logout') {
-                      handleLogout();
-                    } else if (e.target.value === 'Change Password') {
-                      navigate('/new-password');
-                    } else {
-                      setActiveTab(e.target.value);
-                    }
-                  }}
-                >
-                  {sidebarItems.map((item) => (
-                    <option key={item.name} value={item.name}>{item.name}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {/* Desktop Sidebar */}
-              <div className="hidden lg:block bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden">
-                {sidebarItems.map((item, index) => {
-                  const Icon = item.icon;
-                  return (
-                    <div 
-                      key={index} 
-                      className={`flex items-center space-x-3 px-6 py-4 cursor-pointer transition-all duration-200 ${
-                        activeTab === item.name 
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white' 
-                          : 'text-gray-700 hover:bg-gray-50'
-                      } ${item.name === 'Logout' ? 'border-t border-gray-200' : ''}`}
-                      onClick={() => handleTabClick(item.name)}
-                    >
-                      <Icon size={20} />
-                      <span className="font-medium">{item.name}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <PatientSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
             {/* Profile Form */}
             <div className="lg:col-span-3">

@@ -13,14 +13,14 @@ import {
   HelpCircle,
   ChevronRight
 } from 'lucide-react';
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { logout } from '../../store/authSlice' // Removed updateEmergencyStatus import
 import { doctorAxios } from '../../axios/DoctorAxios';
 
 function DocSidebar() {
-  const { user } = useSelector(state => state.auth)
+  const { user , token } = useSelector(state => state.auth)
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const location = useLocation()
@@ -29,6 +29,51 @@ function DocSidebar() {
   const [isEmergencyAvailable, setIsEmergencyAvailable] = useState(false)
   const [isUpdatingEmergency, setIsUpdatingEmergency] = useState(false)
   const [isLoadingStatus, setIsLoadingStatus] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const notificationSoundRef = useRef(new Audio('/notification.mp3')); 
+
+  const fetchNotificationCount = async () => {
+    try {
+      const res = await doctorAxios.get('doctor-notifications/');
+      const unreadNotifications = res.data.filter(notification => !notification.is_read);
+      setUnreadCount(unreadNotifications.length);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotificationCount();
+
+    const ws = new WebSocket(`ws://localhost:8000/ws/notifications/?token=${token}`);
+
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      console.log('New Notification:', data);
+
+      // 🔊 Play notification sound
+      if (notificationSoundRef.current) {
+        notificationSoundRef.current.play().catch(err => console.error('Sound play error:', err));
+      }
+
+      // 📈 Increase count
+      setUnreadCount(prev => prev + 1);
+    };
+
+    ws.onclose = () => console.log('WebSocket closed');
+    ws.onerror = (err) => console.error('WebSocket error', err);
+
+    return () => {
+      ws.close();
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (location.pathname === '/doctor/doctor-notification') {
+      setUnreadCount(0);
+    }
+  }, [location.pathname]);
 
   // Fetch current emergency status from database
   const fetchEmergencyStatus = async () => {
@@ -133,7 +178,7 @@ function DocSidebar() {
         navigate('/doctor/doctor-appointments')
       }
     } else if (tab === 'Notifications') {
-      navigate('/doctor/notifications')
+      navigate('/doctor/doctor-notification')
     } else if (tab === 'Help & Support') {
       navigate('/doctor/help-support')
     }
@@ -285,26 +330,28 @@ function DocSidebar() {
 
               {/* Other Sidebar Items */}
               {sidebarItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <li key={item.name}>
-                    <button
-                      onClick={() => handleTabClick(item.name)}
-                      className={`w-full flex items-center px-4 py-3 rounded-xl text-left transition-all duration-200 group ${
-                        activeTab === item.name
-                          ? 'bg-emerald-500 text-white shadow-lg'
-                          : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-lg mr-3 bg-white/5`}>
-                        <Icon className={`w-5 h-5 ${activeTab === item.name ? 'text-white' : 'text-emerald-400'}`} />
-                      </div>
-                      <span className="font-medium">{item.name}</span>
-                      {activeTab === item.name && <ChevronRight className="w-4 h-4 ml-auto" />}
-                    </button>
-                  </li>
-                )
-              })}
+            const Icon = item.icon;
+            return (
+              <li key={item.name}>
+                <button
+                  onClick={() => handleTabClick(item.name)}
+                  className={`w-full flex items-center px-4 py-3 rounded-xl text-left transition-all duration-200 group ${activeTab === item.name ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                >
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg mr-3 bg-white/5 relative">
+                    <Icon className={`w-5 h-5 ${activeTab === item.name ? 'text-white' : 'text-emerald-400'}`} />
+                    {/* Notification Count Badge */}
+                    {item.name === 'Notifications' && unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-medium">{item.name}</span>
+                  {activeTab === item.name && <ChevronRight className="w-4 h-4 ml-auto" />}
+                </button>
+              </li>
+            );
+          })}
             </ul>
           </nav>
         </div>

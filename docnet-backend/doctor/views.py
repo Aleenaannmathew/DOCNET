@@ -19,7 +19,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.permissions import IsAuthenticated
-from accounts.models import EmergencyPayment, Appointment, Payment
+from accounts.models import EmergencyPayment, Appointment, Payment,Notification
 from django.utils.timezone import now, localdate, timedelta
 from decimal import Decimal
 from reportlab.pdfgen import canvas
@@ -31,7 +31,7 @@ import logging
 from rest_framework.decorators import api_view, permission_classes
 from accounts.models import Appointment,MedicalRecord
 from .models import DoctorProfile, DoctorSlot, Wallet,WalletHistory
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer,MedicalRecordSerializer
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer,MedicalRecordSerializer,NotificationSerializer,NotificationMarkAsReadSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
@@ -987,3 +987,27 @@ class MedicalRecordAPIView(APIView):
             )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class DoctorNotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Fetch notifications for the logged-in user
+        notifications = Notification.objects.filter(receiver=request.user).order_by('-created_at')
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)  
+
+class MarkNotificationAsReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, notification_id):
+        notification = get_object_or_404(Notification, id=notification_id, receiver=request.user)
+
+        if notification.is_read:
+            return Response({"message": "Notification already marked as read."}, status=status.HTTP_200_OK)
+
+        notification.is_read = True
+        notification.save()
+
+        serializer = NotificationMarkAsReadSerializer(notification)
+        return Response({"message": "Notification marked as read.", "notification": serializer.data}, status=status.HTTP_200_OK)               

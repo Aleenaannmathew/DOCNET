@@ -2,6 +2,11 @@ from celery import shared_task
 from django.core.mail import send_mail
 from django.conf import settings
 import logging
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from django.utils import timezone
+from django.utils.timezone import localtime
+from accounts.models import Notification,Appointment
 
 logger = logging.getLogger(__name__)
 
@@ -63,4 +68,82 @@ def send_password_reset_otp_task(self,email,otp):
         logger.error(f"Password reset OTP sending failed: {str(exc)}")
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
     
+# @shared_task
+# def send_appointment_day_notifications():
+#     today = timezone.now().date()
+
+#     appointments = Appointment.objects.filter(
+#         status='scheduled',
+#         payment__slot__date=today
+#     )
+#     channel_layer = get_channel_layer()
+#     for appointment in appointments:
+#         patient = appointment.payment.patient
+#         doctor = appointment.payment.slot.doctor.user
+#         print("Helloo")
+#         notification = Notification.objects.create(
+#             sender=doctor,
+#             receiver=patient,
+#             message=f"Reminder: You have an appointment today at {appointment.payment.slot.start_time}.",
+#             notification_type='consultation'
+#         )
+
+#         async_to_sync(channel_layer.group_send)(
+#             f'notifications_{patient.id}',  # Patient's WebSocket group
+#             {
+#                 'type': 'send_notification',
+#                 'message': notification.message,
+#                 'notification_type': notification.notification_type,
+#                 'sender': notification.sender.username,
+#             }
+#         )
+
+#         print(f"Notification sent to {patient.username} for appointment #{appointment.id}")
        
+@shared_task
+def send_appointment_day_notifications():
+    local_now = localtime()
+    today = local_now.date()
+
+    print(f"[{local_now}] Running task: Checking today's appointments")
+
+    # Only pick appointments which have not been sent a notification
+    appointments = Appointment.objects.filter(
+        status='scheduled',
+        payment__slot__date=today,
+        notification_sent=False  # ✅ Only pick unsent ones
+    )
+
+    print(f"Total unsent appointments found: {appointments.count()}")
+
+    channel_layer = get_channel_layer()
+
+    for appointment in appointments:
+        patient = appointment.payment.patient
+        doctor = appointment.payment.slot.doctor.user
+
+        notification = Notification.objects.create(
+            sender=doctor,
+            receiver=patient,
+            message=f"Reminder: You have an appointment today at {appointment.payment.slot.start_time}.",
+            notification_type='consultation'
+        )
+
+        print(f"Notification created for {patient.username}: {notification.message}")
+
+        # Send real-time WebSocket notification
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_{patient.id}',
+            {
+                'type': 'send_notification',
+                'message': notification.message,
+                'notification_type': notification.notification_type,
+                'sender': notification.sender.username,
+            }
+        )
+
+        print(f"Real-time notification sent to {patient.username}")
+
+        # ✅ Mark this appointment as notification sent
+        appointment.notification_sent = True
+        appointment.save()

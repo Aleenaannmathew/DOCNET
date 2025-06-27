@@ -2,9 +2,9 @@ from rest_framework import serializers
 from .models import DoctorProfile, DoctorSlot, Wallet, WalletHistory
 from django.db import transaction
 import cloudinary
-from datetime import date
+from datetime import date, datetime
 import cloudinary.uploader
-from accounts.models import Appointment, PatientProfile, EmergencyPayment, MedicalRecord
+from accounts.models import Appointment, PatientProfile, EmergencyPayment, MedicalRecord,Notification
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -280,33 +280,41 @@ class DoctorSlotSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoctorSlot
         fields = '__all__'
-        read_only_fields = ('doctor', 'is_booked','created_at', 'updated_at')
-    def validate(self, data):
-        if 'date' in data:
-            slot_date = data['date']
-            today = date.today()
+        read_only_fields = ('doctor', 'is_booked', 'created_at', 'updated_at')
 
-            if slot_date < today:
-                raise serializers.ValidationError(
-                    "Cannot create or update slots for past dates."
-                )
+    def validate(self, data):
         if 'date' in data and 'start_time' in data:
+            slot_date = data['date']
+            slot_time = data['start_time']
+            today = date.today()
+            now = datetime.now().time()
+
+           
+            
+
+           
+            if slot_date == today and slot_time <= now:
+                raise serializers.ValidationError(
+                    "Cannot create or update slots for past times today."
+                )
+
+            # ✅ Check for duplicate slots
             doctor = self.context['request'].user.doctor_profile
             existing_slots = DoctorSlot.objects.filter(
                 doctor=doctor,
-                date=data['date'],
-                start_time=data['start_time']
+                date=slot_date,
+                start_time=slot_time
             )
-            
-            # Exclude current instance if updating
+
+            # Exclude current slot if updating
             if self.instance:
                 existing_slots = existing_slots.exclude(id=self.instance.id)
-                
+
             if existing_slots.exists():
                 raise serializers.ValidationError(
                     "A slot already exists for this date and time."
                 )
-        
+
         return data
     
 class PatientInfoSerializer(serializers.ModelSerializer):
@@ -540,3 +548,29 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         model = MedicalRecord
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
+
+class NotificationSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    receiver_username = serializers.CharField(source='receiver.username', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'sender',
+            'sender_username',
+            'receiver',
+            'receiver_username',
+            'message',
+            'is_read',
+            'notification_type',
+            'created_at',
+            'object_id',
+            'content_type',
+        ]            
+
+class NotificationMarkAsReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'is_read']
+        read_only_fields = ['id']        

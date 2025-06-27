@@ -6,6 +6,9 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.http import JsonResponse
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone 
 from rest_framework.response import Response
@@ -13,16 +16,17 @@ from datetime import timedelta, datetime
 from django.utils.timezone import localtime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message
+from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message,MedicalRecord, Notification
 from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
-from rest_framework import generics, filters
+from rest_framework import generics, filters, permissions
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Exists, OuterRef
 from doctor.models import DoctorProfile, DoctorSlot
 from django.shortcuts import get_object_or_404
 from doctor.serializers import DoctorProfileSerializer
 import logging, json, hashlib, hmac, razorpay
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .serializers import (
     UserRegistrationSerializer, 
@@ -35,7 +39,9 @@ from .serializers import (
     BookingConfirmationSerializer,
     CreateEmergencyPaymentSerializer,
     VerifyEmergencyPaymentSerializer,
-    EmergencyConsultationConfirmationSerializer
+    EmergencyConsultationConfirmationSerializer,
+    MedicalRecordSerializer,
+    NotificationSerializer
 )
 from core.utils import (
     OTPManager, 
@@ -821,6 +827,7 @@ class VerifyEmergencyPaymentView(APIView):
         if serializer.is_valid():
             try:
                 payment = serializer.save()
+                self._create_notification(payment)
                 return Response({
                     "success": True,
                     "message": "Emergency payment verified successfully",
@@ -842,6 +849,29 @@ class VerifyEmergencyPaymentView(APIView):
             "message": "Invalid payment data",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def _create_notification(self, payment):
+        # Create notification in database
+        notification = Notification.objects.create(
+            sender=payment.patient,
+            receiver=payment.doctor.user,
+            message=f"Emergency payment verified successfully. You can start the consultation.",
+            notification_type='emergency',
+            content_type=ContentType.objects.get_for_model(payment),
+            object_id=payment.id
+        )
+
+        # Send real-time notification using channels
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_{payment.doctor.user.id}',  # Doctor's WebSocket group
+            {
+                'type': 'send_notification',
+                'message': notification.message,
+                'notification_type': notification.notification_type,
+                'sender': notification.sender.username,
+            }
+        )
 
 
 class ValidateEmergencyVideoCallAPI(APIView):
@@ -900,17 +930,15 @@ class ValidateEmergencyVideoCallAPI(APIView):
             )
 
 class EmergencyConsultationConfirmationView(APIView):
-   
     permission_classes = [IsAuthenticated]
-    
+
     def get_object(self, payment_id):
-        """Get the emergency payment object and check permissions"""
+        
         payment = get_object_or_404(EmergencyPayment, id=payment_id)
         
         # Check if user has permission to access this consultation
         if self.request.user != payment.patient and self.request.user != payment.doctor.user:
             return None
-        
         return payment
     
     def get(self, request, payment_id):
@@ -1000,6 +1028,68 @@ class EmergencyConsultationConfirmationView(APIView):
             "message": "Consultation ended successfully",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+    
+    
+# class EmergencyConsultationConfirmationView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get_object(self, payment_id):
+#         payment = get_object_or_404(EmergencyPayment, id=payment_id)
+#         if self.request.user != payment.patient and self.request.user != payment.doctor.user:
+#             return None
+#         return payment
+
+#     def post(self, request, payment_id):
+#         payment = self.get_object(payment_id)
+#         if payment is None:
+#             return Response({"error": "You don't have permission"}, status=status.HTTP_403_FORBIDDEN)
+
+#         action = request.data.get('action')
+
+#         if action == 'start_consultation':
+#             return self._handle_start_consultation(payment)
+#         elif action == 'end_consultation':
+#             return self._handle_end_consultation(payment)
+#         else:
+#             return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+#     def _handle_start_consultation(self, payment):
+#         if payment.consultation_started:
+#             return Response({"error": "Consultation already started"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         if payment.payment_status != 'success':
+#             return Response({"error": "Payment must be completed before starting consultation"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         payment.consultation_started = True
+#         payment.consultation_start_time = timezone.now()
+#         payment.save()
+
+#         self._create_notification(payment, 'Consultation started successfully', 'emergency')
+
+#         return Response({"message": "Consultation started successfully"}, status=status.HTTP_200_OK)
+
+#     def _create_notification(self, payment, message, notification_type):
+#         # Create notification in database
+#         notification = Notification.objects.create(
+#             sender=payment.patient,
+#             receiver=payment.doctor.user,
+#             message=message,
+#             notification_type=notification_type,
+#             content_type=ContentType.objects.get_for_model(payment),
+#             object_id=payment.id
+#         )
+
+#         # Send real-time notification using channels
+#         channel_layer = get_channel_layer()
+#         async_to_sync(channel_layer.group_send)(
+#             f'notifications_{payment.doctor.user.id}',  # Send to this doctor's group
+#             {
+#                 'type': 'send_notification',
+#                 'message': notification.message,
+#                 'notification_type': notification.notification_type,
+#                 'sender': notification.sender.username,
+#             }
+#         )
 
 class ValidateChatAccessAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -1049,3 +1139,32 @@ class ValidateChatAccessAPI(APIView):
                 {"error": "No valid completed appointment found"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+class MedicalRecordListView(generics.ListAPIView):
+    serializer_class = MedicalRecordSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['appointment__status']
+    search_fields = ['diagnosis', 'prescription', 'notes', 'doctor__username', 'patient__username']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'doctor':
+            return MedicalRecord.objects.filter(doctor=user)
+        elif user.role == 'patient':
+            return MedicalRecord.objects.filter(patient=user)
+        return MedicalRecord.objects.none()
+
+class MedicalRecordDetailView(generics.RetrieveAPIView):
+    queryset = MedicalRecord.objects.all()
+    serializer_class = MedicalRecordSerializer
+    permission_classes = [permissions.IsAuthenticated]   
+
+class UserNotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Fetch notifications for the logged-in user
+        notifications = Notification.objects.filter(receiver=request.user).order_by('-created_at')
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)         
