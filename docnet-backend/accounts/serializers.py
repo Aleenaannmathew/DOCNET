@@ -37,7 +37,6 @@ def cloudinary_upload(image_file):
         )
         return result
     except Exception as e:
-        print(f"Cloudinary upload error: {str(e)}")
         return None
     
 
@@ -82,7 +81,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             return user
     
         except Exception as e:
-            print(f"User creation error: {str(e)}")
             raise serializers.ValidationError({"error": f"User registration failed: {str(e)}"})
         
 
@@ -272,7 +270,6 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
         }
             
         except Exception as e:
-            print(f"Error getting next available slot for doctor {obj.id}: {e}")
             return {
                 'has_available_slots': False
             }
@@ -296,7 +293,6 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
                 return 'Available Soon'
                 
         except Exception as e:
-            print(f"Error getting availability status for doctor {obj.id}: {e}")
             return 'Check Availability'  
 
 
@@ -557,7 +553,7 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
             'booking_reference', 'appointment_instructions'
         ]
     
-    # Patient Information Methods
+   
     def get_patient_name(self, obj):
         try:
             return obj.payment.patient.username if obj.payment and obj.payment.patient else "N/A"
@@ -576,7 +572,7 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
         except AttributeError:
             return "N/A"
     
-    # Doctor Information Methods
+    
     def get_doctor_name(self, obj):
         try:
             return obj.payment.slot.doctor.user.username if obj.payment and obj.payment.slot and obj.payment.slot.doctor else "N/A"
@@ -724,20 +720,19 @@ class EmergencyDoctorSerializer(serializers.ModelSerializer):
         ]
     
     def get_rating(self, obj):
-        # Implement your rating calculation logic
-        return 4.5  # placeholder
+        
+        return 4.5  
     
     def get_total_reviews(self, obj):
-        # Implement your review count logic
-        return 150  # placeholder
+       
+        return 150 
     
     def get_consultation_fee(self, obj):
-        # Base consultation fee
-        return 500  # placeholder - you can add this field to your model
+      
+        return 500 
     
     def get_emergency_fee(self, obj):
-        # Emergency consultation fee (usually higher)
-        return 800  # placeholder - you can add this field to your model
+        return 800  
 
 class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
     doctor_id = serializers.IntegerField()
@@ -760,7 +755,7 @@ class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
                 emergency_status=True,
                 is_approved=True
             )
-            data['doctor_id'] = doctor  # replace ID with the actual DoctorProfile instance
+            data['doctor_id'] = doctor  
             return data
         except DoctorProfile.DoesNotExist:
             raise serializers.ValidationError({
@@ -983,7 +978,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
     
     # Doctor methods
     def get_doctor_full_name(self, obj):
-        """Get doctor's full name"""
+       
         if hasattr(obj, 'doctor') and obj.doctor:
             if hasattr(obj.doctor, 'user'):
                 first_name = getattr(obj.doctor.user, 'first_name', '') or ''
@@ -995,7 +990,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return "Doctor information not available"
     
     def get_doctor_initials(self, obj):
-        """Get doctor's initials"""
+       
         if hasattr(obj, 'doctor') and obj.doctor:
             if hasattr(obj.doctor, 'user'):
                 first_name = getattr(obj.doctor.user, 'first_name', '') or ""
@@ -1010,33 +1005,33 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return "DR"
     
     def get_doctor_specialization(self, obj):
-        """Get doctor's specialization"""
+       
         if hasattr(obj, 'doctor') and obj.doctor:
             return getattr(obj.doctor, 'specialization', 'General Medicine')
         return "General Medicine"
     
     def get_doctor_experience(self, obj):
-        """Get doctor's experience"""
+      
         if hasattr(obj, 'doctor') and obj.doctor:
             experience = getattr(obj.doctor, 'experience_years', 0)
             return f"{experience} years experience" if experience else "Experienced"
         return "Experienced"
     
     def get_doctor_hospital(self, obj):
-        """Get doctor's hospital/clinic"""
+       
         if hasattr(obj, 'doctor') and obj.doctor:
             return getattr(obj.doctor, 'hospital_name', 'Healthcare Center')
         return "Healthcare Center"
     
     def get_doctor_availability_status(self, obj):
-        """Get doctor's availability status"""
+       
         if hasattr(obj, 'doctor') and obj.doctor:
             return getattr(obj.doctor, 'availability_status', 'Available')
         return "Available"
     
-    # Patient methods
+    
     def get_patient_full_name(self, obj):
-        """Get patient's full name"""
+       
         if hasattr(obj, 'patient') and obj.patient:
             first_name = getattr(obj.patient, 'first_name', '') or ''
             last_name = getattr(obj.patient, 'last_name', '') or ''
@@ -1046,7 +1041,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return "Patient information not available"
     
     def get_patient_age(self, obj):
-        """Get patient's age"""
+        
         if hasattr(obj, 'patient') and obj.patient:
             if hasattr(obj.patient, 'date_of_birth') and obj.patient.date_of_birth:
                 from datetime import date
@@ -1057,24 +1052,23 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return "Not specified"
     
     def get_patient_phone(self, obj):
-        """Get patient's phone number"""
+        
         if hasattr(obj, 'patient') and obj.patient:
             return getattr(obj.patient, 'phone', getattr(obj.patient, 'phone_number', 'Not provided'))
         return "Not provided"
     
     def get_patient_email(self, obj):
-        """Get patient's email"""
+        
         if hasattr(obj, 'patient') and obj.patient:
             return getattr(obj.patient, 'email', 'Not provided')
         return "Not provided"
     
-    # Consultation methods
-    def get_consultation_id(self, obj):
-        """Get consultation ID"""
-        return f"EC-{obj.id:06d}"  # Format: EC-000001
     
+    def get_consultation_id(self, obj):
+        
+        return f"EC-{obj.id:06d}" 
     def get_consultation_status(self, obj):
-        """Get consultation status based on payment and consultation state"""
+       
         if hasattr(obj, 'consultation_end_time') and obj.consultation_end_time:
             return 'ended'
         elif hasattr(obj, 'consultation_started') and obj.consultation_started:
@@ -1085,7 +1079,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
             return 'pending'
     
     def get_consultation_date(self, obj):
-        """Get consultation date"""
+       
         if hasattr(obj, 'consultation_date') and obj.consultation_date:
             return obj.consultation_date.strftime('%B %d, %Y')
         elif hasattr(obj, 'created_at') and obj.created_at:
@@ -1095,7 +1089,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return timezone.now().strftime('%B %d, %Y')
     
     def get_consultation_time(self, obj):
-        """Get consultation time"""
+        
         if hasattr(obj, 'consultation_time') and obj.consultation_time:
             return obj.consultation_time.strftime('%I:%M %p')
         elif hasattr(obj, 'consultation_start_time') and obj.consultation_start_time:
@@ -1107,21 +1101,21 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return timezone.now().strftime('%I:%M %p')
     
     def get_duration_minutes(self, obj):
-        """Calculate consultation duration in minutes"""
+        
         if obj.consultation_start_time and obj.consultation_end_time:
             duration = obj.consultation_end_time - obj.consultation_start_time
             return int(duration.total_seconds() / 60)
         return 0
     
-    # Payment methods
+   
     def get_formatted_amount(self, obj):
-        """Get formatted consultation amount"""
+        
         if hasattr(obj, 'amount') and obj.amount:
             return f"₹{obj.amount:,.2f}"
         return "₹0.00"
     
     def get_platform_fee(self, obj):
-        """Get platform fee"""
+       
         if hasattr(obj, 'platform_fee') and obj.platform_fee:
             return f"₹{obj.platform_fee:,.2f}"
         # Calculate 10% platform fee if not stored
@@ -1131,7 +1125,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return "₹0.00"
     
     def get_tax_amount(self, obj):
-        """Get tax amount"""
+        
         if hasattr(obj, 'tax_amount') and obj.tax_amount:
             return f"₹{obj.tax_amount:,.2f}"
         # Calculate 18% GST if not stored
@@ -1144,7 +1138,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return "₹0.00"
     
     def get_total_amount(self, obj):
-        """Get total amount including all fees and taxes"""
+       
         if hasattr(obj, 'total_amount') and obj.total_amount:
             return f"₹{obj.total_amount:,.2f}"
         # Calculate total if not stored
@@ -1158,7 +1152,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         return "₹0.00"
     
     def get_payment_method_display(self, obj):
-        """Get payment method display text"""
+       
         if hasattr(obj, 'payment_method') and obj.payment_method:
             method_map = {
                 'card': 'Credit/Debit Card',
@@ -1191,7 +1185,7 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
     def get_doctor_info(self, obj):
-        """Get doctor information safely"""
+       
         if hasattr(obj, 'doctor') and obj.doctor:
             doctor_profile = DoctorProfile.objects.filter(user=obj.doctor).first()
             if doctor_profile:
@@ -1205,7 +1199,7 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         return None
 
     def get_patient_info(self, obj):
-        """Get patient information safely through appointment"""
+        
         if hasattr(obj, 'appointment') and obj.appointment:
             if hasattr(obj.appointment, 'payment') and obj.appointment.payment:
                 patient = obj.appointment.payment.patient
@@ -1218,7 +1212,7 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         return None
 
     def get_appointment_info(self, obj):
-        """Get basic appointment information"""
+       
         if hasattr(obj, 'appointment') and obj.appointment:
             return {
                 'id': obj.appointment.id,
@@ -1229,7 +1223,7 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         return None
 
     def to_representation(self, instance):
-        """Handle null values and format dates"""
+        
         representation = super().to_representation(instance)
         
         # Format dates
@@ -1240,7 +1234,7 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         if instance.updated_at:
             representation['updated_at'] = instance.updated_at.strftime('%Y-%m-%d %H:%M')
             
-        # Handle null values
+        
         for field in ['notes', 'diagnosis', 'prescription']:
             if representation[field] is None:
                 representation[field] = ""

@@ -756,9 +756,8 @@ class DoctorDashboardView(APIView):
 
         doctor = user.doctor_profile
 
-        # Get Wallet balance
         try:
-            wallet = doctor.wallet.first()  # Assuming one wallet per doctor
+            wallet = doctor.wallet.first()  
             total_revenue = wallet.balance
         except:
             total_revenue = Decimal('0.00')
@@ -767,13 +766,9 @@ class DoctorDashboardView(APIView):
         total_appointments = appointments.count()
         completed_appointments = appointments.filter(status='completed').count()
         today_appointments = appointments.filter(payment__slot__date=localdate()).count()
-
-        # Emergency appointments
         emergency_payments = EmergencyPayment.objects.filter(doctor=doctor, payment_status='success')
         total_emergency_revenue = emergency_payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
         emergency_appointments = emergency_payments.count()
-
-        # Recent completed appointments (last 3)
         recent_appointments = appointments.filter(status='completed').order_by('-created_at')[:3]
         recent_list = []
         for appt in recent_appointments:
@@ -786,7 +781,7 @@ class DoctorDashboardView(APIView):
             })
 
         return Response({
-            "total_revenue": total_revenue,  # Now showing Wallet balance
+            "total_revenue": total_revenue, 
             "emergency_revenue": total_emergency_revenue,
             "total_appointments": total_appointments,
             "today_appointments": today_appointments,
@@ -842,7 +837,6 @@ class DoctorAnalyticsView(APIView):
             "new_balance": txn.new_balance
         } for txn in filtered_txns]
 
-        # Revenue Calculations (for all-time)
         month_revenue = wallet.history.filter(updated_date__month=current_month, updated_date__year=current_year, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         week_revenue = wallet.history.filter(updated_date__date__gte=week_start, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         today_revenue = wallet.history.filter(updated_date__date=today, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -926,7 +920,6 @@ class MedicalRecordAPIView(APIView):
 
     def get(self, request, appointment_id):
         try:
-            # Ensure the doctor has access to this appointment's medical records
             appointment = Appointment.objects.get(
                 id=appointment_id,
                 payment__slot__doctor__user=request.user
@@ -945,7 +938,6 @@ class MedicalRecordAPIView(APIView):
                           status=status.HTTP_404_NOT_FOUND)
 
     def post(self, request, appointment_id):
-        # Only allow doctors to update/create medical records
         if request.user.role != 'doctor':
             return Response(
                 {"error": "Only doctors are allowed to update medical records."},
@@ -992,7 +984,6 @@ class DoctorNotificationListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Fetch notifications for the logged-in user
         notifications = Notification.objects.filter(receiver=request.user).order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
         return Response(serializer.data)  

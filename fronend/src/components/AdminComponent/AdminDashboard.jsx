@@ -1,30 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/authSlice';
 import { adminAxios } from '../../axios/AdminAxios';
 import {
-  Calendar,
-  ChevronLeft,
-  Users,
-  UserRound,
-  CalendarDays,
-  CreditCard,
-  BarChart3,
-  FileText,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  Bell,
-  Search,
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Clock,
-  MoreVertical,
-  Plus
+  Menu, UserRound, Users, CalendarDays, CreditCard,
+  TrendingUp, TrendingDown, BarChart3
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import AdminSidebar from './AdminSidebar';
 
 export default function DashboardAdmin() {
@@ -33,7 +16,6 @@ export default function DashboardAdmin() {
 
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const location = useLocation();
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
@@ -101,18 +83,6 @@ export default function DashboardAdmin() {
     }
   ];
 
-  const recentActivities = dashboardData.recent_activities || [];
-
-  const menuItems = [
-    { name: 'Dashboard', icon: <BarChart3 size={20} />, path: '/admin/admin-dashboard' },
-    { name: 'Patients', icon: <Users size={20} />, path: '/admin/patient-list' },
-    { name: 'Doctors', icon: <UserRound size={20} />, path: '/admin/doctor-list' },
-    { name: 'Appointments', icon: <CalendarDays size={20} />, path: '/admin/appointments' },
-    { name: 'Payments', icon: <CreditCard size={20} />, path: '/admin/payments' },
-    { name: 'Reports', icon: <FileText size={20} />, path: '/admin/reports' },
-    { name: 'Settings', icon: <Settings size={20} />, path: '/admin/settings' }
-  ];
-
   return (
     <div className="flex h-screen bg-gray-50">
       <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
@@ -131,16 +101,6 @@ export default function DashboardAdmin() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
-                <Search size={16} className="text-gray-400" />
-                <input type="text" placeholder="Search..." className="bg-transparent text-sm focus:outline-none w-32 lg:w-48" />
-              </div>
-
-              <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                <Bell size={20} className="text-gray-600" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
-              </button>
-
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-center">
                   <span className="font-semibold text-white text-sm">{user?.username?.charAt(0).toUpperCase() || 'A'}</span>
@@ -155,6 +115,7 @@ export default function DashboardAdmin() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+          {/* Statistic Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {statCards.map((card, index) => (
               <div key={index} className={`bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 ${card.color} border-l-4`}>
@@ -173,39 +134,20 @@ export default function DashboardAdmin() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 xl:col-span-2">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Revenue Analytics</h3>
-                  <p className="text-sm text-gray-500">Monthly revenue overview</p>
-                </div>
-              </div>
-              <div className="h-80 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 flex items-center justify-center text-gray-400">
-                <span>Chart Placeholder</span>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                  <p className="text-sm text-gray-500">Latest system updates</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div key={index} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${activity.status === 'success' ? 'bg-emerald-500' : activity.status === 'warning' ? 'bg-amber-500' : activity.status === 'info' ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{activity.title}</p>
-                      <p className="text-xs text-gray-500 mt-1">{activity.description}</p>
-                      <p className="text-xs text-gray-400 mt-1 flex items-center"><Clock size={12} className="mr-1" />{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Revenue Chart */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="text-xl font-bold mb-4 flex items-center">
+              <BarChart3 className="mr-2" /> Monthly Revenue
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dashboardData.monthly_revenue}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </main>
       </div>

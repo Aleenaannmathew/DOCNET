@@ -6,15 +6,16 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.conf import settings
 from django.utils import timezone
+from collections import OrderedDict
 from rest_framework.pagination import PageNumberPagination
 from django.db.models.functions import TruncMonth
-from doctor.models import DoctorProfile
+from doctor.models import DoctorProfile,Wallet
 from .serializers import AdminLoginSerializer, AdminUserSerializer, PaymentListSerializer 
 from django.shortcuts import get_object_or_404
 from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer, AdminAppointmentListSerializer
 from accounts.models import User, PatientProfile,Appointment,Payment
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
-from .serializers import PatientListSerializer, PatientDetailSerializer
+from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer
 from rest_framework_simplejwt.exceptions import TokenError
 from django.db.models import Count, Sum, Q, F
 from rest_framework.decorators import api_view, permission_classes
@@ -313,13 +314,12 @@ class AdminAppointmentListView(APIView):
                     payment__slot__date__range=[today, next_week]
                 )
 
-        # Pagination
+      
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(queryset, request)
         serializer = AdminAppointmentListSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
-
 
 class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated]
@@ -331,11 +331,46 @@ class AdminDashboardView(APIView):
         total_doctors = DoctorProfile.objects.count()
         total_patients = User.objects.filter(role='patient').count()
         total_appointments = Appointment.objects.count()
-        total_revenue = Payment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
 
+        total_normal_revenue = Payment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+        total_emergency_revenue = EmergencyPayment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+
+        total_revenue = total_normal_revenue + total_emergency_revenue
         admin_profit = total_revenue * Decimal('0.1')
 
-        # Monthly Appointments Analytics
+        
+        months_list = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December']
+        monthly_revenue = OrderedDict((month, 0) for month in months_list)
+
+        
+        normal_payments = Payment.objects.filter(payment_status='success') \
+            .annotate(month=TruncMonth('timestamp')) \
+            .values('month') \
+            .annotate(total=Sum('amount'))
+
+     
+        emergency_payments = EmergencyPayment.objects.filter(payment_status='success') \
+            .annotate(month=TruncMonth('timestamp')) \
+            .values('month') \
+            .annotate(total=Sum('amount'))
+
+       
+        for payment in normal_payments:
+            if payment['month']:
+                month_name = payment['month'].strftime('%B')
+                monthly_revenue[month_name] += float(payment['total'])
+
+        
+        for payment in emergency_payments:
+            if payment['month']:
+                month_name = payment['month'].strftime('%B')
+                monthly_revenue[month_name] += float(payment['total'])
+
+       
+        formatted_monthly_revenue = [{'month': month, 'revenue': revenue} for month, revenue in monthly_revenue.items()]
+
+        
         appointments_per_month = Appointment.objects.annotate(month=TruncMonth('created_at')) \
             .values('month') \
             .annotate(count=Count('id')) \
@@ -343,14 +378,7 @@ class AdminDashboardView(APIView):
 
         appointment_analytics = [
             {'month': item['month'].strftime('%B'), 'appointments': item['count']}
-            for item in appointments_per_month
-        ]
-
-        monthly_revenue = [
-            {'month': 'January', 'revenue': 10000},
-            {'month': 'February', 'revenue': 12000},
-            {'month': 'March', 'revenue': 9000},
-            {'month': 'April', 'revenue': 15000},
+            for item in appointments_per_month if item['month']
         ]
 
         data = {
@@ -358,7 +386,7 @@ class AdminDashboardView(APIView):
             'total_patients': total_patients,
             'total_appointments': total_appointments,
             'total_revenue': float(total_revenue),
-            'monthly_revenue': monthly_revenue,
+            'monthly_revenue': formatted_monthly_revenue,
             'admin_profit': float(admin_profit),
             'appointment_analytics': appointment_analytics,
             'trends': {
@@ -375,6 +403,7 @@ class AdminDashboardView(APIView):
         }
 
         return Response(data)
+
     
 
 class AdminPaymentHistoryAPIView(APIView):
@@ -398,9 +427,20 @@ class AdminPaymentHistoryAPIView(APIView):
 
         queryset = queryset.order_by('-timestamp')
 
-        # Apply pagination
+       
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(queryset, request)
         serializer = PaymentListSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
+    
+class DoctorEarningsReportAPIView(APIView):
+    permission_classes = [IsAdminUser]  
+
+    def get(self, request):
+        wallets = Wallet.objects.select_related('doctor', 'doctor__user').all()
+        serializer = DoctorEarningsSerializer(wallets, many=True)
+        return Response({
+            'status': 'success',
+            'data': serializer.data
+        })    

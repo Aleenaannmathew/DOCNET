@@ -267,7 +267,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.scope['user'] = await database_sync_to_async(User.objects.get)(id=user_id)
             self.user = self.scope['user']
         except Exception as e:
-            print("Token error:", e)
             await self.close()
             return
 
@@ -281,7 +280,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # ✅ Send chat history after connecting
+        
         messages = await self.get_chat_history()
         await self.send(text_data=json.dumps({
             'type': 'history',
@@ -359,7 +358,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 file_name = f"{self.user.username}_{timezone.now().timestamp()}.{ext}"
                 msg.file.save(file_name, ContentFile(base64.b64decode(imgstr)), save=True)
             except Exception as e:
-                print("❌ File save error:", e)
+                pass
         else:
             msg.save()
         return msg
@@ -402,7 +401,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             await self.accept()
 
         except Exception as e:
-            print("Token error:", e)
             await self.close()
 
     async def disconnect(self, close_code):
@@ -410,7 +408,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        pass  # Optional: handle incoming messages if needed
+        pass  
 
     async def send_notification(self, event):
         await self.send(text_data=json.dumps({

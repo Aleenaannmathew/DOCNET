@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from doctor.models import DoctorProfile, DoctorSlot   
+from doctor.models import DoctorProfile, DoctorSlot, Wallet
 from accounts.models import User, PatientProfile, Payment,Appointment
+
 
 User = get_user_model()
 
@@ -173,4 +174,13 @@ class PaymentListSerializer(serializers.ModelSerializer):
         ]
 
     def get_type(self, obj):
-        return "Consultation"     
+        return "Consultation"   
+
+class DoctorEarningsSerializer(serializers.ModelSerializer):
+    doctor_name = serializers.CharField(source='doctor.user.username')
+    specialization = serializers.CharField(source='doctor.specialization')
+    total_earnings = serializers.DecimalField(source='balance', max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = Wallet
+        fields = ['doctor_name', 'specialization', 'total_earnings']      

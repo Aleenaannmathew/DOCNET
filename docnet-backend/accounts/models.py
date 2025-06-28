@@ -190,13 +190,13 @@ class MedicalRecord(models.Model):
         User, 
         on_delete=models.CASCADE, 
         limit_choices_to={'role': 'patient'},
-        related_name='patient_medical_records'  # 👈 avoids clash
+        related_name='patient_medical_records' 
     )
     doctor = models.ForeignKey(
         User, 
         on_delete=models.CASCADE, 
         limit_choices_to={'role': 'doctor'},
-        related_name='doctor_medical_records'  # 👈 avoids clash
+        related_name='doctor_medical_records'  
     )
 
     notes = models.TextField(blank=True, null=True)

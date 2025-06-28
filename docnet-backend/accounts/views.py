@@ -729,7 +729,6 @@ class BookingConfirmationByPaymentView(APIView):
                     'data': None
                 }, status=status.HTTP_403_FORBIDDEN)
             
-            print(payment_id)
             appointment = Appointment.objects.select_related(
                 'payment__patient',
                 'payment__slot__doctor__user',
@@ -765,7 +764,6 @@ class BookingConfirmationByPaymentView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EmergencyDoctorListView(generics.ListAPIView):
-    print("HII")
     serializer_class = DoctorProfileSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['specialization', 'gender']
@@ -790,7 +788,7 @@ class CreateEmergencyPaymentView(APIView):
             data=request.data, 
             context={'request': request}
         )
-        print(serializer)
+       
         
         if serializer.is_valid():
             try:

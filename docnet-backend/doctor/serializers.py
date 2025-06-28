@@ -32,7 +32,6 @@ def cloudinary_upload(image_file):
         )
         return result
     except Exception as e:
-        print(f"Cloudinary upload error: {str(e)}")
         return None
     
 
@@ -188,13 +187,13 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
 
 
 class DoctorProfileUpdateSerializer(serializers.Serializer):
-    # User fields
+ 
     username = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     profile_image = serializers.ImageField(required=False, allow_null=True)
     
-    # Doctor profile fields
+    
     hospital = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
     languages = serializers.CharField(required=False, allow_blank=True, default='English', max_length=255)
     location = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
@@ -226,7 +225,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
         user = self.instance['user']
         doctor_profile = self.instance['doctor_profile']
         
-        # Handle profile image upload
+     
         profile_image = self.validated_data.pop('profile_image', None)
         if profile_image:
             try:
@@ -239,12 +238,12 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
             except Exception as e:
                 raise serializers.ValidationError(f"Image upload failed: {str(e)}")
         
-        # Update user fields
+      
         for attr, value in self.validated_data.items():
             if attr in ['username', 'email', 'phone']:
                 setattr(user, attr, value)
         
-        # Update doctor profile fields
+        
         profile_fields = ['hospital', 'languages','location', 'age', 'gender', 'experience']
         
         for field in profile_fields:
@@ -254,7 +253,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
         user.save()
         doctor_profile.save()
         
-        # Return updated user data with doctor profile fields
+        
         return {
             'id': user.id,
             'username': user.username,
@@ -289,16 +288,11 @@ class DoctorSlotSerializer(serializers.ModelSerializer):
             today = date.today()
             now = datetime.now().time()
 
-           
-            
-
-           
             if slot_date == today and slot_time <= now:
                 raise serializers.ValidationError(
                     "Cannot create or update slots for past times today."
                 )
 
-            # ✅ Check for duplicate slots
             doctor = self.context['request'].user.doctor_profile
             existing_slots = DoctorSlot.objects.filter(
                 doctor=doctor,
@@ -306,7 +300,7 @@ class DoctorSlotSerializer(serializers.ModelSerializer):
                 start_time=slot_time
             )
 
-            # Exclude current slot if updating
+           
             if self.instance:
                 existing_slots = existing_slots.exclude(id=self.instance.id)
 
@@ -360,33 +354,30 @@ class WalletSerializer(serializers.ModelSerializer):
         fields = ['id', 'balance', 'history']
 
 class AppointmentDetailsSerializer(serializers.ModelSerializer):
-    # Patient information
+  
     reason = serializers.CharField(read_only=True)
     patient_name = serializers.CharField(source='payment.patient.username', read_only=True)
     patient_email = serializers.CharField(source='payment.patient.email', read_only=True)
     patient_phone = serializers.CharField(source='payment.patient.phone', read_only=True)
     patient_profile_image = serializers.CharField(source='payment.patient.profile_image', read_only=True)
-    
-    # Slot information
+   
     appointment_date = serializers.DateField(source='payment.slot.date', read_only=True)
     appointment_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
     duration = serializers.IntegerField(source='payment.slot.duration', read_only=True)
     consultation_type = serializers.CharField(source='payment.slot.consultation_type', read_only=True)
     slot_id = serializers.IntegerField(source='payment.slot_id', read_only=True)
     slot_notes = serializers.CharField(source='payment.slot.notes', read_only=True)
-    
-    # Payment information
+ 
     payment_amount = serializers.DecimalField(source='payment.amount', max_digits=10, decimal_places=2, read_only=True)
     payment_status = serializers.CharField(source='payment.payment_status', read_only=True)
     payment_id = serializers.CharField(source='payment.payment_id', read_only=True)
     payment_method = serializers.CharField(source='payment.payment_method', read_only=True)
     razorpay_payment_id = serializers.CharField(source='payment.razorpay_payment_id', read_only=True)
     payment_date = serializers.DateTimeField(source='payment.timestamp', read_only=True)
-    
-    # Patient profile information
+   
     patient_profile = serializers.SerializerMethodField()
     
-    # Doctor information
+    
     doctor_info = serializers.SerializerMethodField()
     
     class Meta:
@@ -435,19 +426,16 @@ class EmergencyStatusSerializer(serializers.Serializer):
     emergency_status = serializers.BooleanField()
 
     def validate_emergency_status(self, value):
-        """Validate emergency status"""
         if not isinstance(value, bool):
             raise serializers.ValidationError("Emergency status must be a boolean value.")
         return value
     
 class EmergencyPatientSerializer(serializers.ModelSerializer):
-    """Serializer for patient information in emergency consultations"""
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'phone', 'profile_image']
 
 class EmergencyDoctorSerializer(serializers.ModelSerializer):
-    """Serializer for doctor information in emergency consultations"""
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
     phone = serializers.CharField(source='user.phone', read_only=True)
@@ -462,7 +450,6 @@ class EmergencyDoctorSerializer(serializers.ModelSerializer):
         ]
 
 class EmergencyConsultationListSerializer(serializers.ModelSerializer):
-    """Serializer for listing emergency consultations"""
     patient = EmergencyPatientSerializer(read_only=True)
     doctor = EmergencyDoctorSerializer(read_only=True)
     consultation_duration = serializers.SerializerMethodField()
@@ -478,7 +465,6 @@ class EmergencyConsultationListSerializer(serializers.ModelSerializer):
         ]
     
     def get_consultation_duration(self, obj):
-        """Calculate consultation duration if both start and end times exist"""
         if obj.consultation_start_time and obj.consultation_end_time:
             duration = obj.consultation_end_time - obj.consultation_start_time
             total_minutes = int(duration.total_seconds() / 60)
@@ -491,7 +477,6 @@ class EmergencyConsultationListSerializer(serializers.ModelSerializer):
         return None
     
     def get_status_display(self, obj):
-        """Get display status based on payment status and consultation state"""
         if obj.payment_status != 'success':
             return obj.get_payment_status_display()
         
@@ -505,7 +490,6 @@ class EmergencyConsultationListSerializer(serializers.ModelSerializer):
             return 'Pending'
 
 class EmergencyConsultationDetailSerializer(serializers.ModelSerializer):
-    """Detailed serializer for emergency consultation details"""
     patient = EmergencyPatientSerializer(read_only=True)
     doctor = EmergencyDoctorSerializer(read_only=True)
     consultation_duration = serializers.SerializerMethodField()
@@ -516,7 +500,6 @@ class EmergencyConsultationDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
     
     def get_consultation_duration(self, obj):
-        """Calculate consultation duration"""
         if obj.consultation_start_time and obj.consultation_end_time:
             duration = obj.consultation_end_time - obj.consultation_start_time
             total_minutes = int(duration.total_seconds() / 60)

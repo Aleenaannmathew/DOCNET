@@ -8,7 +8,6 @@ import {
   CalendarDays, 
   CreditCard, 
   FileText, 
-  Settings, 
   Activity, 
   X, 
   LogOut 
@@ -26,8 +25,8 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { name: 'Doctors', icon: <UserRound size={20} />, path: '/admin/doctor-list' },
     { name: 'Appointments', icon: <CalendarDays size={20} />, path: '/admin/appointment-list' },
     { name: 'Payments', icon: <CreditCard size={20} />, path: '/admin/payments' },
-    { name: 'Reports', icon: <FileText size={20} />, path: '/admin/reports' },
-    { name: 'Settings', icon: <Settings size={20} />, path: '/admin/settings' }
+    { name: 'Reports', icon: <FileText size={20} />, path: '/admin/doctor-report' },
+   
   ];
 
   const handleLogout = () => {
