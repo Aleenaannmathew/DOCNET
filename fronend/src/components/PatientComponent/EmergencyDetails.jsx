@@ -10,7 +10,7 @@ import VideoCallButton from '../Constants/VideoCallButton';
 import ChatAccessButton from '../Constants/MessageButton';
 import PatientSidebar from './SideBar';
 
-export default function AppointmentDetails() {
+export default function EmergencyAppointmentDetails() {
   const [activeTab, setActiveTab] = useState('details');
   const [appointmentData, setAppointmentData] = useState(null);
   const [emergencyData, setEmergencyData] = useState(null);
@@ -38,20 +38,6 @@ export default function AppointmentDetails() {
     const fetchAppointmentDetails = async () => {
       try {
         setLoading(true);
-        
-        // First try to fetch as regular appointment
-        try {
-          const response = await userAxios.get(`appointment-details/${id}`);
-          if (response.data.success) {
-            setAppointmentData(response.data.data);
-            setIsEmergency(false);
-            return;
-          }
-        } catch (error) {
-          console.log('Not a regular appointment, checking emergency consultations');
-        }
-        
-        // If not a regular appointment, try emergency consultation
         const emergencyResponse = await userAxios.get(`emergency-consultation-details/${id}`);
         if (emergencyResponse.data) {
           setEmergencyData(emergencyResponse.data);
@@ -72,38 +58,6 @@ export default function AppointmentDetails() {
     }
   }, [id]);
 
-  const handleTabClick = (tab) => {
-    if (tab === 'Logout') {
-      handleLogout();
-    } else if (tab === 'Change Password') {
-      navigate('/new-password');
-    } else if (tab === 'Profile Information') {
-      navigate('/profile');
-    } else {
-      setActiveTab(tab);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        await userAxios.post('/logout/', {
-          refresh: refreshToken
-        });
-      }
-      dispatch(logout());
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      dispatch(logout());
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
-    }
-  };
 
   const getProfileImageUrl = () => {
     if (user?.profile_image) return user.profile_image;

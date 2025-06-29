@@ -493,6 +493,15 @@ class UserLogoutView(APIView):
                 message='Logged out with warnings',
                 status_code=status.HTTP_200_OK
             )
+        
+class ActiveDoctorsView(APIView):
+    def get(self, request):
+        doctors = DoctorProfile.objects.filter(
+            is_approved=True
+        ).select_related('user').order_by('-created_at')[:3]
+        
+        serializer = DoctorProfileSerializer(doctors, many=True)
+        return Response(serializer.data)        
        
 class DoctorListView(generics.ListAPIView):
     serializer_class = DoctorProfileSerializer
@@ -678,7 +687,76 @@ class AppointmentDetailView(generics.RetrieveAPIView):
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class EmergencyConsultationListView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        user = request.user
+        if user.role != 'patient':
+            return Response({"detail": "Access denied."}, status=403)
+
+        consultations = EmergencyPayment.objects.filter(patient=user).select_related('doctor__user').order_by('-timestamp')
+        
+        data = []
+        for consultation in consultations:
+            data.append({
+                'id': consultation.id,
+                'doctor_name': f"Dr. {consultation.doctor.user.username}",
+                'specialty': consultation.doctor.specialization or 'Emergency Consultation',
+                'timestamp': consultation.timestamp,
+                'consultation_start_time': consultation.consultation_start_time,
+                'consultation_end_time': consultation.consultation_end_time,
+                'payment_status': consultation.payment_status,
+                'amount': str(consultation.amount),
+                'reason': consultation.reason,
+                'consultation_started': consultation.consultation_started
+            })
+        
+        return Response(data)
+
+class EmergencyConsultationDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, consultation_id):
+        try:
+            consultation = EmergencyPayment.objects.get(
+                id=consultation_id,
+                patient=request.user
+            )
+            
+            data = {
+                'id': consultation.id,
+                'doctor_name': consultation.doctor.user.username,
+                'specialization': consultation.doctor.specialization,
+                'hospital': consultation.doctor.hospital,
+                'registration_id': consultation.doctor.registration_id,
+                'experience': consultation.doctor.experience,
+                'timestamp': consultation.timestamp,
+                'consultation_start_time': consultation.consultation_start_time,
+                'consultation_end_time': consultation.consultation_end_time,
+                'payment_status': consultation.payment_status,
+                'payment_method': consultation.payment_method,
+                'razorpay_payment_id': consultation.razorpay_payment_id,
+                'payment_id': consultation.id,  # Using same ID for simplicity
+                'amount': str(consultation.amount),
+                'reason': consultation.reason,
+                'consultation_started': consultation.consultation_started
+            }
+            
+            return Response(data)
+            
+        except EmergencyPayment.DoesNotExist:
+            return Response(
+                {'detail': 'Emergency consultation not found or access denied.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        
 class ValidateVideoCallAPI(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -691,19 +769,20 @@ class ValidateVideoCallAPI(APIView):
                 payment__payment_status='success'
             )
             
-            slot = appointment.payment.slot
-            slot_time = datetime.combine(slot.date, slot.start_time)
+            # slot = appointment.payment.slot
+            # slot_time = datetime.combine(slot.date, slot.start_time)
             
-            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+            # slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            start_window = slot_time - timedelta(minutes=15)
-            end_window = slot_time + timedelta(minutes=slot.duration)
+            # start_window = slot_time - timedelta(minutes=15)
+            # end_window = slot_time + timedelta(minutes=slot.duration)
             
-            if not (start_window <= now <= end_window):
-                return Response(
-                    {"error": "Video call is only available during your scheduled time"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # if not (start_window <= now <= end_window):
+            #     return Response(
+            #         {"error": "Video call is only available during your scheduled time"},
+            #         status=status.HTTP_400_BAD_REQUEST
+            #     )
+            
                 
             return Response({
                 "valid": True,

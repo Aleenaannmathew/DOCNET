@@ -5,7 +5,8 @@ import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContai
 import DocSidebar from "./DocSidebar";
 import { doctorAxios } from "../../axios/DoctorAxios";
 
-const StatCard = ({ title, value, icon, color }) => {
+const 
+StatCard = ({ title, value, icon, color }) => {
   const colors = {
     emerald: 'from-emerald-500 to-teal-600',
     blue: 'from-blue-500 to-indigo-600',

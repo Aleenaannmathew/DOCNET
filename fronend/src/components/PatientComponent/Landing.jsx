@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Play, 
-  Shield, 
-  Clock, 
-  Users, 
-  Heart, 
-  Brain, 
-  Activity, 
-  Star, 
-  ArrowRight, 
-  CheckCircle, 
-  Menu, 
+import {
+  Play,
+  Shield,
+  Clock,
+  Users,
+  Heart,
+  Brain,
+  Activity,
+  Star,
+  ArrowRight,
+  CheckCircle,
+  Menu,
   X,
   Phone,
   Mail,
@@ -27,10 +27,13 @@ import {
 import consultationVideo from "../../assets/consultation.mp4";
 import Navbar from './Navbar';
 import Footer from './Footer';
+import { userAxios } from '../../axios/UserAxios';
 
 const TelehealthLanding = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [doctors, setDoctors] = useState([]);
+
 
   // Auto-rotate testimonials
   useEffect(() => {
@@ -38,6 +41,20 @@ const TelehealthLanding = () => {
       setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const { data } = await userAxios.get('active-doctors/');
+        console.log(data)
+        setDoctors(data);
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
+      }
+    };
+
+    fetchDoctors();
   }, []);
 
   const testimonials = [
@@ -113,34 +130,12 @@ const TelehealthLanding = () => {
     { name: "General Medicine", color: "from-gray-500 to-slate-500", icon: <Stethoscope className="w-6 h-6" /> }
   ];
 
-  const doctors = [
-    {
-      name: "Dr. Amelia Chen",
-      specialty: "Cardiologist",
-      rating: 4.9,
-      experience: "15+ years",
-      image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&h=300&fit=crop&crop=face"
-    },
-    {
-      name: "Dr. Marcus Williams",
-      specialty: "Neurologist",
-      rating: 4.8,
-      experience: "12+ years",
-      image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=300&h=300&fit=crop&crop=face"
-    },
-    {
-      name: "Dr. Sofia Patel",
-      specialty: "Dermatologist",
-      rating: 4.9,
-      experience: "10+ years",
-      image: "https://images.unsplash.com/photo-1594824506499-207ca8bb85c3?w=300&h=300&fit=crop&crop=face"
-    }
-  ];
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Navigation */}
-      <Navbar/>
+      <Navbar />
 
       {/* Hero Section */}
       <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
@@ -159,7 +154,7 @@ const TelehealthLanding = () => {
                   </span>
                 </h1>
                 <p className="text-xl text-gray-600 leading-relaxed">
-                  Experience the future of healthcare with AI-powered consultations, 
+                  Experience the future of healthcare with AI-powered consultations,
                   real-time monitoring, and world-class medical professionals available 24/7.
                 </p>
               </div>
@@ -192,17 +187,17 @@ const TelehealthLanding = () => {
             <div className="relative">
               {/* Main Hero Image */}
               <div className="relative z-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl p-8 shadow-2xl">
-                <video 
-      className="w-full h-80 object-cover rounded-2xl"
-      autoPlay
-      muted
-      loop
-      playsInline
-    >
-      <source src={consultationVideo} type="video/mp4" />
-      Your browser does not support the video tag.
-    </video>
-                
+                <video
+                  className="w-full h-80 object-cover rounded-2xl"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                >
+                  <source src={consultationVideo} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+
                 {/* Floating Elements */}
                 <div className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-lg">
                   <div className="flex items-center space-x-3">
@@ -210,7 +205,7 @@ const TelehealthLanding = () => {
                     <span className="text-sm font-medium text-gray-700">Live Consultation</span>
                   </div>
                 </div>
-                
+
                 <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl p-4 shadow-lg">
                   <div className="flex items-center space-x-2">
                     <Heart className="w-5 h-5 text-red-500" />
@@ -238,7 +233,7 @@ const TelehealthLanding = () => {
               Comprehensive Healthcare Solutions
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              From AI-powered diagnostics to virtual reality therapy, we offer cutting-edge 
+              From AI-powered diagnostics to virtual reality therapy, we offer cutting-edge
               medical services designed for the digital age.
             </p>
           </div>
@@ -251,7 +246,7 @@ const TelehealthLanding = () => {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">{service.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{service.description}</p>
-                
+
                 {/* Hover effect decoration */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
@@ -303,26 +298,43 @@ const TelehealthLanding = () => {
             {doctors.map((doctor, index) => (
               <div key={index} className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-100 hover:shadow-xl transition-all duration-300 group">
                 <div className="relative mb-6">
-                  <img 
-                    src={doctor.image} 
-                    alt={doctor.name}
-                    className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300"
-                  />
+                  {doctor.profile_image ? (
+                    <img
+                      src={doctor.profile_image}
+                      alt={`Dr. ${doctor.username}`}
+                      className="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        e.target.parentElement.querySelector('.initials-fallback').style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-24 h-24 rounded-full mx-auto bg-blue-100 flex items-center justify-center border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300 initials-fallback ${doctor.profile_image ? 'hidden' : 'flex'}`}
+                  >
+                    <span className="text-2xl font-bold text-blue-600">
+                      {doctor.username.split(' ').map(name => name[0]).join('')}
+                    </span>
+                  </div>
                   <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-green-500 w-6 h-6 rounded-full border-4 border-white"></div>
                 </div>
-                
+
                 <div className="text-center">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-1">{doctor.name}</h3>
-                  <p className="text-blue-600 font-medium mb-3">{doctor.specialty}</p>
-                  
+                  <h3 className="text-xl font-semibold text-gray-900 mb-1">Dr. {doctor.username}</h3>
+                  <p className="text-blue-600 font-medium mb-1">{doctor.specialization}</p>
+                  {doctor.hospital && (
+                    <p className="text-sm text-gray-500 mb-3">{doctor.hospital}</p>
+                  )}
+
                   <div className="flex items-center justify-center space-x-4 mb-4">
                     <div className="flex items-center space-x-1">
                       <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span className="text-sm font-medium text-gray-700">{doctor.rating}</span>
+                      <span className="text-sm font-medium text-gray-700">4.9</span>
                     </div>
-                    <div className="text-sm text-gray-500">{doctor.experience}</div>
+                    <div className="text-sm text-gray-500">{doctor.experience}+ years</div>
                   </div>
-                  
+
                   <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-full font-medium hover:shadow-lg transition-all duration-200">
                     Book Consultation
                   </button>
@@ -353,14 +365,14 @@ const TelehealthLanding = () => {
                     <Star key={i} className="w-6 h-6 text-yellow-400 fill-current" />
                   ))}
                 </div>
-                
+
                 <blockquote className="text-xl md:text-2xl text-gray-700 font-medium leading-relaxed mb-8">
                   "{testimonials[activeTestimonial].text}"
                 </blockquote>
-                
+
                 <div className="flex items-center justify-center space-x-4">
-                  <img 
-                    src={testimonials[activeTestimonial].avatar} 
+                  <img
+                    src={testimonials[activeTestimonial].avatar}
                     alt={testimonials[activeTestimonial].author}
                     className="w-16 h-16 rounded-full object-cover"
                   />
@@ -382,11 +394,10 @@ const TelehealthLanding = () => {
                 <button
                   key={index}
                   onClick={() => setActiveTestimonial(index)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    index === activeTestimonial 
-                      ? 'bg-blue-600 w-8' 
-                      : 'bg-gray-300 hover:bg-gray-400'
-                  }`}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${index === activeTestimonial
+                    ? 'bg-blue-600 w-8'
+                    : 'bg-gray-300 hover:bg-gray-400'
+                    }`}
                 />
               ))}
             </div>
@@ -402,10 +413,10 @@ const TelehealthLanding = () => {
               Ready to Transform Your Healthcare?
             </h2>
             <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-              Join millions of patients who have chosen DOCNET for better, 
+              Join millions of patients who have chosen DOCNET for better,
               more accessible healthcare. Your health journey starts here.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button className="bg-white text-blue-600 px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-50 transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center space-x-2">
                 <Smartphone className="w-5 h-5" />
@@ -416,7 +427,7 @@ const TelehealthLanding = () => {
                 <span>Try Web App</span>
               </button>
             </div>
-            
+
             <div className="mt-8 text-blue-100 text-sm">
               ✓ No setup fees  ✓ Cancel anytime  ✓ 30-day money back guarantee
             </div>
@@ -425,7 +436,7 @@ const TelehealthLanding = () => {
       </section>
 
       {/* Footer */}
-      <Footer/>
+      <Footer />
     </div>
   );
 };

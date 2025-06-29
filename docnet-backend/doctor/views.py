@@ -512,14 +512,14 @@ class ValidateVideoCallAPI(APIView):
             # Make slot_time timezone-aware
             slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            # start_window = slot_time - timedelta(minutes=15)
-            # end_window = slot_time + timedelta(minutes=slot.duration)
+            start_window = slot_time - timedelta(minutes=15)
+            end_window = slot_time + timedelta(minutes=slot.duration)
             
-            # if not (start_window <= now <= end_window):
-            #     return Response(
-            #         {"error": "Video call is only available during your scheduled time"},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
+            if not (start_window <= now <= end_window):
+                return Response(
+                    {"error": "Video call is only available during your scheduled time"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
                 
             return Response({
                 "valid": True,
@@ -790,7 +790,6 @@ class DoctorDashboardView(APIView):
             "recent_appointments": recent_list
         })
 
-
 class DoctorAnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -802,22 +801,28 @@ class DoctorAnalyticsView(APIView):
             return Response({"detail": "Doctor profile not found."}, status=404)
 
         doctor = user.doctor_profile
+        wallet = doctor.wallet.first()
 
-        try:
-            wallet = doctor.wallet.first()
-            balance = wallet.balance
-            transactions = wallet.history.all().order_by('-updated_date')
-        except:
-            return Response({"detail": "Wallet not found."}, status=404)
+        # Handle doctors without wallets (probably no appointments yet)
+        if not wallet:
+            return Response({
+                "wallet_balance": Decimal('0.00'),
+                "transactions": [],
+                "monthly_revenue": Decimal('0.00'),
+                "weekly_revenue": Decimal('0.00'),
+                "today_revenue": Decimal('0.00'),
+                "expected_weekly_revenue": Decimal('0.00'),
+                "expected_monthly_revenue": Decimal('0.00')
+            })
+
+        balance = wallet.balance
+        transactions = wallet.history.all().order_by('-updated_date')
 
         today = localdate()
         current_month = today.month
         current_year = today.year
 
-        today_start = today
         week_start = today - timedelta(days=today.weekday())
-        month_start = today.replace(day=1)
-        year_start = today.replace(month=1, day=1)
 
         if filter_type == 'daily':
             filtered_txns = transactions.filter(updated_date__date=today)
@@ -853,7 +858,7 @@ class DoctorAnalyticsView(APIView):
             "expected_weekly_revenue": expected_weekly_revenue,
             "expected_monthly_revenue": expected_monthly_revenue
         })
-
+    
 class DoctorCSVExportView(APIView):
     permission_classes = [IsAuthenticated]
 

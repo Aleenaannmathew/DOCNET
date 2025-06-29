@@ -350,16 +350,7 @@ const Navbar = () => {
                       <UserCircle size={18} />
                       <span>View Profile</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        navigate('/change-password');
-                        setIsProfileMenuOpen(false);
-                      }}
-                      className="flex items-center space-x-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-                    >
-                      <Settings size={18} />
-                      <span>Settings</span>
-                    </button>
+                    
                     <hr className="my-2" />
                     <button
                       onClick={handleLogout}

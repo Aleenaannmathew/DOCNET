@@ -406,17 +406,7 @@ function DoctorDetailPage() {
     ));
   };
 
-  const getWeeklySchedule = () => {
-    return [
-      { day: 'Monday', time: '9:00 AM - 5:00 PM', available: true },
-      { day: 'Tuesday', time: '9:00 AM - 5:00 PM', available: true },
-      { day: 'Wednesday', time: '9:00 AM - 5:00 PM', available: true },
-      { day: 'Thursday', time: '9:00 AM - 5:00 PM', available: true },
-      { day: 'Friday', time: '9:00 AM - 5:00 PM', available: true },
-      { day: 'Saturday', time: '9:00 AM - 1:00 PM', available: true },
-      { day: 'Sunday', time: 'Closed', available: false },
-    ];
-  };
+
 
   const formatSlotTime = useCallback((slot) => {
     return slot.time || 'Time not specified';
@@ -537,15 +527,7 @@ function DoctorDetailPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={toggleFavorite}
-                  className={`p-3 rounded-full transition-colors ${isFavorite ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                >
-                  <Star 
-                    size={20} 
-                    className={isFavorite ? 'fill-current' : ''} 
-                  />
-                </button>
+                
               </div>
 
               <div className="flex gap-4 mt-6">
@@ -569,7 +551,6 @@ function DoctorDetailPage() {
               { key: 'experience', label: 'Experience', icon: GraduationCap },
               { key: 'reviews', label: 'Reviews', icon: Star },
               { key: 'location', label: 'Location', icon: MapPin },
-              { key: 'timings', label: 'Schedule', icon: Clock }
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -736,23 +717,6 @@ function DoctorDetailPage() {
                       <p className="text-gray-700 font-medium">{doctor.email}</p>
                     </div>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'timings' && (
-              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-                <h2 className="text-2xl font-bold mb-8 text-gray-900">Weekly Schedule</h2>
-
-                <div className="space-y-3">
-                  {getWeeklySchedule().map((schedule, index) => (
-                    <div key={index} className="flex items-center justify-between py-4 px-6 bg-gray-50 rounded-xl border border-gray-200">
-                      <span className="font-semibold text-gray-900">{schedule.day}</span>
-                      <span className={`font-medium ${schedule.available ? 'text-green-600' : 'text-red-500'}`}>
-                        {schedule.time}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}

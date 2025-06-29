@@ -19,8 +19,6 @@ const PatientSidebar = ({ activeTab, setActiveTab }) => {
     { name: 'Change Password', icon: Lock },
     { name: 'Booking History', icon: History },
     { name: 'Medical Records', icon: FileText },
-    { name: 'Notifications', icon: Bell },
-    { name: 'Help & Support', icon: HelpCircle },
     { name: 'Logout', icon: LogOut }
   ];
 

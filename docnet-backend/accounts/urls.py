@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView
-from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView
-from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI, MedicalRecordListView, MedicalRecordDetailView,UserNotificationListView
+from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView,EmergencyConsultationListView
+from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI, MedicalRecordListView, MedicalRecordDetailView,UserNotificationListView,ActiveDoctorsView,EmergencyConsultationDetailView
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
@@ -23,6 +23,8 @@ urlpatterns = [
     path('payments/create/', CreatePaymentView.as_view(), name='create-payment'),
     path('payments/verify/', VerifyPaymentView.as_view(), name='verify-payment'),
     path('patient-bookings/', BookingHistoryView.as_view(), name='patient-booking-history'),
+    path('emergency-consultations/',EmergencyConsultationListView.as_view(), name='emergency-consultation'),
+    path('emergency-consultation-details/<int:consultation_id>',EmergencyConsultationDetailView.as_view(), name='emergency-consultation-details'),
     path('appointment-details/<int:appointment_id>',AppointmentDetailView.as_view(), name='appointment-details'),
     path('validate-videocall/<int:slot_id>/', ValidateVideoCallAPI.as_view(), name='validate_videocall'),
     path('booking-confirmation/payment/<str:payment_id>/',BookingConfirmationByPaymentView.as_view(),name='booking-confirmation-by-payment'),
@@ -35,4 +37,5 @@ urlpatterns = [
     path('records/', MedicalRecordListView.as_view(), name='medical-records-list'),
     path('records/<int:pk>/', MedicalRecordDetailView.as_view(), name='medical-record-detail'),
     path('user-notifications/', UserNotificationListView.as_view(), name='doctor-notifications'),
+    path('active-doctors/', ActiveDoctorsView.as_view(), name='active-doctors'),
 ]

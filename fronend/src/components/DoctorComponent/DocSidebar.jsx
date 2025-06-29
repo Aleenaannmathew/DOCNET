@@ -140,12 +140,13 @@ function DocSidebar() {
     if (path.includes('/dashboard')) setActiveTab('Dashboard')
     else if (path.includes('/patients')) setActiveTab('Patients')
     else if (path.includes('/doctor-appointments')) setActiveTab('Appointments')
-    else if (path.includes('/emergency-list')) setActiveTab('Appointments') // Emergency list also shows as Appointments active
+    else if (path.includes('/emergency-list')) setActiveTab('Appointments') 
     else if (path.includes('/analytics')) setActiveTab('Analytics')
     else if (path.includes('/doctor-wallet')) setActiveTab('Wallet')
     else if (path.includes('/settings')) setActiveTab('Settings')
     else if (path.includes('/change-password')) setActiveTab('Change Password')
     else if (path.includes('/slots')) setActiveTab('Availability')
+    else if (path.includes('doctor-notifications')) setActiveTab('Notifications')
   }, [location.pathname])
 
   const getProfileImageUrl = () => {

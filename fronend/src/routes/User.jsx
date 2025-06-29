@@ -21,6 +21,7 @@ import Emergency from '../pages/PatientPages/Emergency';
 import EmerConfirmationPage from '../pages/PatientPages/EmerConfirmationPage';
 import PatientChat from '../pages/PatientPages/PatientChat';
 import Medical from '../pages/PatientPages/Medical';
+import EmergencyDetailPage from '../pages/PatientPages/EmergencyDetailPage';
 
 
 
@@ -65,6 +66,7 @@ function UserRoutes() {
         <Route path="/doctor-details/:slug" element={<DocDetail/>}/>
         <Route path='/booking-history' element={<BookingList/>}/>
         <Route path='/booking-details/:id' element={<BookingDetails />} />
+        <Route path='/emergency-consultation-details/:id' element={<EmergencyDetailPage />} />
         <Route path='/booking-confirmation/payment/:payment_id' element={<Confirmation />} />
         <Route path='/about' element={<AboutPage/>}/>
         <Route path='/contact' element={<UserContact/>}/>
