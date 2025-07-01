@@ -269,8 +269,6 @@ function DoctorDetailPage() {
 
     try {
       const response = await userAxios.get(`/doctor-reviews/${doctor.username}/`);
-      console.log('Fetched reviews:', response.data);
-      
       setReviews(response.data.results);
 
     } catch (error) {
@@ -305,7 +303,6 @@ function DoctorDetailPage() {
         setAvailableSlots([]);
       }
     } catch (error) {
-      console.error('Error fetching slots:', error);
       alert('Failed to fetch available slots');
       setAvailableSlots([]);
     } finally {

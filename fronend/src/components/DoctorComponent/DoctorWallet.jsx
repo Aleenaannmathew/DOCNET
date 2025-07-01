@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Calendar, Users, Clock, Wallet, Settings, LogOut, Home, Bell, Search, Filter, Activity, TrendingUp, Stethoscope, ArrowUpRight, ArrowDownLeft, CreditCard, DollarSign, Download, Plus, AlertCircle, Loader } from "lucide-react";
 import { doctorAxios } from "../../axios/DoctorAxios";
 import DocSidebar from "./DocSidebar";
+import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 
 
 
@@ -20,7 +22,7 @@ const TransactionCard = ({ transaction, last = false }) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) {
       return `Today, ${date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
     } else if (diffInDays === 1) {
@@ -134,9 +136,9 @@ const DoctorWallet = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await doctorAxios.get('/doctor-wallet/');
-      
+
       // Check if response is successful
       if (response.status === 200) {
         setWalletData(response.data);
@@ -145,7 +147,7 @@ const DoctorWallet = () => {
       }
     } catch (err) {
       console.error('Error fetching wallet data:', err);
-      
+
       // Handle specific error cases
       if (err.response) {
         // Server responded with error status
@@ -168,6 +170,8 @@ const DoctorWallet = () => {
     }
   };
 
+
+
   useEffect(() => {
     fetchWalletData();
   }, []);
@@ -178,16 +182,16 @@ const DoctorWallet = () => {
 
     const currentBalance = parseFloat(walletData.balance || 0);
     const history = walletData.history || [];
-    
+
     // Calculate monthly earnings (transactions from this month)
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const monthlyEarnings = history
       .filter(transaction => {
         const transactionDate = new Date(transaction.updated_date);
-        return transactionDate.getMonth() === currentMonth && 
-               transactionDate.getFullYear() === currentYear &&
-               transaction.type === 'credit';
+        return transactionDate.getMonth() === currentMonth &&
+          transactionDate.getFullYear() === currentYear &&
+          transaction.type === 'credit';
       })
       .reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
 
@@ -206,47 +210,67 @@ const DoctorWallet = () => {
       .reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
 
     return [
-      { 
-        title: "Available Balance", 
-        value: `₹${currentBalance.toLocaleString('en-IN')}`, 
-        icon: <Wallet size={20} />, 
-        color: "emerald", 
-        description: "Ready for withdrawal" 
+      {
+        title: "Available Balance",
+        value: `₹${currentBalance.toLocaleString('en-IN')}`,
+        icon: <Wallet size={20} />,
+        color: "emerald",
+        description: "Ready for withdrawal"
       },
-      { 
-        title: "This Month", 
-        value: `₹${monthlyEarnings.toLocaleString('en-IN')}`, 
-        icon: <TrendingUp size={20} />, 
-        color: "blue", 
-        description: "Total earnings" 
+      {
+        title: "This Month",
+        value: `₹${monthlyEarnings.toLocaleString('en-IN')}`,
+        icon: <TrendingUp size={20} />,
+        color: "blue",
+        description: "Total earnings"
       },
-      { 
-        title: "Pending Amount", 
-        value: `₹${pendingAmount.toLocaleString('en-IN')}`, 
-        icon: <Clock size={20} />, 
-        color: "amber", 
-        description: "Processing payments" 
+      {
+        title: "Pending Amount",
+        value: `₹${pendingAmount.toLocaleString('en-IN')}`,
+        icon: <Clock size={20} />,
+        color: "amber",
+        description: "Processing payments"
       },
-      { 
-        title: "Total Withdrawn", 
-        value: `₹${totalWithdrawn.toLocaleString('en-IN')}`, 
-        icon: <CreditCard size={20} />, 
-        color: "purple", 
-        description: "All time withdrawals" 
+      {
+        title: "Total Withdrawn",
+        value: `₹${totalWithdrawn.toLocaleString('en-IN')}`,
+        icon: <CreditCard size={20} />,
+        color: "purple",
+        description: "All time withdrawals"
       },
     ];
   };
 
   const walletStats = processWalletStats();
 
-  const filteredTransactions = walletData?.history?.filter(transaction => {
+  const filteredTransactions = (walletData?.history || [])
+  .filter(transaction => {
     if (filterType === 'all') return true;
     return transaction.type === filterType;
-  }) || [];
+  })
+  .sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date));
 
-  const handleWithdraw = () => {
-    // Implement withdrawal logic
+  const handleWithdraw = async (amount) => {
+    try {
+      const response = await doctorAxios.post('/doctor-wallet/withdraw/', { amount });
+      if (response.status === 200) {
+        toast.success('Withdrawal successful!');
+        // Update wallet data
+        setWalletData((prev) => ({
+          ...prev,
+          balance: response.data.balance,
+          history: [response.data.transaction, ...prev.history],
+        }));
+      }
+    } catch (error) {
+      if (error.response) {
+        toast.error(error.response.data.detail || 'Withdrawal failed.');
+      } else {
+        toast.error('Something went wrong. Please try again.');
+      }
+    }
   };
+
 
   const handleExport = () => {
     // Implement export logic
@@ -255,11 +279,11 @@ const DoctorWallet = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
-  
+
 
       <div className="flex">
-        <DocSidebar/>
-        
+        <DocSidebar />
+
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
@@ -271,20 +295,44 @@ const DoctorWallet = () => {
                 <p className="text-slate-500 mt-1">Manage your earnings and withdrawals</p>
               </div>
               <div className="flex items-center space-x-3">
-                <button 
+                <button
                   onClick={handleExport}
                   className="flex items-center space-x-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 px-4 py-2 rounded-lg font-medium transition-all duration-200"
                 >
                   <Download size={16} />
                   <span>Export</span>
                 </button>
-                <button 
-                  onClick={handleWithdraw}
+                <button
+                  onClick={() => {
+                    Swal.fire({
+                      title: 'Enter Withdrawal Amount',
+                      input: 'number',
+                      inputLabel: 'Amount (₹)',
+                      inputPlaceholder: 'Enter the amount you wish to withdraw',
+                      confirmButtonText: 'Withdraw',
+                      showCancelButton: true,
+                      inputAttributes: {
+                        min: 1,
+                        step: 0.01,
+                      },
+                      preConfirm: (amount) => {
+                        if (!amount || parseFloat(amount) <= 0) {
+                          Swal.showValidationMessage('Please enter a valid amount');
+                        }
+                        return amount;
+                      }
+                    }).then((result) => {
+                      if (result.isConfirmed && result.value) {
+                        handleWithdraw(parseFloat(result.value));
+                      }
+                    });
+                  }}
                   className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm"
                 >
                   <Plus size={16} />
                   <span>Withdraw Funds</span>
                 </button>
+
               </div>
             </div>
 
@@ -300,7 +348,7 @@ const DoctorWallet = () => {
             {!loading && !error && walletData && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {walletStats.map((stat, index) => (
-                  <WalletStatCard 
+                  <WalletStatCard
                     key={index}
                     title={stat.title}
                     value={stat.value}
@@ -323,10 +371,10 @@ const DoctorWallet = () => {
                       ₹{parseFloat(walletData.balance || 0).toLocaleString('en-IN')}
                     </p>
                     <p className="text-emerald-200">
-                      Last updated: {new Date().toLocaleDateString('en-IN', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
+                      Last updated: {new Date().toLocaleDateString('en-IN', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
                         day: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
@@ -353,25 +401,22 @@ const DoctorWallet = () => {
                       <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
                         <button
                           onClick={() => setFilterType('all')}
-                          className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                            filterType === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'
-                          }`}
+                          className={`px-3 py-1 text-sm rounded-md transition-colors ${filterType === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'
+                            }`}
                         >
                           All
                         </button>
                         <button
                           onClick={() => setFilterType('credit')}
-                          className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                            filterType === 'credit' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'
-                          }`}
+                          className={`px-3 py-1 text-sm rounded-md transition-colors ${filterType === 'credit' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'
+                            }`}
                         >
                           Income
                         </button>
                         <button
                           onClick={() => setFilterType('debit')}
-                          className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                            filterType === 'debit' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'
-                          }`}
+                          className={`px-3 py-1 text-sm rounded-md transition-colors ${filterType === 'debit' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600'
+                            }`}
                         >
                           Expenses
                         </button>
@@ -385,7 +430,7 @@ const DoctorWallet = () => {
                 <div className="max-h-96 overflow-y-auto">
                   {filteredTransactions.length > 0 ? (
                     filteredTransactions.map((transaction, index) => (
-                      <TransactionCard 
+                      <TransactionCard
                         key={transaction.id}
                         transaction={transaction}
                         last={index === filteredTransactions.length - 1}
@@ -396,7 +441,7 @@ const DoctorWallet = () => {
                       <Wallet className="mx-auto h-12 w-12 text-slate-300 mb-4" />
                       <h3 className="text-lg font-medium text-slate-500 mb-2">No transactions found</h3>
                       <p className="text-slate-400">
-                        {filterType === 'all' 
+                        {filterType === 'all'
                           ? 'Your transaction history will appear here once you start earning.'
                           : `No ${filterType === 'credit' ? 'income' : 'expense'} transactions found.`
                         }

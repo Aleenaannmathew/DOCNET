@@ -7,14 +7,14 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from './Navbar';
 import Footer from './Footer';
-import { 
-  Calendar, 
-  Clock, 
-  User, 
-  MapPin, 
-  Search, 
-  Filter, 
-  ChevronLeft, 
+import {
+  Calendar,
+  Clock,
+  User,
+  MapPin,
+  Search,
+  Filter,
+  ChevronLeft,
   ChevronRight,
   Lock,
   History,
@@ -32,7 +32,7 @@ const BookingHistoryPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector(state => state.auth);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,13 +48,13 @@ const BookingHistoryPage = () => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch regular appointments
         const appointmentsResponse = await userAxios.get('/patient-bookings/');
-        
+
         // Fetch emergency consultations
         const emergencyResponse = await userAxios.get('/emergency-consultations/');
-        
+
         // Transform regular appointment data
         const transformedBookings = appointmentsResponse.data.map(booking => ({
           id: booking.id,
@@ -63,27 +63,27 @@ const BookingHistoryPage = () => {
           date: booking.slot_date,
           time: `${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`,
           status: mapStatus(booking.status),
-          type: 'In-person', 
-          location: booking.location || 'Medical Center', 
+          type: 'In-person',
+          location: booking.location || 'Medical Center',
           paymentStatus: booking.payment_status,
           amount: booking.amount,
           createdAt: booking.created_at,
           isEmergency: false
         }));
-        
+
         // Transform emergency consultation data
         const transformedEmergencies = emergencyResponse.data.map(consultation => ({
           id: consultation.id,
           doctorName: consultation.doctor_name,
           specialty: consultation.specialty || 'Emergency Consultation',
           date: consultation.timestamp,
-          time: consultation.consultation_start_time ? 
-               `${formatDateTime(consultation.consultation_start_time)} - ${formatDateTime(consultation.consultation_end_time || 'Ongoing')}` : 
-               'Not started',
+          time: consultation.consultation_start_time ?
+            `${formatDateTime(consultation.consultation_start_time)} - ${formatDateTime(consultation.consultation_end_time || 'Ongoing')}` :
+            'Not started',
           status: mapEmergencyStatus(consultation.payment_status, consultation.consultation_started),
-          type: 'Emergency Video', 
-          location: 'Online', 
-          notes: consultation.reason || 'Emergency consultation', 
+          type: 'Emergency Video',
+          location: 'Online',
+          notes: consultation.reason || 'Emergency consultation',
           paymentStatus: consultation.payment_status,
           amount: consultation.amount,
           createdAt: consultation.timestamp,
@@ -92,7 +92,7 @@ const BookingHistoryPage = () => {
           consultationStartTime: consultation.consultation_start_time,
           consultationEndTime: consultation.consultation_end_time
         }));
-        
+
         setBookings([...transformedBookings, ...transformedEmergencies]);
         setError(null);
       } catch (error) {
@@ -113,10 +113,10 @@ const BookingHistoryPage = () => {
   const formatTime = (timeString) => {
     if (!timeString) return '';
     const time = new Date(`2000-01-01T${timeString}`);
-    return time.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
+    return time.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
   };
 
@@ -124,10 +124,10 @@ const BookingHistoryPage = () => {
   const formatDateTime = (datetimeString) => {
     if (!datetimeString) return '';
     const date = new Date(datetimeString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
   };
 
@@ -155,10 +155,10 @@ const BookingHistoryPage = () => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
   };
 
@@ -196,8 +196,8 @@ const BookingHistoryPage = () => {
   // Filter bookings based on search and status
   const filteredBookings = bookings.filter(booking => {
     const matchesSearch = booking.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.id.toString().toLowerCase().includes(searchTerm.toLowerCase());
+      booking.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.id.toString().toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || booking.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
@@ -263,8 +263,8 @@ const BookingHistoryPage = () => {
         pauseOnHover
         className="z-50"
       />
-      
-      <Navbar/>
+
+      <Navbar />
 
       {/* Hero Section */}
       <div className="pt-24 pb-8 px-4">
@@ -274,9 +274,9 @@ const BookingHistoryPage = () => {
               <div className="flex flex-col sm:flex-row items-center mb-6 lg:mb-0">
                 <div className="relative mb-4 sm:mb-0 sm:mr-6">
                   {user?.profile_image ? (
-                    <img 
-                      src={getProfileImageUrl()} 
-                      alt={user.username} 
+                    <img
+                      src={getProfileImageUrl()}
+                      alt={user.username}
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                     />
                   ) : (
@@ -315,7 +315,7 @@ const BookingHistoryPage = () => {
       <div className="px-4 pb-8">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            
+
             <PatientSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
             {/* Booking History Content */}
@@ -395,8 +395,8 @@ const BookingHistoryPage = () => {
                         <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">No bookings found</h3>
                         <p className="text-gray-500">
-                          {filteredBookings.length === 0 && bookings.length > 0 
-                            ? "Try adjusting your search or filter criteria." 
+                          {filteredBookings.length === 0 && bookings.length > 0
+                            ? "Try adjusting your search or filter criteria."
                             : "You haven't made any appointments yet."
                           }
                         </p>
@@ -423,7 +423,7 @@ const BookingHistoryPage = () => {
                                     <span className="text-sm font-medium text-green-600">₹{booking.amount}</span>
                                   )}
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>
                                     <div className="flex items-center space-x-2 mb-2">
@@ -436,7 +436,7 @@ const BookingHistoryPage = () => {
                                       <span>{booking.location}</span>
                                     </div>
                                   </div>
-                                  
+
                                   <div>
                                     <div className="flex items-center space-x-2 mb-2">
                                       <Calendar className="w-4 h-4 text-green-500" />
@@ -453,7 +453,7 @@ const BookingHistoryPage = () => {
                                     </div>
                                     {booking.paymentStatus && (
                                       <div className="text-sm text-gray-600 ml-6 mt-1">
-                                        <span className="font-medium">Payment:</span> 
+                                        <span className="font-medium">Payment:</span>
                                         <span className={`ml-1 capitalize ${booking.paymentStatus === 'completed' || booking.paymentStatus === 'success' ? 'text-green-600' : 'text-orange-600'}`}>
                                           {booking.paymentStatus}
                                         </span>
@@ -461,7 +461,7 @@ const BookingHistoryPage = () => {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 {booking.notes && (
                                   <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
                                     <p className="text-sm text-gray-700">
@@ -470,33 +470,36 @@ const BookingHistoryPage = () => {
                                   </div>
                                 )}
                               </div>
-                              
+
                               <div className="flex flex-col sm:flex-row gap-2 lg:ml-6">
                                 {booking.status === 'upcoming' && booking.isEmergency && booking.paymentStatus === 'success' && (
-                                  <button 
+                                  <button
                                     onClick={() => navigate(`/emergency-consultation/${booking.id}`)}
                                     className="px-4 py-2 text-sm font-medium bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-200 transform hover:scale-105"
                                   >
                                     Start Consultation
                                   </button>
                                 )}
+
                                 {booking.status === 'upcoming' && !booking.isEmergency && (
-                                  <>
-                                    <button className="px-4 py-2 text-sm font-medium text-blue-600 border-2 border-blue-200 rounded-xl hover:bg-blue-50 transition-all duration-200 transform hover:scale-105">
-                                      Reschedule
-                                    </button>
-                                  </>
-                                )}
-                                {booking.status === 'completed' && (
                                   <button
-                                  onClick={() => booking.isEmergency ? 
-                                    navigate(`/emergency-consultation-details/${booking.id}`) : 
-                                    navigate(`/booking-details/${booking.id}`)}
-                                     className="px-4 py-2 text-sm font-medium text-green-600 border-2 border-green-200 rounded-xl hover:bg-green-50 transition-all duration-200 transform hover:scale-105">
-                                    View Report
+                                    className="px-4 py-2 text-sm font-medium text-blue-600 border-2 border-blue-200 rounded-xl hover:bg-blue-50 transition-all duration-200 transform hover:scale-105"
+                                  >
+                                    Reschedule
                                   </button>
                                 )}
+
+                                {/* View Report should always be shown */}
+                                <button
+                                  onClick={() => booking.isEmergency ?
+                                    navigate(`/emergency-consultation-details/${booking.id}`) :
+                                    navigate(`/booking-details/${booking.id}`)}
+                                  className="px-4 py-2 text-sm font-medium text-green-600 border-2 border-green-200 rounded-xl hover:bg-green-50 transition-all duration-200 transform hover:scale-105"
+                                >
+                                  View Report
+                                </button>
                               </div>
+
                             </div>
                           </div>
                         ))}
@@ -517,21 +520,20 @@ const BookingHistoryPage = () => {
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </button>
-                          
+
                           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                             <button
                               key={page}
                               onClick={() => setCurrentPage(page)}
-                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                                currentPage === page
+                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${currentPage === page
                                   ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                                   : 'border-2 border-gray-200 hover:bg-gray-50'
-                              }`}
+                                }`}
                             >
                               {page}
                             </button>
                           ))}
-                          
+
                           <button
                             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                             disabled={currentPage === totalPages}

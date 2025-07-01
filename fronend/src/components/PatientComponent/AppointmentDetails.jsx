@@ -71,38 +71,9 @@ export default function AppointmentDetails() {
     }
   }, [id]);
 
-  const handleTabClick = (tab) => {
-    if (tab === 'Logout') {
-      handleLogout();
-    } else if (tab === 'Change Password') {
-      navigate('/new-password');
-    } else if (tab === 'Profile Information') {
-      navigate('/profile');
-    } else {
-      setActiveTab(tab);
-    }
-  };
+  
 
-  const handleLogout = async () => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        await userAxios.post('/logout/', {
-          refresh: refreshToken
-        });
-      }
-      dispatch(logout());
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      dispatch(logout());
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
-    }
-  };
+  
 
   const getProfileImageUrl = () => {
     if (user?.profile_image) return user.profile_image;
@@ -170,12 +141,12 @@ export default function AppointmentDetails() {
 
   const calculateTax = (amount) => {
     if (!amount) return '0.00';
-    return (parseFloat(amount) * 0.18).toFixed(2); // Assuming 18% tax
+    return (parseFloat(amount) * 0.18).toFixed(2); 
   };
 
   const calculateServiceFee = (amount) => {
     if (!amount) return '0.00';
-    return (parseFloat(amount) * 0.05).toFixed(2); // Assuming 5% service fee
+    return (parseFloat(amount) * 0.05).toFixed(2); 
   };
 
   const calculateSubtotal = (amount) => {
@@ -621,10 +592,7 @@ export default function AppointmentDetails() {
                       <div className="bg-white rounded-xl shadow-sm p-6">
                         <div className="flex justify-between items-center mb-4">
                           <h3 className="text-lg font-semibold text-gray-900">Transaction Details</h3>
-                          <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-800">
-                            <Download className="w-4 h-4" />
-                            <span>Download Receipt</span>
-                          </button>
+                         
                         </div>
                         <div className="space-y-3">
                           <div className="flex justify-between">

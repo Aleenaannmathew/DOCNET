@@ -509,7 +509,6 @@ class EmergencyConsultationDetailSerializer(serializers.ModelSerializer):
         return None
     
     def get_status_display(self, obj):
-        """Get display status"""
         if obj.payment_status != 'success':
             return obj.get_payment_status_display()
         
@@ -554,3 +553,11 @@ class NotificationMarkAsReadSerializer(serializers.ModelSerializer):
         model = Notification
         fields = ['id', 'is_read']
         read_only_fields = ['id']        
+
+class WithdrawalSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Withdrawal amount must be greater than zero.")
+        return value        

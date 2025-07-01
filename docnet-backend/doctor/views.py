@@ -30,8 +30,8 @@ from django.utils import timezone
 import logging
 from rest_framework.decorators import api_view, permission_classes
 from accounts.models import Appointment,MedicalRecord
-from .models import DoctorProfile, DoctorSlot, Wallet,WalletHistory
-from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer,MedicalRecordSerializer,NotificationSerializer,NotificationMarkAsReadSerializer
+from .models import DoctorProfile, DoctorSlot, Wallet,WalletHistory,Withdrawal
+from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer,MedicalRecordSerializer,NotificationSerializer,NotificationMarkAsReadSerializer,WithdrawalSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
 
 doctor_logger = logging.getLogger('doctor')
@@ -1004,4 +1004,47 @@ class MarkNotificationAsReadView(APIView):
         notification.save()
 
         serializer = NotificationMarkAsReadSerializer(notification)
-        return Response({"message": "Notification marked as read.", "notification": serializer.data}, status=status.HTTP_200_OK)               
+        return Response({"message": "Notification marked as read.", "notification": serializer.data}, status=status.HTTP_200_OK) 
+    
+class DoctorWalletWithdrawView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        doctor_profile = DoctorProfile.objects.get(user=request.user)
+        wallet = Wallet.objects.get(doctor=doctor_profile)
+        amount = Decimal(request.data.get('amount', 0))
+
+        if amount <= 0:
+            return Response({'detail': 'Enter a valid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if wallet.balance < amount:
+            return Response({'detail': 'Insufficient wallet balance.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        wallet.balance -= amount
+        wallet.save()
+
+        WalletHistory.objects.create(
+            wallet=wallet,
+            type='debit',
+            amount=amount,
+            new_balance=wallet.balance
+        )
+
+        # Save withdrawal entry
+        withdrawal = Withdrawal.objects.create(
+            doctor=doctor_profile,
+            amount=amount,
+            status='pending'  # You can update this later from the admin side
+        )
+
+        return Response({
+            'message': 'Withdrawal successful.',
+            'balance': wallet.balance,
+            'transaction': {
+                'id': withdrawal.id,
+                'amount': amount,
+                'type': 'debit',
+                'updated_date': withdrawal.requested_at,
+                'new_balance': wallet.balance,
+            }
+        }, status=status.HTTP_200_OK)

@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
 import requests
+from django.http import FileResponse
 from django.http import JsonResponse
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -784,19 +785,19 @@ class ValidateVideoCallAPI(APIView):
                 payment__payment_status='success'
             )
             
-            slot = appointment.payment.slot
-            slot_time = datetime.combine(slot.date, slot.start_time)
+            # slot = appointment.payment.slot
+            # slot_time = datetime.combine(slot.date, slot.start_time)
             
-            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+            # slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            start_window = slot_time - timedelta(minutes=15)
-            end_window = slot_time + timedelta(minutes=slot.duration)
+            # start_window = slot_time - timedelta(minutes=15)
+            # end_window = slot_time + timedelta(minutes=slot.duration)
             
-            if not (start_window <= now <= end_window):
-                return Response(
-                    {"error": "Video call is only available during your scheduled time"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # if not (start_window <= now <= end_window):
+            #     return Response(
+            #         {"error": "Video call is only available during your scheduled time"},
+            #         status=status.HTTP_400_BAD_REQUEST
+            #     )
             
                 
             return Response({
@@ -1121,67 +1122,6 @@ class EmergencyConsultationConfirmationView(APIView):
             "data": serializer.data
         }, status=status.HTTP_200_OK)
     
-    
-# class EmergencyConsultationConfirmationView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get_object(self, payment_id):
-#         payment = get_object_or_404(EmergencyPayment, id=payment_id)
-#         if self.request.user != payment.patient and self.request.user != payment.doctor.user:
-#             return None
-#         return payment
-
-#     def post(self, request, payment_id):
-#         payment = self.get_object(payment_id)
-#         if payment is None:
-#             return Response({"error": "You don't have permission"}, status=status.HTTP_403_FORBIDDEN)
-
-#         action = request.data.get('action')
-
-#         if action == 'start_consultation':
-#             return self._handle_start_consultation(payment)
-#         elif action == 'end_consultation':
-#             return self._handle_end_consultation(payment)
-#         else:
-#             return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
-
-#     def _handle_start_consultation(self, payment):
-#         if payment.consultation_started:
-#             return Response({"error": "Consultation already started"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         if payment.payment_status != 'success':
-#             return Response({"error": "Payment must be completed before starting consultation"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         payment.consultation_started = True
-#         payment.consultation_start_time = timezone.now()
-#         payment.save()
-
-#         self._create_notification(payment, 'Consultation started successfully', 'emergency')
-
-#         return Response({"message": "Consultation started successfully"}, status=status.HTTP_200_OK)
-
-#     def _create_notification(self, payment, message, notification_type):
-#         # Create notification in database
-#         notification = Notification.objects.create(
-#             sender=payment.patient,
-#             receiver=payment.doctor.user,
-#             message=message,
-#             notification_type=notification_type,
-#             content_type=ContentType.objects.get_for_model(payment),
-#             object_id=payment.id
-#         )
-
-#         # Send real-time notification using channels
-#         channel_layer = get_channel_layer()
-#         async_to_sync(channel_layer.group_send)(
-#             f'notifications_{payment.doctor.user.id}',  # Send to this doctor's group
-#             {
-#                 'type': 'send_notification',
-#                 'message': notification.message,
-#                 'notification_type': notification.notification_type,
-#                 'sender': notification.sender.username,
-#             }
-#         )
 
 class ValidateChatAccessAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -1322,3 +1262,19 @@ class SubmitDoctorReviewView(APIView):
         serializer = DoctorReviewSerializer(review)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class DownloadReceiptView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, appointment_id):
+        try:
+            appointment = Appointment.objects.get(id=appointment_id, payment__patient=request.user)
+            if appointment.receipt_file:
+                file_path = appointment.receipt_file.path
+                return FileResponse(open(file_path, 'rb'), as_attachment=True, filename=f"Receipt_{appointment_id}.pdf")
+            else:
+                return Response({"detail": "Receipt not available"}, status=404)
+        except Appointment.DoesNotExist:
+            return Response({"detail": "Appointment not found"}, status=404)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=500)
