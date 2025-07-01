@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message,MedicalRecord,Notification
+from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message,MedicalRecord,Notification,DoctorReview
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -86,3 +86,12 @@ class NotificationAdmin(admin.ModelAdmin):
 
     sender_username.short_description = 'Sender'
     receiver_username.short_description = 'Receiver'
+
+
+@admin.register(DoctorReview)
+class DoctorReviewAdmin(admin.ModelAdmin):
+    list_display = ('id', 'doctor', 'patient', 'rating', 'created_at')  # Columns to display
+    list_filter = ('rating', 'created_at', 'doctor')  # Filters on the right side
+    search_fields = ('doctor__user__username', 'patient__username', 'comment')  # Search box
+    ordering = ('-created_at',)  # Default ordering (newest first)
+    readonly_fields = ('created_at',)

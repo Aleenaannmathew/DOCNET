@@ -43,7 +43,6 @@ function EmergencyConsultationPage() {
     }
   };
 
-  // ✅ Call fetch on initial load and whenever filters/search change
   useEffect(() => {
     fetchEmergencyDoctors();
   }, [searchQuery, filters]);

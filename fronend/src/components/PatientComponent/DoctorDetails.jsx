@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   ArrowLeft,
   Star,
@@ -27,12 +29,12 @@ import { userAxios } from '../../axios/UserAxios';
 import { useSelector } from 'react-redux';
 import Navbar from './Navbar';
 
-const AppointmentModal = React.memo(({ 
-  isOpen, 
-  doctor, 
-  slotsLoading, 
-  availableSlots, 
-  selectedSlot, 
+const AppointmentModal = React.memo(({
+  isOpen,
+  doctor,
+  slotsLoading,
+  availableSlots,
+  selectedSlot,
   paymentLoading,
   appointmentReason,
   onClose,
@@ -75,8 +77,8 @@ const AppointmentModal = React.memo(({
                   <div
                     key={slot.id || index}
                     className={`border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${selectedSlot?.id === slot.id
-                        ? 'border-blue-500 bg-blue-50 shadow-md'
-                        : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                      ? 'border-blue-500 bg-blue-50 shadow-md'
+                      : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
                       }`}
                     onClick={() => onSlotSelect(slot)}
                   >
@@ -126,7 +128,7 @@ const AppointmentModal = React.memo(({
               {selectedSlot && (
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                   <h4 className="font-semibold mb-4 text-gray-900 text-lg">Appointment Summary</h4>
-                  
+
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Reason for Appointment *
@@ -206,9 +208,12 @@ function DoctorDetailPage() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [appointmentReason, setAppointmentReason] = useState('');
   const { user } = useSelector((state) => state.auth);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [submittingReview, setSubmittingReview] = useState(false);
+
 
   // Fetch doctor details
   useEffect(() => {
@@ -217,12 +222,6 @@ function DoctorDetailPage() {
         setLoading(true);
         const response = await userAxios.get(`/doctor-details/${slug}/`);
         setDoctor(response.data);
-
-        // Check if doctor is in favorites
-        const favoritesResponse = await userAxios.get('/user/favorites/');
-        if (favoritesResponse.data.some(fav => fav.doctor === response.data.id)) {
-          setIsFavorite(true);
-        }
       } catch (error) {
         console.error('Error fetching doctor details:', error);
       } finally {
@@ -233,23 +232,56 @@ function DoctorDetailPage() {
     fetchDoctorDetails();
   }, [slug]);
 
+  const handleSubmitReview = async () => {
+    if (reviewRating === 0 || appointmentReason.trim() === '') {
+      toast.error('Please select a rating and write a comment.');
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+
+      const response = await userAxios.post(`/doctor-reviews/${doctor.username}/submit/`, {
+        rating: reviewRating,
+        comment: appointmentReason
+      });
+
+      toast.success('Review submitted successfully!');
+
+      // Add new review to list immediately
+      setReviews(prev => [response.data, ...prev]);
+
+      // Reset form
+      setReviewRating(0);
+      setAppointmentReason('');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to submit review.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   // Fetch doctor reviews
   useEffect(() => {
-    const fetchReviews = async () => {
-      if (!doctor) return;
+  const fetchReviews = async () => {
+    if (!doctor) return;
 
-      try {
-        const response = await userAxios.get(`/doctor-reviews/${doctor.username}/`);
-        setReviews(response.data);
-      } catch (error) {
-        console.error('Error fetching reviews:', error);
-      }
-    };
+    try {
+      const response = await userAxios.get(`/doctor-reviews/${doctor.username}/`);
+      console.log('Fetched reviews:', response.data);
+      
+      setReviews(response.data.results);
 
-    fetchReviews();
-  }, [doctor]);
+    } catch (error) {
+    }
+  };
 
-  // Fetch available time slots
+  fetchReviews();
+}, [doctor]);
+
+
+ 
   const fetchDoctorSlots = async () => {
     if (!doctor?.username) return;
 
@@ -381,27 +413,29 @@ function DoctorDetailPage() {
     }
   };
 
-  const toggleFavorite = async () => {
-    try {
-      if (isFavorite) {
-        await userAxios.delete(`/user/favorites/${doctor.id}/`);
-      } else {
-        await userAxios.post('/user/favorites/', { doctor_id: doctor.id });
-      }
-      setIsFavorite(!isFavorite);
-    } catch (error) {
-      console.error('Error updating favorite:', error);
-    }
-  };
-
   const renderStars = (rating) => {
-    return [...Array(5)].map((_, i) => (
-      <Star
-        key={i}
-        size={16}
-        className={i < rating ? 'text-amber-400 fill-current' : 'text-gray-300'}
-      />
-    ));
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.25 && rating % 1 < 0.75;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    const stars = [
+
+      ...Array(fullStars).fill('full'),
+
+      ...(hasHalfStar ? ['half'] : []),
+
+      ...Array(emptyStars).fill('empty')
+    ];
+
+    return stars.map((type, i) => {
+      if (type === 'full') {
+        return <Star key={i} size={16} className="text-amber-400 fill-current" />;
+      } else if (type === 'half') {
+        return <StarHalf key={i} size={16} className="text-amber-400 fill-current" />;
+      } else {
+        return <Star key={i} size={16} className="text-gray-300" />;
+      }
+    });
   };
 
 
@@ -453,6 +487,7 @@ function DoctorDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
+      <ToastContainer />
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="container mx-auto px-6 py-6">
           <button
@@ -525,7 +560,7 @@ function DoctorDetailPage() {
                   </div>
                 </div>
 
-                
+
               </div>
 
               <div className="flex gap-4 mt-6">
@@ -556,8 +591,8 @@ function DoctorDetailPage() {
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-2 py-4 px-2 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.key
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
                 >
                   <Icon size={16} />
@@ -653,6 +688,44 @@ function DoctorDetailPage() {
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-8 text-gray-900">Patient Reviews</h2>
 
+                {user && (
+                  <div className="mb-8 bg-gray-50 p-6 rounded-xl border border-gray-200">
+                    <h4 className="text-lg font-semibold mb-4 text-gray-900">Submit a Review</h4>
+
+                    {/* Star Selection */}
+                    <div className="flex items-center gap-2 mb-4">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={28}
+                          className={`cursor-pointer ${star <= (hoveredRating || reviewRating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                          onClick={() => setReviewRating(star)}
+                          onMouseEnter={() => setHoveredRating(star)}
+                          onMouseLeave={() => setHoveredRating(0)}
+                        />
+                      ))}
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 mb-4"
+                      placeholder="Write your review here..."
+                      value={appointmentReason}
+                      onChange={(e) => setAppointmentReason(e.target.value)}
+                    />
+
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={!appointmentReason.trim() || reviewRating === 0 || submittingReview}
+                      className="bg-blue-600 text-white py-3 px-6 rounded-xl hover:bg-blue-700 transition-all duration-200 font-semibold shadow-lg disabled:opacity-50"
+                    >
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </div>
+                )}
+
+
+                {/* Review List */}
                 <div className="space-y-6">
                   {reviews.length > 0 ? reviews.map((review) => (
                     <div key={review.id} className="p-6 bg-gray-50 rounded-xl border border-gray-200">
@@ -682,6 +755,7 @@ function DoctorDetailPage() {
                 </div>
               </div>
             )}
+
 
             {activeTab === 'location' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">

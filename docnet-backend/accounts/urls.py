@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView
+from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView,DoctorReviewListView,SubmitDoctorReviewView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView,EmergencyConsultationListView
 from.views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI, MedicalRecordListView, MedicalRecordDetailView,UserNotificationListView,ActiveDoctorsView,EmergencyConsultationDetailView
 
@@ -38,4 +38,6 @@ urlpatterns = [
     path('records/<int:pk>/', MedicalRecordDetailView.as_view(), name='medical-record-detail'),
     path('user-notifications/', UserNotificationListView.as_view(), name='doctor-notifications'),
     path('active-doctors/', ActiveDoctorsView.as_view(), name='active-doctors'),
+    path('doctor-reviews/<str:username>/', DoctorReviewListView.as_view(), name='get_doctor_reviews'),
+    path('doctor-reviews/<str:username>/submit/', SubmitDoctorReviewView.as_view(), name='submit_doctor_review'),
 ]

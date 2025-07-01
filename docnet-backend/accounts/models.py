@@ -239,3 +239,19 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+class DoctorReview(models.Model):
+    patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='doctor_reviews')
+    doctor = models.ForeignKey('doctor.DoctorProfile', on_delete=models.CASCADE, related_name='reviews')
+    appointment = models.ForeignKey('accounts.Appointment', on_delete=models.CASCADE, null=True, blank=True)
+    emergency_payment = models.ForeignKey('accounts.EmergencyPayment', on_delete=models.CASCADE, null=True, blank=True)
+    rating = models.IntegerField()
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('patient', 'doctor')  # Prevent duplicate reviews
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Review by {self.patient.username} for {self.doctor.user.username}"        

@@ -1,7 +1,7 @@
 from rest_framework import status
 from rest_framework.views import APIView
 from django.conf import settings
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -17,7 +17,7 @@ from datetime import timedelta, datetime
 from django.utils.timezone import localtime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message,MedicalRecord, Notification
+from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message,MedicalRecord, Notification,DoctorReview
 from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
 from rest_framework import generics, filters, permissions
@@ -42,7 +42,7 @@ from .serializers import (
     VerifyEmergencyPaymentSerializer,
     EmergencyConsultationConfirmationSerializer,
     MedicalRecordSerializer,
-    NotificationSerializer
+    NotificationSerializer,DoctorReviewSerializer
 )
 from core.utils import (
     OTPManager, 
@@ -1259,4 +1259,66 @@ class UserNotificationListView(APIView):
         # Fetch notifications for the logged-in user
         notifications = Notification.objects.filter(receiver=request.user).order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
-        return Response(serializer.data)         
+        return Response(serializer.data)   
+
+class DoctorReviewListView(generics.ListAPIView):
+    serializer_class = DoctorReviewSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        username = self.kwargs.get('username')
+        return DoctorReview.objects.filter(doctor__user__username=username).order_by('-created_at')
+
+
+class SubmitDoctorReviewView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        try:
+            doctor = DoctorProfile.objects.get(user__username=username)
+        except DoctorProfile.DoesNotExist:
+            return Response({'detail': 'Doctor not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        patient = request.user
+        rating = request.data.get('rating')
+        comment = request.data.get('comment')
+
+        if not rating or not comment:
+            return Response({'detail': 'Rating and comment are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the patient had a completed consultation
+        appointment = Appointment.objects.filter(
+            payment__patient=patient,
+            payment__slot__doctor=doctor,
+            status='completed'
+        ).first()
+
+        # Check if the patient had a completed emergency consultation
+        emergency_payment = EmergencyPayment.objects.filter(
+            patient=patient,
+            doctor=doctor,
+            payment_status='success',
+            consultation_started=True,
+            consultation_end_time__isnull=False
+        ).first()
+
+        if not appointment and not emergency_payment:
+            return Response({'detail': 'You can only review doctors you have consulted with.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Prevent duplicate reviews
+        if DoctorReview.objects.filter(patient=patient, doctor=doctor).exists():
+            return Response({'detail': 'You have already reviewed this doctor.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        review = DoctorReview.objects.create(
+            patient=patient,
+            doctor=doctor,
+            appointment=appointment if appointment else None,
+            emergency_payment=emergency_payment if emergency_payment else None,
+            rating=rating,
+            comment=comment
+        )
+
+        # Serialize the review to return it to the frontend
+        serializer = DoctorReviewSerializer(review)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

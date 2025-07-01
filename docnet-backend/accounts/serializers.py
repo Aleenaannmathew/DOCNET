@@ -10,7 +10,7 @@ import cloudinary
 import cloudinary.uploader
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User ,PatientProfile,MedicalRecord,Notification
+from .models import User ,PatientProfile,MedicalRecord,Notification,DoctorReview
 from doctor.models import DoctorProfile, Wallet, WalletHistory
 from rest_framework import serializers
 from .models import Payment, Appointment,EmergencyPayment
@@ -1260,3 +1260,11 @@ class NotificationSerializer(serializers.ModelSerializer):
             'object_id',
             'content_type',
         ]    
+
+class DoctorReviewSerializer(serializers.ModelSerializer):
+    patientName = serializers.CharField(source='patient.username')
+    date = serializers.DateTimeField(source='created_at', format='%Y-%m-%d')
+
+    class Meta:
+        model = DoctorReview
+        fields = ['id', 'patientName', 'rating', 'comment', 'date']        
