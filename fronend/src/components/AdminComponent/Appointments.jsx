@@ -283,7 +283,6 @@ export default function AppointmentsList() {
                         time: formatTime(slot?.start_time),
                         status: appointment.status
                       };
-                      console.log('Export data:', appointmentData);
                       toast.success('Appointment data logged to console');
                       setShowActionMenu(null);
                     }}

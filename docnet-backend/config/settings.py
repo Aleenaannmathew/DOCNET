@@ -20,7 +20,6 @@ from celery import Celery
 # Initialize environment variables
 env = environ.Env()
 environ.Env.read_env(os.path.join(Path(__file__).resolve().parent.parent, '.env'))  # Read from .env file
-print("Debug - Loaded DATABASE_NAME: ", env('DATABASE_NAME'))  # Optional, for debugging
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -142,6 +141,10 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': env('CLOUD_API_SECRET'),
     'SECURE': True,
 }
+
+GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = env('GOOGLE_CLIENT_SECRET')
+
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 # Database

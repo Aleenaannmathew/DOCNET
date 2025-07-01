@@ -78,7 +78,7 @@ const DoctorDetails = () => {
 
   const handleSubmit = () => {
     console.log('Form submitted with data:', formData);
-    // Add your form submission logic here
+   
   };
 
   // Placeholder for Navbar and Footer components

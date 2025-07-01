@@ -35,7 +35,6 @@ const ChangePasswordRequest = ({ isDoctor = false }) => {
           email: values.email,
           role: isDoctor ? 'doctor' : 'patient'
         });
-        console.log('OTP Response:', otpResponse.data);
         if (otpResponse.data.success) {
           navigate('/verify-otp', { 
             state: { 

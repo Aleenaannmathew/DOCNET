@@ -284,9 +284,7 @@ export default function DoctorRegister() {
       data.append('agreeToTerms', values.agreeToTerms);
       data.append('medicalEthics', values.medicalEthics);
 
-      console.log("Sending doctor registration request...");
       const response = await doctorAxios.post('/doctor-register/', data);
-      console.log("Registration response", response.data);
 
       if (response.data && response.data.user_id) {
         navigate('/doctor/doctor-verify-otp', {

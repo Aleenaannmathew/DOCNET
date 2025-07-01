@@ -30,7 +30,6 @@ const DoctorChangePasswordRequest = () => {
         role: 'doctor'
       });
 
-      console.log('Check email response:', response.data);
 
       if (response.data.exists) {
         // If email exists, send OTP and navigate to verification page
@@ -39,10 +38,8 @@ const DoctorChangePasswordRequest = () => {
           role: 'doctor'
         });
 
-        console.log('OTP API response:', otpResponse.data);
 
         if (otpResponse.data.message === 'OTP sent successfully') {
-          console.log('Navigating to OTP page...');
           navigate('/doctor-verify-otp', {
             state: {
               email,

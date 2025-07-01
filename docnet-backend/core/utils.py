@@ -128,15 +128,20 @@ class GoogleAuthManager:
     @staticmethod
     def get_user_info(access_token):
         try:
-            userinfo = requests.get(
+            response = requests.get(
                 'https://www.googleapis.com/oauth2/v3/userinfo',
                 headers={'Authorization': f'Bearer {access_token}'}
-            ).json()
+            )
+            if response.status_code != 200:
+                return {'success': False, 'error': 'Failed to fetch user info from Google.'}
+
+            userinfo = response.json()
 
             if 'error' in userinfo:
-                raise ValueError(userinfo['error'])
-            
+                return {'success': False, 'error': userinfo['error']}
+
             return {'success': True, 'userinfo': userinfo}
+
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
@@ -150,6 +155,8 @@ class GoogleAuthManager:
             username = f"{base_username}{counter}"
             counter += 1
 
+        return username 
+
     @staticmethod
     def create_jwt_tokens(user):
         refresh = RefreshToken.for_user(user)
@@ -157,6 +164,7 @@ class GoogleAuthManager:
             'access': str(refresh.access_token),
             'refresh': str(refresh)
         }
+
 
 class UserManager:
     @staticmethod

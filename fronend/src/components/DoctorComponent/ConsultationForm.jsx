@@ -83,9 +83,7 @@ const ConsultationSchedule = () => {
   );
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Schedule submitted');
-    // Add your submission logic here
+    e.preventDefault();    
   };
 
   return (

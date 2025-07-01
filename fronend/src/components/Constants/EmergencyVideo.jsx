@@ -34,7 +34,6 @@ const EmergencyVideoCall = ({ emergencyId, token, onEndCall }) => {
 
   const addDebug = (message) => {
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`${timestamp}: ${message}`);
   };
 
   useEffect(() => {

@@ -45,7 +45,6 @@ const EmergencyVideoCall = ({ emergencyId, token, onEndCall }) => {
 
   const addDebug = (message) => {
     const timestamp = new Date().toLocaleTimeString();
-    console.log(`[EMERGENCY] ${timestamp}: ${message}`);
   };
 
   // Check for refs after mount - Same as normal VideoCall

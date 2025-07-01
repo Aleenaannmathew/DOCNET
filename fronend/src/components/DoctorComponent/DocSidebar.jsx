@@ -1,5 +1,3 @@
-// Updated React Component Code - Database-only Emergency Status with Emergency Appointments Navigation
-
 import {
   Calendar,
   Home,
@@ -50,7 +48,6 @@ function DocSidebar() {
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      console.log('New Notification:', data);
 
       // 🔊 Play notification sound
       if (notificationSoundRef.current) {
@@ -84,12 +81,10 @@ function DocSidebar() {
 
     try {
       setIsLoadingStatus(true)
-      console.log('Fetching emergency status from:', 'doctor-emergency-status/')
       const response = await doctorAxios.get('doctor-emergency-status/')
       const dbStatus = response.data.emergency_status || false
       setIsEmergencyAvailable(dbStatus)
       
-      console.log('Fetched emergency status from DB:', dbStatus)
     } catch (err) {
       console.error('Failed to fetch emergency status:', err)
       console.error('Error details:', {
@@ -108,7 +103,6 @@ function DocSidebar() {
 
   // Initial fetch on component mount
   useEffect(() => {
-    console.log("Doctor Profile:", user?.doctor_profile)
     if (user?.doctor_profile?.prefer_24hr_consultation) {
       fetchEmergencyStatus()
     } else {
@@ -167,8 +161,6 @@ function DocSidebar() {
       navigate('/doctor/dashboard')
     } else if (tab === 'Wallet') {
       navigate('/doctor/doctor-wallet')
-    } else if (tab === 'Patient Records') {
-      navigate('/doctor/patient-records')
     } else if (tab === 'Settings') {
       navigate('/doctor/settings')
     } else if (tab === 'Appointments') {
@@ -180,9 +172,7 @@ function DocSidebar() {
       }
     } else if (tab === 'Notifications') {
       navigate('/doctor/doctor-notification')
-    } else if (tab === 'Help & Support') {
-      navigate('/doctor/help-support')
-    }
+    } 
   }
 
   const handleLogout = async () => {
@@ -205,21 +195,17 @@ function DocSidebar() {
         emergency_status: newStatus
       })
 
-      // Update state only after successful API call
       const confirmedStatus = response.data.emergency_status
       setIsEmergencyAvailable(confirmedStatus)
       
-      console.log('Emergency status updated successfully:', response.data.message)
       
     } catch (err) {
       console.error('Failed to update emergency status:', err)
       
-      // Don't change the toggle state on error - keep current database state
-      // The toggle will remain in its previous position
-      
+
       // Show error message to user
       const errorMessage = err.response?.data?.detail || 'Failed to update emergency status'
-      alert(errorMessage) // Replace with your preferred notification system
+      alert(errorMessage) 
       
     } finally {
       setIsUpdatingEmergency(false)
@@ -231,9 +217,7 @@ function DocSidebar() {
     { name: 'Change Password', icon: Lock },
     { name: 'Appointments', icon: Stethoscope },
     { name: 'Wallet', icon: Wallet },
-    { name: 'Patient Records', icon: Clipboard },
     { name: 'Notifications', icon: Bell },
-    { name: 'Help & Support', icon: HelpCircle },
     { name: 'Settings', icon: Settings },
     { name: 'Logout', icon: LogOut },
   ]

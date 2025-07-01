@@ -23,6 +23,7 @@ import DoctorChat from '../pages/DoctorPages/DoctorChat';
 import DoctorAnalyticsPage from '../pages/DoctorPages/DoctorAnalyticsPage';
 import DocNotifications from '../pages/DoctorPages/DocNotifications';
 
+
 function DoctorRoutes() {
   return (
     <Routes>

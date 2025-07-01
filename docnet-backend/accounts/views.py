@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from django.db import transaction
+import requests
 from django.http import JsonResponse
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -397,19 +398,38 @@ class ChangePasswordView(APIView):
             return ResponseManager.error_response(result['error'])
 
 
+
 class GoogleLoginView(APIView):
     def post(self, request):
-        access_token = request.data.get('token')
+        code = request.data.get('code')  
 
-        if not access_token:
-            return ResponseManager.error_response('Access token is required')
-        
+        if not code:
+            return ResponseManager.error_response('Authorization code is required')
+
         try:
-            # Get user info from Google
+           
+            token_response = requests.post('https://oauth2.googleapis.com/token', data={
+                'code': code,
+                'client_id': settings.GOOGLE_CLIENT_ID,
+                'client_secret': settings.GOOGLE_CLIENT_SECRET,
+                'redirect_uri': 'postmessage',
+                'grant_type': 'authorization_code',
+            })
+
+            if token_response.status_code != 200:
+                return ResponseManager.error_response('Failed to exchange code for tokens.')
+
+            token_data = token_response.json()
+            access_token = token_data.get('access_token')
+
+            if not access_token:
+                return ResponseManager.error_response('Access token not received from Google.')
+
+           
             google_result = GoogleAuthManager.get_user_info(access_token)
             if not google_result['success']:
                 return ResponseManager.error_response(google_result['error'])
-            
+
             email = google_result['userinfo']['email']
 
             try:
@@ -420,27 +440,23 @@ class GoogleLoginView(APIView):
                     user.save()
 
                 if user.role != 'patient':
-                    return ResponseManager.error_response(
-                        'This login is for patients only'
-                    )
+                    return ResponseManager.error_response('This login is for patients only.')
 
             except User.DoesNotExist:
-                # Create new patient user
                 username = GoogleAuthManager.generate_unique_username(email)
-                
+
                 user = User.objects.create(
                     username=username,
                     email=email,
                     role='patient',
                     is_verified=True
-                )          
-
+                )
                 PatientProfile.objects.create(user=user)
 
-            # Generate JWT tokens
+            
             tokens = GoogleAuthManager.create_jwt_tokens(user)
 
-            # Check if profile is complete
+           
             try:
                 patient_profile = PatientProfile.objects.get(user=user)
                 is_profile_complete = patient_profile.age is not None
@@ -455,7 +471,6 @@ class GoogleLoginView(APIView):
                 'phone': user.phone,
                 'is_profile_complete': is_profile_complete
             })
-        
 
         except Exception as e:
             return ResponseManager.error_response(
@@ -737,7 +752,7 @@ class EmergencyConsultationDetailView(APIView):
                 'payment_status': consultation.payment_status,
                 'payment_method': consultation.payment_method,
                 'razorpay_payment_id': consultation.razorpay_payment_id,
-                'payment_id': consultation.id,  # Using same ID for simplicity
+                'payment_id': consultation.id, 
                 'amount': str(consultation.amount),
                 'reason': consultation.reason,
                 'consultation_started': consultation.consultation_started
@@ -769,19 +784,19 @@ class ValidateVideoCallAPI(APIView):
                 payment__payment_status='success'
             )
             
-            # slot = appointment.payment.slot
-            # slot_time = datetime.combine(slot.date, slot.start_time)
+            slot = appointment.payment.slot
+            slot_time = datetime.combine(slot.date, slot.start_time)
             
-            # slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            # start_window = slot_time - timedelta(minutes=15)
-            # end_window = slot_time + timedelta(minutes=slot.duration)
+            start_window = slot_time - timedelta(minutes=15)
+            end_window = slot_time + timedelta(minutes=slot.duration)
             
-            # if not (start_window <= now <= end_window):
-            #     return Response(
-            #         {"error": "Video call is only available during your scheduled time"},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
+            if not (start_window <= now <= end_window):
+                return Response(
+                    {"error": "Video call is only available during your scheduled time"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
                 
             return Response({

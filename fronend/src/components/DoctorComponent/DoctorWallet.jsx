@@ -246,12 +246,10 @@ const DoctorWallet = () => {
 
   const handleWithdraw = () => {
     // Implement withdrawal logic
-    console.log('Withdraw funds clicked');
   };
 
   const handleExport = () => {
     // Implement export logic
-    console.log('Export data clicked');
   };
 
   return (

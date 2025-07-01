@@ -29,7 +29,6 @@ export default function EmergencyConsultationConfirmation() {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching data for payment_id:', payment_id); // Debug log
 
       // Fixed: Use payment_id instead of paymentId
       const response = await userAxios.get(`emergency-confirmation/payment/${payment_id}/`);
@@ -48,13 +47,11 @@ export default function EmergencyConsultationConfirmation() {
       setActionLoading(true);
       setError(null);
 
-      console.log('Performing action:', action, 'for payment_id:', payment_id); // Debug log
 
       // Fixed: Use payment_id instead of paymentId
       const response = await userAxios.post(`emergency-confirmation/payment/${payment_id}/`, {
         action: action
       });
-      console.log('Action response:', response.data);
 
       // Handle different response structures
       if (response.data.data) {

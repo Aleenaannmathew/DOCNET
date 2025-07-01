@@ -124,10 +124,8 @@ const DoctorSlots = () => {
       const startDate = weekDates[0].toISOString().split('T')[0];
       const endDate = weekDates[6].toISOString().split('T')[0];
 
-      console.log('Fetching slots for:', startDate, 'to', endDate); // Debug
 
       const response = await doctorAxios.get(`/slots/?start_date=${startDate}&end_date=${endDate}`);
-      console.log('API Response:', response.data); // Debug
 
       // Handle different response structures
       let slotsData = [];
@@ -139,7 +137,6 @@ const DoctorSlots = () => {
         slotsData = Object.values(response.data);
       }
 
-      console.log('Processed slots data:', slotsData); // Debug
 
       const formattedSlots = {};
 
@@ -161,7 +158,6 @@ const DoctorSlots = () => {
       });
 
       setSlots(formattedSlots);
-      console.log('Final formatted slots:', formattedSlots);
     } catch (error) {
       console.error('Error fetching slots:', error);
       console.error('Error response:', error.response?.data);

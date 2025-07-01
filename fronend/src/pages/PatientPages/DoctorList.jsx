@@ -2,7 +2,6 @@ import React from 'react';
 import { useState } from 'react';
 import Navbar from '../../components/PatientComponent/Navbar';
 import SearchSection from '../../components/PatientComponent/Search';
-import FilterSection from '../../components/PatientComponent/Filter';
 import DoctorsList from '../../components/PatientComponent/DoctorsLists';
 import Footer from '../../components/PatientComponent/Footer';
 
@@ -39,11 +38,7 @@ function DoctorListingPage() {
         />
         
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <FilterSection 
-            activeFilters={activeFilters}
-            setActiveFilters={setActiveFilters}
-            onResetFilters={handleResetFilters}
-          />
+          
           
           <DoctorsList 
             activeFilters={activeFilters} 

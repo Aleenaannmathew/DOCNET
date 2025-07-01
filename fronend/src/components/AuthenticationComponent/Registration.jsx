@@ -62,7 +62,6 @@ export default function Register() {
   const navigate = useNavigate();
 
   const handleSubmit = async (values, { setFieldError, setSubmitting, resetForm }) => {
-    console.log("Form submission started with values:", values);
     setIsLoading(true);
     setServerError('');
     setSuccessMessage('');
@@ -76,13 +75,10 @@ export default function Register() {
       data.append('confirm_password', values.password2);
       data.append('role', 'patient');
       
-      console.log("Sending registration request...");
       const response = await userAxios.post('/register/', data);
-      console.log("Registration response:", response.data);
       
       if (response.data && response.data.user_id) {
         setSuccessMessage('Registration successful! Redirecting to OTP verification...');
-        console.log("Navigating to OTP page with userId:", response.data.user_id);
         
         // Small delay to show success message
         setTimeout(() => {
@@ -103,7 +99,6 @@ export default function Register() {
       
       if (error.response && error.response.data) {
         const serverErrors = error.response.data;
-        console.log("Server errors:", serverErrors);
         
         // Handle string error messages
         if (typeof serverErrors === 'string') {

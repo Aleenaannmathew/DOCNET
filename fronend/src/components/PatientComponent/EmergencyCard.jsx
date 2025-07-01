@@ -10,7 +10,6 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
     const [reason, setReason] = useState(''); // Add state for reason
 
     const emergencyFee = 800;
-    console.log(doctor)
 
     const loadRazorpay = () => {
         return new Promise((resolve) => {
@@ -46,7 +45,6 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
                 amount: emergencyFee,      
                 reason: reason.trim()     
             });
-            console.log(createRes)
 
             const createData = createRes.data;
             const { razorpay_order } = createData;
@@ -60,7 +58,6 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
                 order_id: razorpay_order.id,
                 handler: async function (response) {
                     try {
-                        console.log("Emergency payment successful, verifying...", response);
 
                         const verifyRes = await userAxios.post('/emergency-payments/verify/', {
                             razorpay_payment_id: response.razorpay_payment_id,
@@ -69,7 +66,6 @@ function EmergencyDoctorCard({ doctor, onPaymentSuccess }) {
                         });
 
                         const verifyData = verifyRes.data;
-                        console.log("**",verifyData)
 
                         // Close modal
                         setIsPaymentModalOpen(false);

@@ -54,7 +54,6 @@ const BookingHistoryPage = () => {
         
         // Fetch emergency consultations
         const emergencyResponse = await userAxios.get('/emergency-consultations/');
-        console.log(emergencyResponse)
         
         // Transform regular appointment data
         const transformedBookings = appointmentsResponse.data.map(booking => ({

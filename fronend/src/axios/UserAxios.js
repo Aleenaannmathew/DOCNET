@@ -14,7 +14,6 @@ userAxios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      console.log("Token",token)
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -44,7 +43,6 @@ userAxios.interceptors.response.use(
     ) 
   
     {
-      console.log("hii")
       store.dispatch(logout());
       window.location.href = '/login?message=account_deactivated';
       return Promise.reject(error);
@@ -58,11 +56,8 @@ userAxios.interceptors.response.use(
     
     if (responseStatus === 403 && !originalRequest._retry) {
       originalRequest._retry = true;
-      console.log("**Hii")
       try {
-        console.log("HHIIII")
         const refreshToken = localStorage.getItem('refreshToken');
-        console.log("refreshToken", refreshToken)
 
         const response = await axios.post(
   'http://localhost:8000/api/token/refresh/', 
@@ -72,7 +67,6 @@ userAxios.interceptors.response.use(
             skipAuthRefresh: true,
           }
         );
-        console.log(response.data)
         const { access, refresh} = response.data;
         store.dispatch(updateToken({ access, refresh }));
         localStorage.setItem('token', access);

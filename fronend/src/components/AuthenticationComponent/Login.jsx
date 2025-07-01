@@ -69,7 +69,6 @@ export default function Login() {
       });
       
       const data = response.data;
-      console.log("data: ", data)
       
       dispatch(login({
         token: data.access,
@@ -86,7 +85,6 @@ export default function Login() {
       navigate('/', { replace: true });
       
     } catch (error) {
-      console.log("error",error)
       // Handle axios error responses
       if (error.response) {
         const serverErrors = error.response.data;

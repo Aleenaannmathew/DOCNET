@@ -31,18 +31,9 @@ export default function AppointmentConfirmation() {
     // Get payment_id from URL params first, then fallback to query params
     const paymentId = urlPaymentId || searchParams.get('payment_id');
 
-    useEffect(() => {
-        console.log("=== CONFIRMATION COMPONENT DEBUG ===");
-        console.log("URL payment ID:", urlPaymentId);
-        console.log("Search params payment ID:", searchParams.get('payment_id'));
-        console.log("Final payment ID:", paymentId);
-        console.log("Redux token:", token ? "Found" : "Not found");
-        console.log("Component mounted successfully");
-    }, []);
+   
 
     useEffect(() => {
-        console.log("Payment ID effect triggered with:", paymentId);
-        console.log("Token from Redux:", token ? "Available" : "Not available");
 
         if (!paymentId) {
             setError('Payment ID is missing');
@@ -51,46 +42,34 @@ export default function AppointmentConfirmation() {
         }
         
         if (!token) {
-            console.log("No auth token from Redux, redirecting to login");
             setError('Authentication required');
             navigate('/login');
             return;
         }
         
-        console.log("Calling fetchBookingConfirmation...");
         fetchBookingConfirmation();
     }, [paymentId, token]); // Add token to dependency array
 
     const fetchBookingConfirmation = async () => {
         try {
-            console.log("=== FETCH BOOKING CONFIRMATION START ===");
             setLoading(true);
-            console.log("Using token from Redux:", token ? "Found" : "Not found");
 
             // Don't check localStorage, use the token from Redux state
             if (!token) {
-                console.log("No auth token from Redux, redirecting to login");
                 setError('Authentication required');
                 navigate('/login');
                 return;
             }
 
-            console.log("Making API call to:", `/booking-confirmation/payment/${paymentId}/`);
             
   
             const response = await userAxios.get(`booking-confirmation/payment/${paymentId}/`);
 
-            console.log("API Response:", response);
-            console.log("Response data:", response.data);
-
-            // Check if response has the expected structure
             if (response.data && response.data.success) {
                 setBookingData(response.data.data);
-                console.log("Booking data set successfully:", response.data.data);
             } else if (response.data) {
                 // Handle case where API doesn't return success flag
                 setBookingData(response.data);
-                console.log("Booking data set (no success flag):", response.data);
             } else {
                 throw new Error('Invalid response format');
             }
@@ -134,8 +113,7 @@ export default function AppointmentConfirmation() {
     };
 
     const downloadReceipt = () => {
-        // Implement receipt download functionality
-        console.log('Downloading receipt...');
+        
     };
 
     const addToCalendar = () => {

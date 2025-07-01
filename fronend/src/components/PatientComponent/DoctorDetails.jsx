@@ -331,7 +331,6 @@ function DoctorDetailPage() {
         order_id: razorpay_order.id,
         handler: async function (response) {
           try {
-            console.log("Payment successful, verifying...", response);
             const verifyRes = await userAxios.post("/payments/verify/", {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
@@ -346,7 +345,6 @@ function DoctorDetailPage() {
 
               setTimeout(() => {
                 const paymentId = response.razorpay_payment_id;
-                console.log("Navigating to confirmation page with payment ID:", paymentId);
                 navigate(`/booking-confirmation/payment/${paymentId}`);
               }, 100);
             } else {

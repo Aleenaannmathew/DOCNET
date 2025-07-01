@@ -36,7 +36,6 @@ const DoctorNotifications = () => {
   useEffect(() => {
     doctorAxios.get('doctor-notifications/')
       .then(res => {
-        console.log('Fetched Notifications:', res.data); 
         const updatedNotifications = res.data.map(notification => ({
           ...notification,
           isRead: notification.is_read,
@@ -55,7 +54,6 @@ const DoctorNotifications = () => {
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
-      console.log('New Notification:', data);
 
       const newNotification = {
         id: Date.now(),

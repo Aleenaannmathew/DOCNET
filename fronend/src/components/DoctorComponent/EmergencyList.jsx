@@ -37,7 +37,7 @@ const EmergencyConsultations = () => {
 
             // Ensure the response data is an array
             const data = response.data;
-            console.log(data)
+          
             const consultationsData = Array.isArray(data)
                 ? data
                 : Array.isArray(data?.results)
@@ -483,9 +483,6 @@ const EmergencyConsultations = () => {
                                                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Amount
                                                     </th>
-                                                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Actions
-                                                    </th>
                                                 </tr>
                                             </thead>
                                             <tbody className="bg-white divide-y divide-gray-200">
@@ -606,25 +603,8 @@ const EmergencyConsultations = () => {
                                                                             </button>
                                                                         )}
 
-                                                                    {/* View Details Button */}
-                                                                    <button
-                                                                        onClick={() => navigate(`/doctor/emergency-consultations/${consultation.id}`)}
-                                                                        className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition-colors"
-                                                                    >
-                                                                        <Eye className="w-3 h-3" />
-                                                                        <span>Details</span>
-                                                                    </button>
-
-                                                                    {/* Message Button for completed consultations */}
-                                                                    {consultation.consultation_end_time && (
-                                                                        <button
-                                                                            onClick={() => navigate(`/doctor/consultations/${consultation.id}/messages`)}
-                                                                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition-colors"
-                                                                        >
-                                                                            <MessageCircle className="w-3 h-3" />
-                                                                            <span>Messages</span>
-                                                                        </button>
-                                                                    )}
+                                                                    
+                                                                   
                                                                 </div>
                                                             </td>
                                                         </tr>

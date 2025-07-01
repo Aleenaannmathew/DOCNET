@@ -33,6 +33,7 @@ from accounts.models import Appointment,MedicalRecord
 from .models import DoctorProfile, DoctorSlot, Wallet,WalletHistory
 from .serializers import DoctorRegistrationSerializer, DoctorProfileSerializer, DoctorLoginSerializer, DoctorProfileUpdateSerializer, DoctorSlotSerializer, BookedPatientSerializer, EmergencyStatusSerializer, WalletSerializer, AppointmentDetailsSerializer,EmergencyConsultationDetailSerializer,EmergencyConsultationListSerializer,MedicalRecordSerializer,NotificationSerializer,NotificationMarkAsReadSerializer
 from core.utils import OTPManager, EmailManager, ValidationManager, PasswordManager, GoogleAuthManager, UserManager, ResponseManager
+
 doctor_logger = logging.getLogger('doctor')
 auth_logger = logging.getLogger('authentication')
 logger = logging.getLogger(__name__)
@@ -656,7 +657,6 @@ class DoctorEmergencyConsultationListView(generics.ListAPIView):
         return queryset
 
 class EmergencyConsultationDetailView(generics.RetrieveAPIView):
-    """Get detailed view of an emergency consultation"""
     serializer_class = EmergencyConsultationDetailSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'id'
@@ -672,7 +672,6 @@ class EmergencyConsultationDetailView(generics.RetrieveAPIView):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def start_emergency_consultation(request, consultation_id):
-    """Start an emergency consultation"""
     try:
         if not hasattr(request.user, 'doctor_profile'):
             return Response(
@@ -713,7 +712,6 @@ def start_emergency_consultation(request, consultation_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def end_emergency_consultation(request, consultation_id):
-    """End an emergency consultation"""
     try:
         if not hasattr(request.user, 'doctor_profile'):
             return Response(

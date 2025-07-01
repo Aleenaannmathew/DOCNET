@@ -254,8 +254,6 @@ const Settings = () => {
   };
 
   const handleSubmit = async (values, { setSubmitting, setFieldError }) => {
-  console.log('handleSubmit called with values:', values);
-  console.log('Form is submitting...');
   
   try {
     setLoading(true);
@@ -263,7 +261,6 @@ const Settings = () => {
     if (profileImage) {
       const imageError = validateProfileImage(profileImage);
       if (imageError) {
-        console.log('Image validation error:', imageError);
         toast.error(imageError);
         setSubmitting(false);
         setLoading(false);
@@ -276,23 +273,19 @@ const Settings = () => {
     Object.keys(values).forEach(key => {
       if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
         formDataToSend.append(key, values[key]);
-        console.log(`Added to FormData: ${key} = ${values[key]}`);
       }
     });
     
     if (profileImage) {
       formDataToSend.append('profile_image', profileImage);
-      console.log('Added profile image to FormData');
     }
     
-    console.log('Making API request...');
     const response = await doctorAxios.put('doctor-profile/update', formDataToSend, {
       headers: { 
         'Content-Type': 'multipart/form-data'
       }
     });
     
-    console.log('API response:', response.data);
     
     if (response.data) {
       dispatch(updateUser(response.data));
@@ -314,7 +307,6 @@ const Settings = () => {
       toast.error(`Failed to update profile: ${err.response?.data?.detail || err.message}`);
     }
   } finally {
-    console.log('Cleaning up...');
     setLoading(false);
     setSubmitting(false);
   }

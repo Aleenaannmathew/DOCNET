@@ -160,20 +160,13 @@ const UserProfile = () => {
 
   const fetchUserDetails = async () => {
     try {
-      setLoading(true);
-      
-      console.log("using token: ", token);
-      console.log("Token type: ", typeof token);
-      
+      setLoading(true);  
       const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
       
       try {
         const response = await userAxios.get('user-profile/', {
           headers: { Authorization: authToken }
-        });
-      
-        console.log("Profile data received:", response.data);
-        
+        });        
         if (response.data) {
           dispatch(updateUser(response.data));
         }
@@ -182,13 +175,10 @@ const UserProfile = () => {
         setLoading(false);
       } catch (apiError) {
         try {
-          console.log("First attempt failed, trying without trailing slash");
           const altResponse = await userAxios.get('user-profile', {
             headers: { Authorization: authToken }
           });
-          
-          console.log("Profile data received from alt URL:", altResponse.data);
-          
+                    
           if (altResponse.data) {
             dispatch(updateUser(altResponse.data));
           }
@@ -206,9 +196,6 @@ const UserProfile = () => {
       setProfileFetched(true);
     
       if (err.response) {
-        console.log('Error Response Data:', err.response.data);
-        console.log('Error Response Status:', err.response.status);
-        console.log('Error Response Headers:', err.response.headers);
       }
     }
   };
@@ -248,7 +235,6 @@ const UserProfile = () => {
       
       // Debug: Log form data
       for (let pair of profileFormData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
       }
       
       const response = await userAxios.put('user-profile/update/', profileFormData, {
@@ -258,7 +244,6 @@ const UserProfile = () => {
         }
       });
       
-      console.log("Update response:", response.data);
       
       if (response.data) {
         dispatch(updateUser(response.data));

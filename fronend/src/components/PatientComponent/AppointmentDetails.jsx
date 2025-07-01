@@ -48,7 +48,6 @@ export default function AppointmentDetails() {
             return;
           }
         } catch (error) {
-          console.log('Not a regular appointment, checking emergency consultations');
         }
         
         // If not a regular appointment, try emergency consultation

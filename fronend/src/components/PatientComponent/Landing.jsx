@@ -47,7 +47,6 @@ const TelehealthLanding = () => {
     const fetchDoctors = async () => {
       try {
         const { data } = await userAxios.get('active-doctors/');
-        console.log(data)
         setDoctors(data);
       } catch (error) {
         console.error('Error fetching doctors:', error);

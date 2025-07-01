@@ -78,7 +78,6 @@ const PatientAppointmentDetails = () => {
             });
           } catch (error) {
             // Medical record doesn't exist yet, keep default empty values
-            console.log('No medical record found, will create new one when saved');
           }
         } else {
           setError(appointmentResponse.data.message || 'Failed to fetch appointment details');

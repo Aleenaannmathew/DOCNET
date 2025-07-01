@@ -44,9 +44,7 @@ doctorAxios.interceptors.response.use(
     
     if (responseStatus === 403 && !originalRequest._retry) {
       originalRequest._retry = true;
-      console.log("**Hii")
       try {
-        console.log("HHIIII")
         const refreshToken = localStorage.getItem('refreshToken');
 
         const response = await axios.post(
@@ -57,7 +55,6 @@ doctorAxios.interceptors.response.use(
             skipAuthRefresh: true,
           }
         );
-        console.log(response.data)
         const { access, refresh} = response.data;
         store.dispatch(updateToken({ access, refresh }));
         localStorage.setItem('token', access);

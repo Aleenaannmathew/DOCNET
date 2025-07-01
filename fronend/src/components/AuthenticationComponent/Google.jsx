@@ -10,13 +10,15 @@ const GoogleAuthButton = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const handleGoogleLoginSuccess = async (tokenResponse) => {
+    const handleGoogleLoginSuccess = async (codeResponse) => {
         try {
-            if (!tokenResponse || !tokenResponse.access_token) {
-                throw new Error ('Invalid Google token response');
+            if (!codeResponse || !codeResponse.code) {
+                throw new Error('Authorization code not found in Google response');
             }
-            const response = await userAxios.post('google-login/', {
-                token: tokenResponse.access_token
+
+            // Send the authorization code to the backend
+            const response = await userAxios.post('google/callback/', {
+                code: codeResponse.code
             });
 
             const data = response.data;
@@ -36,7 +38,7 @@ const GoogleAuthButton = () => {
                 }
             }));
 
-            navigate('/',{replace: true});
+            navigate('/', { replace: true });
         } catch (error) {
             console.error('Google authentication error: ', error);
         }
@@ -44,21 +46,19 @@ const GoogleAuthButton = () => {
 
     const googleLogin = useGoogleLogin({
         onSuccess: handleGoogleLoginSuccess,
-        onError: () => console.log('Google Login Failed'),
-        flow: 'implicit',
-        scope: 'openid profile email',
-        responseType: 'id_token',
+        flow: 'auth-code', 
+        
     });
 
-    return(
+    return (
         <button
-        onClick={()=> googleLogin()}
-        className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 font-medium py-3 px-4 rounded-md hover:bg-gray-50 transition-colors duration-300"
+            onClick={() => googleLogin()}
+            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 font-medium py-3 px-4 rounded-md hover:bg-gray-50 transition-colors duration-300"
         >
-            <GoogleLogo/>
+            <GoogleLogo />
             <span>Google</span>
         </button>
-    )
-}
+    );
+};
 
 export default GoogleAuthButton;

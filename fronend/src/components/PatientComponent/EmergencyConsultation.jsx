@@ -33,9 +33,7 @@ function EmergencyConsultationPage() {
       if (filters.gender) {
         params.append('gender', filters.gender);
       }
-      console.log("fetching emergency doctors")
       const response = await userAxios.get('/emergency-doctors/');
-      console.log(response.data)
       setDoctors(response.data.results || response.data);
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Something went wrong');
@@ -51,7 +49,6 @@ function EmergencyConsultationPage() {
   }, [searchQuery, filters]);
 
   const handlePaymentSuccess = (paymentData) => {
-    console.log('Payment successful:', paymentData);
   };
 
   const handleFilterChange = (filterType, value) => {

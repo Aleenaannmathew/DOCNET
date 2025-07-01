@@ -12,9 +12,6 @@ from django.core.validators import MinValueValidator, MaxValueValidator, RegexVa
 
 User = get_user_model()
 
-
-
-
 cloudinary.config(
     cloud_name='ds9y1cj9u',
     api_key='999752882965587',
