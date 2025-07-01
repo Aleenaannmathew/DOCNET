@@ -3,7 +3,7 @@ from . import views
 from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView
 from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView, DoctorBookedPatientsView, DoctorWalletView
 from .views import DoctorAppointmentDetailView,EmergencyStatusUpdateView,DoctorEmergencyConsultationListView,EmergencyConsultationDetailView,start_emergency_consultation,end_emergency_consultation,DoctorDashboardView
-from .views import DoctorAnalyticsView, DoctorCSVExportView,DoctorPDFExportView,MedicalRecordAPIView,DoctorNotificationListView,MarkNotificationAsReadView,DoctorWithdrawAPIView
+from .views import DoctorAnalyticsView, DoctorCSVExportView,DoctorPDFExportView,MedicalRecordAPIView,DoctorNotificationListView,MarkNotificationAsReadView,DoctorWalletWithdrawView
 
 urlpatterns = [
     path('doctor-register/', DoctorRegistrationView.as_view(), name='doctor-register'),
@@ -31,7 +31,7 @@ urlpatterns = [
     path('medical-record/<int:appointment_id>/', MedicalRecordAPIView.as_view(), name='medical-record'),
     path('doctor-notifications/', DoctorNotificationListView.as_view(), name='doctor-notifications'),
     path('doctor-notifications/<int:notification_id>/mark-read/', MarkNotificationAsReadView.as_view(), name='mark-notification-read'),
-    path('doctor-wallet/withdraw/', DoctorWithdrawAPIView.as_view(), name='doctor_withdraw'),
+    path('doctor-wallet/withdraw/', DoctorWalletWithdrawView.as_view(), name='doctor_withdraw'),
     path('emergency-consultations/', 
          DoctorEmergencyConsultationListView.as_view(), 
          name='doctor-emergency-consultations'),

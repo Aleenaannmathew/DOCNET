@@ -243,12 +243,48 @@ const DoctorWallet = () => {
 
   const walletStats = processWalletStats();
 
+  const exportToCSV = () => {
+  if (!walletData || !walletData.history || walletData.history.length === 0) {
+    toast.error('No transaction history to export.');
+    return;
+  }
+
+  const headers = ['ID', 'Type', 'Amount (₹)', 'New Balance (₹)', 'Date'];
+  const rows = walletData.history.map(transaction => [
+    transaction.id,
+    transaction.type === 'credit' ? 'Income' : 'Expense',
+    parseFloat(transaction.amount).toFixed(2),
+    parseFloat(transaction.new_balance).toFixed(2),
+    new Date(transaction.updated_date).toLocaleString('en-IN')
+  ]);
+
+  let csvContent = '';
+  csvContent += headers.join(',') + '\r\n';
+  rows.forEach(row => {
+    csvContent += row.join(',') + '\r\n';
+  });
+
+  // Create blob and trigger download (best practice)
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'wallet_transactions.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url); 
+
+  toast.success('Export started!');
+};
+
+
   const filteredTransactions = (walletData?.history || [])
-  .filter(transaction => {
-    if (filterType === 'all') return true;
-    return transaction.type === filterType;
-  })
-  .sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date));
+    .filter(transaction => {
+      if (filterType === 'all') return true;
+      return transaction.type === filterType;
+    })
+    .sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date));
 
   const handleWithdraw = async (amount) => {
     try {
@@ -272,9 +308,6 @@ const DoctorWallet = () => {
   };
 
 
-  const handleExport = () => {
-    // Implement export logic
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -296,7 +329,7 @@ const DoctorWallet = () => {
               </div>
               <div className="flex items-center space-x-3">
                 <button
-                  onClick={handleExport}
+                  onClick={exportToCSV}
                   className="flex items-center space-x-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 px-4 py-2 rounded-lg font-medium transition-all duration-200"
                 >
                   <Download size={16} />
