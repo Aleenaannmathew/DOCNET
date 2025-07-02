@@ -71,7 +71,78 @@ class DoctorLoginView(APIView):
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
     
-    
+class VerifyOTPView(APIView):
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        entered_otp = request.data.get('otp')
+        
+        if not user_id or not entered_otp:
+            return ResponseManager.error_response('Missing user_id or OTP')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            
+            result = OTPManager.verify_otp(user, entered_otp, 'registration', expiry_minutes=1)
+            
+            if result['success']:
+                # Mark user as verified
+                user.is_verified = True
+                user.save()
+                
+                # Delete OTP record
+                result['otp_verification'].delete()
+                
+                return ResponseManager.success_response(
+                    data={'success': True},
+                    message='OTP verified successfully'
+                )
+            else:
+                return ResponseManager.error_response(result['error'])
+                
+        except User.DoesNotExist:
+            return ResponseManager.error_response(
+                'User not found',
+                status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return ResponseManager.error_response(
+                str(e),
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ResendOTPView(APIView):
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            auth_logger.info(f"Resending OTP for user {user_id}")
+            
+            otp = OTPManager.create_otp_verification(user)
+            auth_logger.debug(f"New OTP generated for user {user.id}")
+            
+            # Send email
+            email_queued = EmailManager.send_registration_otp(user.email, otp, 'doctor')
+            if not email_queued:
+                doctor_logger.error(f"Failed to queue OTP email for {user.email}")
+            
+            return ResponseManager.success_response(
+                message='OTP resent successfully'
+            )
+            
+        except User.DoesNotExist:
+            return ResponseManager.error_response(
+                'User not found',
+                status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return ResponseManager.error_response(
+                str(e),
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class DoctorProfileRetrieveUpdateView(APIView): 
     permission_classes = [IsAuthenticated]
     
@@ -221,7 +292,10 @@ class DoctorVerifyPasswordResetOTPView(APIView):
             
             if result['success']:
                 return ResponseManager.success_response(
-                    data={'reset_token': 'generate_a_token_here_if_needed'},
+                    data={
+                        'success': True,  
+                        'reset_token': 'generate_a_token_here_if_needed'
+                    },
                     message='OTP verified successfully'
                 )
             else:

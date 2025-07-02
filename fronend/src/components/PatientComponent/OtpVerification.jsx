@@ -147,8 +147,8 @@ export default function OtpVerificationPage() {
       if (response.data.success) {
         setMessage('OTP resent successfully');
         setError('');
-        setRemainingTime(120); // Reset timer to 2 minutes
-        startTimer(); // Restart the timer
+        setRemainingTime(120); 
+        startTimer(); 
       } else {
         throw new Error(response.data.message || 'Failed to resend OTP');
       }

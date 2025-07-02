@@ -48,7 +48,7 @@ function DoctorRoutes() {
           <PassChange />
         </PublicRoute>
       } />
-      <Route path="reset-password" element={
+      <Route path="doctor-reset-password" element={
         <PublicRoute redirectPath="/doctor/doctor-landing">
           <DoctorReset />
         </PublicRoute>

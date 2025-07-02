@@ -1,12 +1,14 @@
 from django.urls import path
 from . import views
-from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView
+from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView,VerifyOTPView,ResendOTPView
 from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView, DoctorBookedPatientsView, DoctorWalletView
 from .views import DoctorAppointmentDetailView,EmergencyStatusUpdateView,DoctorEmergencyConsultationListView,EmergencyConsultationDetailView,start_emergency_consultation,end_emergency_consultation,DoctorDashboardView
 from .views import DoctorAnalyticsView, DoctorCSVExportView,DoctorPDFExportView,MedicalRecordAPIView,DoctorNotificationListView,MarkNotificationAsReadView,DoctorWalletWithdrawView
 
 urlpatterns = [
     path('doctor-register/', DoctorRegistrationView.as_view(), name='doctor-register'),
+    path('verify-otp/', VerifyOTPView.as_view(), name='verify_otp'),
+    path('resend-otp/', ResendOTPView.as_view(), name='verify_otp'),
     path('doctor-login/', DoctorLoginView.as_view(), name='doctor-login'),
     path('doctor-profile/', DoctorProfileRetrieveUpdateView.as_view(), name='doctor-profile'),
     path('doctor-profile/update', DoctorProfileUpdateView.as_view(), name='doctor-profile-update'),

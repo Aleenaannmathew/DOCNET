@@ -1,10 +1,10 @@
 import React from 'react'
-import OtpVerificationPage from '../../components/DoctorComponent/Otp'
+import DoctorOtpVerificationPage from '../../components/DoctorComponent/Otp'
 
 function OtpVerify() {
   return (
     <div>
-      <OtpVerificationPage/>
+      <DoctorOtpVerificationPage/>
     </div>
   )
 }

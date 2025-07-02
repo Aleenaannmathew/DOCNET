@@ -1,35 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Key, ArrowRight, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { userAxios } from '../../axios/UserAxios';
 import { useDispatch } from 'react-redux';
 import { login } from '../../store/authSlice';
 import DocnetLoading from '../Constants/Loading';
+import { doctorAxios } from '../../axios/DoctorAxios';
+import { userAxios } from '../../axios/UserAxios';
 
-export default function OtpVerificationPage() {
+export default function DoctorOtpVerificationPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  
+
   const { userId, email, isPasswordReset } = location.state || {};
-  
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(120); // Start with 2 minutes
+  const [remainingTime, setRemainingTime] = useState(120);
   const inputRefs = useRef([]);
   const timerRef = useRef(null);
 
   useEffect(() => {
-    // Start timer on component mount
     startTimer();
 
     // Check for required state
     if (!email) {
-      navigate(isPasswordReset ? '/reset-password' : '/register');
+      navigate(isPasswordReset ? '/doctor/doctor-reset-password' : '/doctor/register');
     }
-    
+
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
@@ -61,7 +61,7 @@ export default function OtpVerificationPage() {
 
   const handleChange = (index, value) => {
     if (!/^\d?$/.test(value)) return;
-    
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -78,70 +78,78 @@ export default function OtpVerificationPage() {
   };
 
   const handleVerify = async () => {
-  const otpValue = otp.join('');
-  if (otpValue.length !== 6) {
-    setError('Please enter a complete 6-digit OTP');
-    return;
-  }
+    const otpValue = otp.join('');
+    if (otpValue.length !== 6) {
+      setError('Please enter a complete 6-digit OTP');
+      return;
+    }
 
-  setIsLoading(true);
-  try {
-    if (isPasswordReset) {
-      // Handle password reset OTP verification
-      const response = await userAxios.post('/verify-password-reset-otp/', {
-        email,
-        otp: otpValue,
-      });
-
-      if (response.data.success) {
-        navigate('/doctor/reset-password', { 
-          state: { 
-            email,
-            otp: otpValue 
-          },
-          replace: true
+    setIsLoading(true);
+    try {
+      if (isPasswordReset) {
+        // Handle password reset OTP verification
+        const response = await doctorAxios.post('/verify-password-reset-otp/', {
+          email,
+          otp: otpValue,
         });
-      } else {
-        throw new Error(response.data.message || 'OTP verification failed');
-      }
-    } else {
-      // Handle registration OTP verification
-      const response = await userAxios.post('/verify-otp/', {
-        user_id: userId,
-        otp: otpValue
-      });
+        console.log('OTP Verification Response:', response.data);
 
-      if (response.data.success) {
-        // For registration flow, redirect to login with success message
-        navigate('/doctor/doctor-login?verified=true', { 
-        replace: true 
-      });
+        if (response.data.success) {
+          // Extract the reset_token from the response
+          const resetToken = response.data.reset_token;
+          
+          console.log("Navigating to reset password with token:", resetToken);
+          
+          // Navigate to the reset password page with the token
+          navigate('/doctor/doctor-reset-password', {
+            state: {
+              email,
+              resetToken,
+              verified: true
+            },
+            replace: true
+          });
+        } else {
+          throw new Error(response.data.message || 'OTP verification failed');
+        }
       } else {
-        throw new Error(response.data.message || 'OTP verification failed');
+        // Handle registration OTP verification
+        const response = await doctorAxios.post('/verify-otp/', {
+          user_id: userId,
+          otp: otpValue
+        });
+
+        if (response.data.success) {
+          // For registration flow, redirect to login with success message
+          navigate('/doctor/doctor-login?verified=true', {
+            replace: true
+          });
+        } else {
+          throw new Error(response.data.message || 'OTP verification failed');
+        }
       }
+    } catch (error) {
+      // Clear OTP fields on error
+      setOtp(['', '', '', '', '', '']);
+      if (inputRefs.current[0]) {
+        inputRefs.current[0].focus();
+      }
+
+      setError(error.response?.data?.error || error.message || 'OTP verification failed');
+      setMessage('');
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    // Clear OTP fields on error
-    setOtp(['', '', '', '', '', '']);
-    if (inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
-    
-    setError(error.response?.data?.error || error.message || 'OTP verification failed');
-    setMessage('');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleResend = async () => {
     setIsLoading(true);
     try {
       let response;
       if (isPasswordReset) {
-        response = await userAxios.post('/send-password-reset-otp/', { email });
+        response = await doctorAxios.post('/send-password-reset-otp/', { email });
       } else {
-        response = await userAxios.post('/resend-otp/', { user_id: userId });
+        response = await doctorAxios.post('/resend-otp/', { user_id: userId });
       }
 
       if (response.data.success) {
@@ -236,7 +244,7 @@ export default function OtpVerificationPage() {
               <span>{message}</span>
             </div>
           )}
-          
+
           {error && (
             <div className="mt-4 mb-6 flex items-center rounded-lg bg-red-100 p-4 text-left text-sm text-red-800">
               <AlertTriangle className="mr-3 h-5 w-5 flex-shrink-0" />
