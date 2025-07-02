@@ -323,12 +323,7 @@ export default function PatientsManagement() {
               </div>
               
               {/* Action Buttons */}
-              <div className="flex items-center gap-3">
-                <button className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                  <Download size={16} className="mr-2" />
-                  Export
-                </button>
-              </div>
+
             </div>
           </div>
 

@@ -54,10 +54,7 @@ const DoctorEarningsReport = () => {
               <p className="text-gray-600 mt-1">Comprehensive earnings analysis for all doctors</p>
             </div>
           </div>
-          <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-            <Download size={16} />
-            Export
-          </button>
+         
         </header>
 
         {/* Main Section */}

@@ -55,7 +55,7 @@ export default function AppointmentsList() {
       setAppointments(data.results || []);
       setTotalPages(Math.ceil((data.count || 0) / pageSize));
 
-      // Calculate stats from the full dataset (consider getting these from backend)
+      
       const newStats = {
         total: data.count || 0,
         confirmed: 0,
@@ -330,23 +330,6 @@ export default function AppointmentsList() {
                     <h1 className="text-2xl font-bold text-gray-900">Appointments Management</h1>
                     <p className="text-gray-600 mt-1">Monitor and manage all appointments</p>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      setPage(1);
-                      fetchAppointments();
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
-                  >
-                    <RefreshCw size={16} />
-                    Refresh
-                  </button>
-                  <button className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm">
-                    <Download size={16} />
-                    Export
-                  </button>
                 </div>
               </div>
             </div>

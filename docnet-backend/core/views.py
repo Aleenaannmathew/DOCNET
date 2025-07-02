@@ -25,6 +25,11 @@ from accounts.models import User, Appointment, Payment, EmergencyPayment
 from doctor.models import DoctorProfile
 from decimal import Decimal
 from datetime import timedelta
+from reportlab.pdfgen import canvas
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAdminUser
+from django.http import HttpResponse
+import csv
 
 
 class AdminLoginView(APIView):
@@ -443,4 +448,58 @@ class DoctorEarningsReportAPIView(APIView):
         return Response({
             'status': 'success',
             'data': serializer.data
-        })    
+        })  
+
+class AdminPaymentCSVExportView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        # Query all payments (or apply filters if required)
+        payments = Payment.objects.all().order_by('-created_at')
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="payment_history.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Payment ID', 'Patient', 'Doctor', 'Amount', 'Method', 'Date', 'Time', 'Status'])
+
+        for payment in payments:
+            writer.writerow([
+                payment.payment_id,
+                payment.patient.username,
+                payment.doctor.user.username,
+                payment.amount,
+                payment.payment_method,
+                payment.created_at.strftime('%Y-%m-%d'),
+                payment.created_at.strftime('%H:%M'),
+                payment.payment_status
+            ])
+
+        return response
+
+class AdminPaymentPDFExportView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        payments = Payment.objects.all().order_by('-created_at')[:50]  # Limiting to latest 50 for PDF
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="payment_history.pdf"'
+
+        p = canvas.Canvas(response)
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(100, 800, "Admin Payment History")
+
+        y = 770
+        p.setFont("Helvetica", 10)
+
+        for payment in payments:
+            p.drawString(50, y, f"{payment.payment_id} | {payment.patient.username} | {payment.doctor.user.username} | Rs.{payment.amount} | {payment.payment_status}")
+            y -= 20
+            if y < 50:
+                p.showPage()
+                y = 800
+
+        p.showPage()
+        p.save()
+        return response

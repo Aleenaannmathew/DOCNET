@@ -16,6 +16,7 @@
     "axios": "^1.9.0",
     "emoji-picker-react": "^4.12.2",
     "formik": "^2.4.6",
+    "js-file-download": "^0.4.12",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.507.0",
     "peerjs": "^1.5.5",

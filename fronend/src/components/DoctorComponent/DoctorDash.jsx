@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import DocSidebar from "./DocSidebar";
 import { doctorAxios } from "../../axios/DoctorAxios";
+import fileDownload from 'js-file-download';
 
 const 
 StatCard = ({ title, value, icon, color }) => {
@@ -58,13 +59,27 @@ const DoctorDashboard = () => {
     }
   };
 
-  const handleCSVDownload = () => {
-    window.open('http://127.0.0.1:8000/doctor-csv/', '_blank');
-  };
+  const handleCSVDownload = async () => {
+  try {
+    const response = await doctorAxios.get('doctor-csv/', {
+      responseType: 'blob', 
+    });
+    fileDownload(response.data, 'wallet_transactions.csv');
+  } catch (error) {
+    console.error('Error downloading CSV:', error);
+  }
+};
 
-  const handlePDFDownload = () => {
-    window.open('http://127.0.0.1:8000/doctor/analytics/pdf/', '_blank');
-  };
+const handlePDFDownload = async () => {
+  try {
+    const response = await doctorAxios.get('doctor-pdf/', {
+      responseType: 'blob', 
+    });
+    fileDownload(response.data, 'wallet_report.pdf');
+  } catch (error) {
+    console.error('Error downloading PDF:', error);
+  }
+};
 
   if (!dashboardData || !analytics) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;

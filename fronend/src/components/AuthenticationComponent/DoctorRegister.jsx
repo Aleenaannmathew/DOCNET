@@ -10,7 +10,11 @@ import {
   Shield,
   Calendar,
   Globe,
-  FileText
+  FileText,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
@@ -49,6 +53,84 @@ const specializations = [
 ];
 
 const genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
+
+// Enhanced validation schema with better password rules
+const validationSchema = Yup.object({
+  username: Yup.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username must be less than 30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores')
+    .required('Username is required'),
+  email: Yup.string()
+    .email('Please enter a valid email address')
+    .required('Email is required'),
+  phone: Yup.string()
+    .matches(/^[0-9]{10,15}$/, 'Phone number must be 10-15 digits only')
+    .required('Phone number is required'),
+  password: Yup.string()
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/^(?=.*[a-z])/, 'Password must contain at least one lowercase letter')
+    .matches(/^(?=.*[A-Z])/, 'Password must contain at least one uppercase letter')
+    .matches(/^(?=.*\d)/, 'Password must contain at least one number')
+    .matches(/^(?=.*[@$!%*?&])/, 'Password must contain at least one special character (@$!%*?&)')
+    .test('not-all-numeric', 'Password cannot be entirely numeric', (value) => {
+      return value ? !/^\d+$/.test(value) : true;
+    })
+    .test('not-too-common', 'Please choose a stronger password', (value) => {
+      const commonPasswords = [
+        '12345678', '123456789', '1234567890', 'password', 'password123', 
+        '11111111', 'qwerty123', 'abc12345', 'admin123', 'welcome123'
+      ];
+      return value ? !commonPasswords.includes(value.toLowerCase()) : true;
+    })
+    .required('Password is required'),
+  password2: Yup.string()
+    .oneOf([Yup.ref('password'), null], 'Passwords do not match')
+    .required('Please confirm your password'),
+  registration_id: Yup.string()
+    .required('Registration ID is required'),
+  hospital: Yup.string(),
+  specialization: Yup.string()
+    .min(3, 'Specialization must be at least 3 characters')
+    .required('Specialization is required'),
+  languages: Yup.array()
+    .min(1, 'At least one language is required')
+    .required('Language selection is required'),
+  age: Yup.number()
+    .min(21, 'Age must be between 21 and 80')
+    .max(80, 'Age must be between 21 and 80')
+    .required('Age is required'),
+  gender: Yup.string()
+    .required('Gender is required'),
+  experience: Yup.number()
+    .min(0, 'Experience cannot be negative')
+    .required('Years of experience is required'),
+  prefer_24hr_consultation: Yup.boolean(),
+  agreeToTerms: Yup.boolean()
+    .oneOf([true], 'You must agree to the Terms of Use and Privacy Policy')
+    .required('You must agree to the Terms of Use and Privacy Policy'),
+  medicalEthics: Yup.boolean()
+    .oneOf([true], 'You must commit to medical ethics')
+    .required('You must commit to medical ethics')
+});
+
+const initialValues = {
+  username: '',
+  email: '',
+  phone: '',
+  password: '',
+  password2: '',
+  registration_id: '',
+  hospital: '',
+  specialization: '',
+  languages: [],
+  age: '',
+  gender: '',
+  experience: '',
+  prefer_24hr_consultation: false,
+  agreeToTerms: false,
+  medicalEthics: false
+};
 
 const LanguageSelect = ({ field, form, ...props }) => {
   const [selectedLanguages, setSelectedLanguages] = useState(field.value || []);
@@ -136,135 +218,84 @@ const LanguageSelect = ({ field, form, ...props }) => {
   );
 };
 
-const CustomField = ({ icon: Icon, name, type, placeholder, error, touched }) => (
-  <div className="mb-4">
-    <div className="relative">
-      <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-        <Icon size={18} />
-      </div>
-      <Field
-        name={name}
-        type={type}
-        placeholder={placeholder}
-        className={`w-full pl-12 pr-4 py-3 rounded-xl border ${error && touched
-          ? 'border-red-400 focus:ring-red-400'
-          : 'border-gray-200 focus:ring-blue-500'
-          } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
-      />
-    </div>
-    <ErrorMessage
-      name={name}
-      component="p"
-      className="text-red-500 text-sm mt-1 ml-1"
-    />
-  </div>
-);
-
-const CustomFieldNoIcon = ({ name, type, placeholder, error, touched, min, max }) => (
-  <div className="mb-4">
-    <Field
-      name={name}
-      type={type}
-      placeholder={placeholder}
-      min={min}
-      max={max}
-      className={`w-full px-4 py-3 rounded-xl border ${error && touched
-        ? 'border-red-400 focus:ring-red-400'
-        : 'border-gray-200 focus:ring-blue-500'
-        } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200`}
-    />
-    <ErrorMessage
-      name={name}
-      component="p"
-      className="text-red-500 text-sm mt-1 ml-1"
-    />
-  </div>
-);
-
-const validationSchema = Yup.object({
-  username: Yup.string()
-    .min(3, 'Username must be at least 3 characters')
-    .required('Username is required'),
-
-  email: Yup.string()
-    .email('Please enter a valid email')
-    .required('Email is required'),
-
-  phone: Yup.string()
-    .matches(/^[0-9]{10,15}$/, 'Phone number must be 10-15 digits only')
-    .required('Phone number is required'),
-
-  password: Yup.string()
-    .min(8, 'Password must be at least 8 characters')
-    .required('Password is required'),
-
-  password2: Yup.string()
-    .oneOf([Yup.ref('password')], 'Passwords do not match')
-    .required('Please confirm your password'),
-
-  registration_id: Yup.string()
-    .required('Registration ID is required'),
-
-  hospital: Yup.string(),
-
-  specialization: Yup.string()
-    .min(3, 'Specialization must be at least 3 characters')
-    .required('Specialization is required'),
-
-  languages: Yup.array()
-    .min(1, 'At least one language is required')
-    .required('Language selection is required'),
-
-  age: Yup.number()
-    .min(21, 'Age must be between 21 and 80')
-    .max(80, 'Age must be between 21 and 80')
-    .required('Age is required'),
-
-  gender: Yup.string()
-    .required('Gender is required'),
-
-  experience: Yup.number()
-    .min(0, 'Experience cannot be negative')
-    .required('Years of experience is required'),
-
-  prefer_24hr_consultation: Yup.boolean(),
-
-  agreeToTerms: Yup.boolean()
-    .oneOf([true], 'You must agree to the terms and conditions')
-    .required('You must agree to the terms and conditions'),
-
-  medicalEthics: Yup.boolean()
-    .oneOf([true], 'You must commit to medical ethics')
-    .required('You must commit to medical ethics')
-});
-
-const initialValues = {
-  username: '',
-  email: '',
-  phone: '',
-  password: '',
-  password2: '',
-  registration_id: '',
-  hospital: '',
-  specialization: '',
-  languages: [],
-  age: '',
-  gender: '',
-  experience: '',
-  prefer_24hr_consultation: false,
-  agreeToTerms: false,
-  medicalEthics: false
-};
-
 export default function DoctorRegister() {
   const [isLoading, setIsLoading] = useState(false);
-  const [generalError, setGeneralError] = useState('');
+  const [serverError, setServerError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = async (values, { setErrors }) => {
-    setIsLoading(true);
-    setGeneralError('');
+  // Enhanced custom input component with password visibility toggle
+  const FormInput = ({ field, form, placeholder, type = "text", icon: Icon, showToggle = false, ...props }) => {
+    const hasError = form.errors[field.name] && form.touched[field.name];
+    const isPasswordField = type === "password";
+    const showPasswordState = field.name === 'password' ? showPassword : showConfirmPassword;
+    const togglePassword = field.name === 'password' 
+      ? () => setShowPassword(!showPassword)
+      : () => setShowConfirmPassword(!showConfirmPassword);
+    
+    return (
+      <div className="relative">
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
+          <Icon size={18} />
+        </div>
+        <input
+          {...field}
+          {...props}
+          type={isPasswordField && showToggle ? (showPasswordState ? "text" : "password") : type}
+          placeholder={placeholder}
+          className={`w-full pl-12 ${showToggle ? 'pr-12' : 'pr-4'} py-3 rounded-xl border ${
+            hasError 
+              ? 'border-red-400 focus:ring-red-400' 
+              : 'border-gray-200 focus:ring-blue-500'
+          } focus:ring-2 focus:border-transparent outline-none shadow-sm transition-all duration-200 bg-white`}
+        />
+        {showToggle && (
+          <button
+            type="button"
+            onClick={togglePassword}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 z-10"
+          >
+            {showPasswordState ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
+        <ErrorMessage 
+          name={field.name} 
+          component="div" 
+          className="text-red-500 text-sm mt-1 ml-1 flex items-start"
+        />
+      </div>
+    );
+  };
 
+  // Password strength indicator
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: '', color: '' };
+    
+    let strength = 0;
+    const checks = [
+      { regex: /.{8,}/, label: 'At least 8 characters' },
+      { regex: /[a-z]/, label: 'Lowercase letter' },
+      { regex: /[A-Z]/, label: 'Uppercase letter' },
+      { regex: /[0-9]/, label: 'Number' },
+      { regex: /[@$!%*?&]/, label: 'Special character' }
+    ];
+    
+    checks.forEach(check => {
+      if (check.regex.test(password)) strength++;
+    });
+    
+    if (strength < 2) return { strength, label: 'Weak', color: 'bg-red-500' };
+    if (strength < 4) return { strength, label: 'Medium', color: 'bg-yellow-500' };
+    return { strength, label: 'Strong', color: 'bg-green-500' };
+  };
+
+  const handleSubmit = async (values, { setFieldError, setSubmitting, resetForm }) => {
+    setIsLoading(true);
+    setServerError('');
+    setSuccessMessage('');
+    
     try {
       const data = new FormData();
       data.append('username', values.username);
@@ -287,47 +318,105 @@ export default function DoctorRegister() {
       const response = await doctorAxios.post('/doctor-register/', data);
 
       if (response.data && response.data.user_id) {
-        navigate('/doctor/doctor-verify-otp', {
-          state: {
-            userId: response.data.user_id,
-            email: response.data.email,
-            userType: 'doctor'
-          }
-        });
+        setSuccessMessage('Registration successful! Redirecting to OTP verification...');
+        
+        // Small delay to show success message
+        setTimeout(() => {
+          navigate('/doctor/doctor-verify-otp', {
+            state: {
+              userId: response.data.user_id,
+              email: response.data.email,
+              userType: 'doctor'
+            }
+          });
+        }, 1500);
       } else {
-        console.error("Unexpected response format - no user_id:", response.data);
-        setGeneralError('Registration successful but could not proceed to verification. Please try logging in.');
+        console.error("Unexpected response format - no user id.", response.data);
+        setServerError('Registration failed. Please try again.');
       }
+      
     } catch (error) {
       console.error('Registration failed:', error);
-
+      
       if (error.response && error.response.data) {
         const serverErrors = error.response.data;
-
-        const newErrors = {};
-        Object.keys(serverErrors).forEach(key => {
-          newErrors[key] = Array.isArray(serverErrors[key])
-            ? serverErrors[key][0]
-            : serverErrors[key];
-        });
-
-        setErrors(newErrors);
-      } else {
-        setGeneralError('Registration failed. Please try again later.');
+        
+        // Handle string error messages
+        if (typeof serverErrors === 'string') {
+          setServerError(serverErrors);
+        } 
+        // Handle object error messages
+        else if (typeof serverErrors === 'object') {
+          let hasFieldErrors = false;
+          let generalErrors = [];
+          
+          Object.keys(serverErrors).forEach(key => {
+            // Handle array of error messages
+            let errorMessage;
+            if (Array.isArray(serverErrors[key])) {
+              errorMessage = serverErrors[key].join(' ');
+            } else {
+              errorMessage = serverErrors[key];
+            }
+            
+            // Map server field names to form field names
+            const fieldMap = {
+              confirm_password: 'password2'
+            };
+            
+            const fieldName = fieldMap[key] || key;
+            
+            // Set field error if it's a form field
+            if (['username', 'email', 'phone', 'password', 'password2', 'registration_id', 'specialization', 'age', 'gender', 'experience'].includes(fieldName)) {
+              setFieldError(fieldName, errorMessage);
+              hasFieldErrors = true;
+            } else {
+              // Collect non-field errors
+              generalErrors.push(errorMessage);
+            }
+          });
+          
+          // Show general errors or if no field-specific errors were set
+          if (generalErrors.length > 0) {
+            setServerError(generalErrors.join(' '));
+          } else if (!hasFieldErrors && Object.keys(serverErrors).length > 0) {
+            const firstError = Object.values(serverErrors)[0];
+            const errorMsg = Array.isArray(firstError) ? firstError.join(' ') : firstError;
+            setServerError(errorMsg);
+          }
+        }
+      } 
+      // Handle network errors
+      else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network')) {
+        setServerError('Network error. Please check your internet connection and try again.');
+      }
+      // Handle timeout errors
+      else if (error.code === 'ECONNABORTED') {
+        setServerError('Request timeout. Please try again.');
+      }
+      // Handle other errors
+      else if (error.message) {
+        setServerError(`Error: ${error.message}`);
+      } 
+      // Handle unknown errors
+      else {
+        setServerError('Registration failed. Please try again later.');
       }
     } finally {
       setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
+  // Loading component
   if (isLoading) {
-    return <DocnetLoading />;
+    return <DocnetLoading/>;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       <div className="flex flex-col lg:flex-row min-h-screen">
-        {/* Left Section - Professional Medical Branding */}
+        {/* Left Section - Enhanced with professional styling */}
         <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-blue-600 to-blue-800 p-8 flex-col text-white relative overflow-hidden">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
@@ -336,7 +425,7 @@ export default function DoctorRegister() {
             <div className="absolute bottom-32 left-16 w-12 h-12 border-2 border-white rounded-full"></div>
             <div className="absolute bottom-16 right-20 w-24 h-24 border-2 border-white rounded-full"></div>
           </div>
-
+          
           <div className="relative z-10">
             <div className="flex items-center mb-8">
               <Stethoscope className="mr-3" size={32} />
@@ -351,8 +440,8 @@ export default function DoctorRegister() {
                 Connect with patients, collaborate with peers, and advance your medical practice in a trusted digital ecosystem.
               </p>
             </div>
-
-            {/* Professional Features */}
+            
+            {/* Doctor-focused Features */}
             <div className="space-y-4">
               <div className="flex items-center">
                 <Shield className="mr-3 text-blue-200" size={20} />
@@ -370,7 +459,7 @@ export default function DoctorRegister() {
           </div>
         </div>
 
-        {/* Right Section - Registration Form */}
+        {/* Right Section - Enhanced form styling */}
         <div className="w-full lg:w-3/5 p-6 md:p-12 flex justify-center items-center">
           <div className="w-full max-w-2xl">
             {/* Mobile Header */}
@@ -379,9 +468,10 @@ export default function DoctorRegister() {
                 <Stethoscope className="mr-3 text-blue-600" size={32} />
                 <h1 className="font-bold text-3xl text-blue-600">DOCNET</h1>
               </div>
-              <h2 className="font-semibold text-xl text-gray-800">
+              <h2 className="font-semibold text-xl text-gray-800 mb-2">
                 Join Our Medical Professional Network
               </h2>
+              <p className="text-gray-600">Connect with patients and grow your practice</p>
             </div>
 
             {/* Form Header */}
@@ -394,9 +484,26 @@ export default function DoctorRegister() {
               </p>
             </div>
 
-            {generalError && (
-              <div className="mb-4 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded">
-                {generalError}
+            {/* Success Message Display */}
+            {successMessage && (
+              <div className="mb-6 bg-green-50 border-l-4 border-green-400 text-green-700 p-4 rounded-lg">
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  {successMessage}
+                </div>
+              </div>
+            )}
+
+            {/* Server Error Display */}
+            {serverError && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-400 text-red-700 p-4 rounded-lg">
+                <div className="flex items-start">
+                  <AlertTriangle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>Registration Failed:</strong>
+                    <p className="mt-1">{serverError}</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -405,7 +512,7 @@ export default function DoctorRegister() {
               validationSchema={validationSchema}
               onSubmit={handleSubmit}
             >
-              {({ errors, touched, isSubmitting }) => (
+              {({ isSubmitting, errors, touched, values }) => (
                 <Form className="space-y-6">
                   {/* Personal Information Section */}
                   <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
@@ -414,66 +521,66 @@ export default function DoctorRegister() {
                       Personal Information
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <CustomField
-                        icon={User}
+                      <Field
                         name="username"
-                        type="text"
-                        placeholder="User Name"
-                        error={errors.username}
-                        touched={touched.username}
+                        component={FormInput}
+                        placeholder="Username (letters, numbers, underscore only)"
+                        icon={User}
                       />
-                      <CustomField
-                        icon={Mail}
+
+                      <Field
                         name="email"
+                        component={FormInput}
                         type="email"
                         placeholder="Email Address"
-                        error={errors.email}
-                        touched={touched.email}
+                        icon={Mail}
                       />
-                      <CustomField
-                        icon={Phone}
+
+                      <Field
                         name="phone"
+                        component={FormInput}
                         type="tel"
-                        placeholder="Phone Number"
-                        error={errors.phone}
-                        touched={touched.phone}
+                        placeholder="Phone Number (10-15 digits)"
+                        icon={Phone}
                       />
-                      <CustomFieldNoIcon
-                        name="age"
-                        type="number"
-                        placeholder="Age"
-                        min="21"
-                        max="80"
-                        error={errors.age}
-                        touched={touched.age}
-                      />
+
                       <div className="mb-4">
                         <Field
                           as="select"
                           name="gender"
-                          className={`w-full px-4 py-3 rounded-lg border ${errors.gender && touched.gender
-                            ? 'border-red-500 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-teal-500'
-                            } focus:ring-2 focus:border-transparent outline-none`}
+                          className={`w-full px-4 py-3 rounded-xl border ${errors.gender && touched.gender
+                            ? 'border-red-400 focus:ring-red-400'
+                            : 'border-gray-200 focus:ring-blue-500'
+                            } focus:ring-2 focus:border-transparent outline-none shadow-sm`}
                         >
                           <option value="">Select Gender</option>
                           {genderOptions.map(option => (
                             <option key={option} value={option.toLowerCase()}>{option}</option>
                           ))}
                         </Field>
-                        <ErrorMessage
-                          name="gender"
-                          component="p"
-                          className="text-red-500 text-sm mt-1"
+                        <ErrorMessage 
+                          name="gender" 
+                          component="div" 
+                          className="text-red-500 text-sm mt-1 ml-1 flex items-start"
                         />
                       </div>
-                      <CustomField
-                        icon={Building}
+
+                      <Field
+                        name="age"
+                        type="number"
+                        placeholder="Age (21-80)"
+                        min="21"
+                        max="80"
+                        component={FormInput}
+                        icon={User}
+                      />
+
+                      <Field
                         name="hospital"
+                        component={FormInput}
                         type="text"
                         placeholder="Hospital Name (Optional)"
-                        error={errors.hospital}
-                        touched={touched.hospital}
+                        icon={Building}
                       />
                     </div>
                   </div>
@@ -487,16 +594,16 @@ export default function DoctorRegister() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="mb-4">
                         <div className="relative">
-                          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
                             <GraduationCap size={18} />
                           </div>
                           <Field
                             as="select"
                             name="specialization"
-                            className={`w-full pl-12 pr-4 py-3 rounded-lg border ${errors.specialization && touched.specialization
-                              ? 'border-red-500 focus:ring-red-500'
-                              : 'border-gray-300 focus:ring-teal-500'
-                              } focus:ring-2 focus:border-transparent outline-none`}
+                            className={`w-full pl-12 pr-4 py-3 rounded-xl border ${errors.specialization && touched.specialization
+                              ? 'border-red-400 focus:ring-red-400'
+                              : 'border-gray-200 focus:ring-blue-500'
+                              } focus:ring-2 focus:border-transparent outline-none shadow-sm`}
                           >
                             <option value="">Select Specialization</option>
                             {specializations.map(spec => (
@@ -504,32 +611,38 @@ export default function DoctorRegister() {
                             ))}
                           </Field>
                         </div>
-                        <ErrorMessage
-                          name="specialization"
-                          component="p"
-                          className="text-red-500 text-sm mt-1"
+                        <ErrorMessage 
+                          name="specialization" 
+                          component="div" 
+                          className="text-red-500 text-sm mt-1 ml-1 flex items-start"
                         />
                       </div>
-                      <CustomFieldNoIcon
+
+                      <Field
                         name="experience"
                         type="number"
                         placeholder="Years of Experience"
                         min="0"
-                        error={errors.experience}
-                        touched={touched.experience}
+                        component={FormInput}
+                        icon={GraduationCap}
                       />
-                      <CustomField
-                        icon={FileText}
+
+                      <Field
                         name="registration_id"
+                        component={FormInput}
                         type="text"
                         placeholder="Registration ID"
-                        error={errors.registration_id}
-                        touched={touched.registration_id}
+                        icon={FileText}
                       />
+
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Languages Spoken</label>
                         <Field name="languages" component={LanguageSelect} />
-                        <ErrorMessage name="languages" component="p" className="text-red-500 text-sm mt-1" />
+                        <ErrorMessage 
+                          name="languages" 
+                          component="div" 
+                          className="text-red-500 text-sm mt-1 ml-1 flex items-start"
+                        />
                       </div>
                     </div>
                   </div>
@@ -541,65 +654,107 @@ export default function DoctorRegister() {
                       Account Security
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <CustomField
-                        icon={Lock}
-                        name="password"
-                        type="password"
-                        placeholder="Password"
-                        error={errors.password}
-                        touched={touched.password}
-                      />
-                      <CustomField
-                        icon={Lock}
+                      <div>
+                        <Field
+                          name="password"
+                          component={FormInput}
+                          type="password"
+                          placeholder="Password"
+                          icon={Lock}
+                          showToggle={true}
+                        />
+                        {/* Password strength indicator */}
+                        {values.password && (
+                          <div className="mt-2">
+                            <div className="flex items-center justify-between text-sm mb-1">
+                              <span className="text-gray-600">Password strength:</span>
+                              <span className={`font-medium ${
+                                getPasswordStrength(values.password).strength < 2 ? 'text-red-600' :
+                                getPasswordStrength(values.password).strength < 4 ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {getPasswordStrength(values.password).label}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrength(values.password).color}`}
+                                style={{width: `${(getPasswordStrength(values.password).strength / 5) * 100}%`}}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <Field
                         name="password2"
+                        component={FormInput}
                         type="password"
                         placeholder="Confirm Password"
-                        error={errors.password2}
-                        touched={touched.password2}
+                        icon={Lock}
+                        showToggle={true}
                       />
                     </div>
+
+                    {/* Password requirements */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Password must contain:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-600">
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${values.password?.length >= 8 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          At least 8 characters
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[a-z]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Lowercase letter
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[A-Z]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Uppercase letter
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[0-9]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Number
+                        </div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${/[@$!%*?&]/.test(values.password) ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          Special character
+                        </div>
+                      </div>
+                    </div>
                   </div>
-
-
 
                   {/* Agreement Section */}
                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
                     <div className="space-y-4">
                       <div className="flex items-start">
-
                         <Field
                           type="checkbox"
                           name="prefer_24hr_consultation"
                           id="prefer_24hr_consultation"
-                          className="mt-1 mr-2"
+                          className="mt-1 mr-3 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         />
                         <div className="flex flex-col">
                           <label htmlFor="prefer_24hr_consultation" className="text-sm text-red-700">
                             I offer 24-hour consultation services (OPTIONAL)
                           </label>
-                          <ErrorMessage
-                            name="agreeToTerms"
-                            component="p"
-                            className="text-red-500 text-sm mt-1"
-                          />
                         </div>
                       </div>
                       <div className="flex items-start">
-
                         <Field
                           type="checkbox"
                           name="agreeToTerms"
                           id="agreeToTerms"
-                          className="mt-1 mr-2"
+                          className="mt-1 mr-3 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         />
                         <div className="flex flex-col">
                           <label htmlFor="agreeToTerms" className="text-sm text-gray-700 leading-relaxed">
                             I agree to the <span className="text-blue-600 font-medium hover:underline cursor-pointer">Terms of Service</span> and <span className="text-blue-600 font-medium hover:underline cursor-pointer">Privacy Policy</span>
                           </label>
-                          <ErrorMessage
-                            name="agreeToTerms"
-                            component="p"
-                            className="text-red-500 text-sm mt-1"
+                          <ErrorMessage 
+                            name="agreeToTerms" 
+                            component="p" 
+                            className="text-red-500 text-sm mt-1" 
                           />
                         </div>
                       </div>
@@ -608,29 +763,29 @@ export default function DoctorRegister() {
                           type="checkbox"
                           name="medicalEthics"
                           id="medicalEthics"
-                          className="mt-1 mr-2"
+                          className="mt-1 mr-3 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         />
                         <div className="flex flex-col">
                           <label htmlFor="medicalEthics" className="text-sm text-gray-700 leading-relaxed">
                             I commit to upholding medical ethics and professional standards
                           </label>
-                          <ErrorMessage
-                            name="medicalEthics"
-                            component="p"
-                            className="text-red-500 text-sm mt-1"
+                          <ErrorMessage 
+                            name="medicalEthics" 
+                            component="p" 
+                            className="text-red-500 text-sm mt-1" 
                           />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Submit Button */}
+                  {/* Submit button */}
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isLoading}
                     className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-4 px-6 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-blue-300"
                   >
-                    {isSubmitting ? (
+                    {isSubmitting || isLoading ? (
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                         Creating Professional Account...
@@ -640,14 +795,14 @@ export default function DoctorRegister() {
                     )}
                   </button>
 
-                  {/* Sign In Link */}
+                  {/* Sign in link */}
                   <div className="text-center text-gray-600 pt-4">
                     Already have an account?{' '}
-                    <span
+                    <span 
                       className="text-blue-600 font-medium cursor-pointer hover:underline transition-colors duration-200"
                       onClick={() => navigate('/login')}
                     >
-                      Sign In Here
+                      Sign In
                     </span>
                   </div>
                 </Form>
