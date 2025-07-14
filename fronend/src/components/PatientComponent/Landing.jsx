@@ -58,13 +58,6 @@ const TelehealthLanding = () => {
 
   const testimonials = [
     {
-      text: "DOCNET transformed how I manage my diabetes. The 24/7 monitoring and instant doctor consultations have been life-changing.",
-      author: "Sarah Martinez",
-      role: "Diabetes Patient",
-      rating: 5,
-      avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face"
-    },
-    {
       text: "As a busy executive, having access to top specialists without travel time is invaluable. The AI health insights are incredibly accurate.",
       author: "Michael Chen",
       role: "Executive",

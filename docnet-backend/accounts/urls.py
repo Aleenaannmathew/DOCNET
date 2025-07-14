@@ -2,7 +2,7 @@ from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView,DoctorReviewListView,SubmitDoctorReviewView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView,EmergencyConsultationListView
 from .views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI, MedicalRecordListView, MedicalRecordDetailView,UserNotificationListView,ActiveDoctorsView,EmergencyConsultationDetailView
-from .views import DownloadReceiptView
+from .views import DownloadReceiptView,ContactMessageView
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
@@ -42,4 +42,5 @@ urlpatterns = [
     path('doctor-reviews/<str:username>/', DoctorReviewListView.as_view(), name='get_doctor_reviews'),
     path('doctor-reviews/<str:username>/submit/', SubmitDoctorReviewView.as_view(), name='submit_doctor_review'),
     path('download-receipt/<int:appointment_id>/', DownloadReceiptView.as_view(), name='download-receipt'),
+    path('contact/', ContactMessageView.as_view(), name='contact-message'),
 ]

@@ -77,7 +77,6 @@ class NotificationAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
     readonly_fields = ('created_at',)
 
-    # Optional: Show sender and receiver in a readable way
     def sender_username(self, obj):
         return obj.sender.username
 
@@ -90,8 +89,10 @@ class NotificationAdmin(admin.ModelAdmin):
 
 @admin.register(DoctorReview)
 class DoctorReviewAdmin(admin.ModelAdmin):
-    list_display = ('id', 'doctor', 'patient', 'rating', 'created_at')  # Columns to display
-    list_filter = ('rating', 'created_at', 'doctor')  # Filters on the right side
-    search_fields = ('doctor__user__username', 'patient__username', 'comment')  # Search box
-    ordering = ('-created_at',)  # Default ordering (newest first)
+    list_display = ('id', 'doctor', 'patient', 'rating', 'created_at') 
+    list_filter = ('rating', 'created_at', 'doctor')  
+    search_fields = ('doctor__user__username', 'patient__username', 'comment')  
+    ordering = ('-created_at',)  
     readonly_fields = ('created_at',)
+
+    

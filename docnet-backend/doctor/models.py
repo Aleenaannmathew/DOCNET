@@ -130,3 +130,33 @@ class Withdrawal(models.Model):
 
     def __str__(self):
         return f"{self.doctor.user.username} requested ₹{self.amount} - {self.status}"
+    
+class ContactMessage(models.Model):
+    PRIORITY_CHOICES = [
+        ('normal', 'Normal'),
+        ('urgent', 'Urgent'),
+        ('emergency', 'Emergency'),
+    ]
+
+    CATEGORY_CHOICES = [
+        ('patient', 'Patient Support'),
+        ('technical', 'Technical Issue'),
+        ('medical', 'Medical Inquiry'),
+        ('partnership', 'Partnership'),
+        ('other', 'Other'),
+    ]
+
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    subject = models.CharField(max_length=255)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    message = models.TextField()
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_resolved = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.subject} ({self.priority})"    

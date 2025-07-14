@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DoctorProfile,DoctorSlot, Wallet, WalletHistory
+from .models import DoctorProfile,DoctorSlot, Wallet, WalletHistory,ContactMessage
 
 @admin.register(DoctorProfile)
 class DoctorProfileAdmin(admin.ModelAdmin):
@@ -58,3 +58,24 @@ class WalletHistoryAdmin(admin.ModelAdmin):
     def wallet_doctor_username(self, obj):
         return obj.wallet.doctor.user.username
     wallet_doctor_username.short_description = 'Doctor Username'
+
+@admin.register(ContactMessage)
+class ContactMessageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'subject', 'category', 'priority', 'is_resolved', 'created_at')
+    list_filter = ('category', 'priority', 'is_resolved', 'created_at')
+    search_fields = ('name', 'email', 'subject', 'message')
+    list_editable = ('is_resolved',)
+    ordering = ('-created_at',)
+    readonly_fields = ('name', 'email', 'subject', 'category', 'message', 'priority', 'created_at')
+
+    fieldsets = (
+        ('Contact Details', {
+            'fields': ('name', 'email', 'subject')
+        }),
+        ('Message Info', {
+            'fields': ('category', 'priority', 'message')
+        }),
+        ('Admin Controls', {
+            'fields': ('is_resolved', 'created_at')
+        }),
+    )    

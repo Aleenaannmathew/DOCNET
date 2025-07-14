@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Heart, Mail, MapPin, Clock, MessageCircle, Shield, Users, Headphones, Send, CheckCircle, Globe, AlertCircle } from 'lucide-react';
 import Navbar from './Navbar';
+import { userAxios } from '../../axios/UserAxios';
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -20,12 +21,36 @@ const ContactPage = () => {
     });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Simulate form submission
-    setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 3000);
-  };
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const response = await userAxios.post("/contact/", formData, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.status === 201) {
+      setIsSubmitted(true);
+      setFormData({
+        name: '',
+        email: '',
+        subject: '',
+        category: '',
+        message: '',
+        priority: 'normal'
+      });
+      setTimeout(() => setIsSubmitted(false), 3000);
+    } else {
+      console.error("Unexpected response:", response);
+      alert("Form submission failed. Please try again.");
+    }
+  } catch (error) {
+    console.error("Submission error:", error.response?.data || error);
+    alert("An error occurred. Please check your form and try again.");
+  }
+};
 
   const contactMethods = [
     {

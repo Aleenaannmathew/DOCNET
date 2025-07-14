@@ -43,7 +43,8 @@ from .serializers import (
     VerifyEmergencyPaymentSerializer,
     EmergencyConsultationConfirmationSerializer,
     MedicalRecordSerializer,
-    NotificationSerializer,DoctorReviewSerializer
+    NotificationSerializer,DoctorReviewSerializer,
+    ContactMessageSerializer
 )
 from core.utils import (
     OTPManager, 
@@ -1278,3 +1279,11 @@ class DownloadReceiptView(APIView):
             return Response({"detail": "Appointment not found"}, status=404)
         except Exception as e:
             return Response({"detail": str(e)}, status=500)
+        
+class ContactMessageView(APIView):
+    def post(self, request):
+        serializer = ContactMessageSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Message sent successfully!"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

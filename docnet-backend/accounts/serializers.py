@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import User,  PatientProfile, Appointment
-from doctor.models import DoctorProfile, DoctorSlot
+from doctor.models import DoctorProfile, DoctorSlot,ContactMessage
 from cloudinary.uploader import upload
 from datetime import datetime, timezone 
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -1267,4 +1267,9 @@ class DoctorReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DoctorReview
-        fields = ['id', 'patientName', 'rating', 'comment', 'date']        
+        fields = ['id', 'patientName', 'rating', 'comment', 'date']    
+
+class ContactMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactMessage
+        fields = '__all__'            
