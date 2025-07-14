@@ -22,7 +22,8 @@ import {
   GraduationCap,
   Building2,
   Languages,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { userAxios } from '../../axios/UserAxios';
@@ -213,6 +214,8 @@ function DoctorDetailPage() {
   const [reviewRating, setReviewRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
 
   // Fetch doctor details
@@ -248,15 +251,35 @@ function DoctorDetailPage() {
 
       toast.success('Review submitted successfully!');
 
-      // Add new review to list immediately
+      // Add the new review to the top of the list
       setReviews(prev => [response.data, ...prev]);
 
-      // Reset form
+      // Reset the form
       setReviewRating(0);
       setAppointmentReason('');
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to submit review.');
+      console.error('Review submission error:', error);
+
+      if (error.response && error.response.data) {
+        const errorData = error.response.data;
+
+        // If backend returns field-specific errors
+        if (typeof errorData === 'object') {
+          Object.entries(errorData).forEach(([field, messages]) => {
+            if (Array.isArray(messages)) {
+              messages.forEach(msg => toast.error(`${field}: ${msg}`));
+            } else {
+              toast.error(`${field}: ${messages}`);
+            }
+          });
+        } else if (typeof errorData === 'string') {
+          toast.error(errorData);
+        } else {
+          toast.error('An unknown error occurred.');
+        }
+      } else {
+        toast.error('Server or network error. Please try again later.');
+      }
     } finally {
       setSubmittingReview(false);
     }
@@ -264,22 +287,22 @@ function DoctorDetailPage() {
 
   // Fetch doctor reviews
   useEffect(() => {
-  const fetchReviews = async () => {
-    if (!doctor) return;
+    const fetchReviews = async () => {
+      if (!doctor) return;
 
-    try {
-      const response = await userAxios.get(`/doctor-reviews/${doctor.username}/`);
-      setReviews(response.data.results);
+      try {
+        const response = await userAxios.get(`/doctor-reviews/${doctor.username}/`);
+        setReviews(response.data.results);
 
-    } catch (error) {
-    }
-  };
+      } catch (error) {
+      }
+    };
 
-  fetchReviews();
-}, [doctor]);
+    fetchReviews();
+  }, [doctor]);
 
 
- 
+
   const fetchDoctorSlots = async () => {
     if (!doctor?.username) return;
 
@@ -409,6 +432,20 @@ function DoctorDetailPage() {
       setPaymentLoading(false);
     }
   };
+
+  const handleSubmitReport = async () => {
+  try {
+    await userAxios.post(`/doctor-reports/${doctor.username}/submit/`, {
+      reason: reportReason
+    });
+    toast.success('Report submitted successfully.');
+    setShowReportModal(false);
+    setReportReason('');
+  } catch (error) {
+    toast.error('Failed to submit report. Please try again.');
+    console.error(error);
+  }
+};
 
   const renderStars = (rating) => {
     const fullStars = Math.floor(rating);
@@ -557,8 +594,18 @@ function DoctorDetailPage() {
                   </div>
                 </div>
 
-
+                {/* 🚩 Report Icon on top-right */}
+                <div className="ml-4">
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    title="Report Doctor"
+                    className="text-red-600 hover:text-red-700 transition-colors"
+                  >
+                    <AlertCircle size={28} />
+                  </button>
+                </div>
               </div>
+
 
               <div className="flex gap-4 mt-6">
                 <button
@@ -871,6 +918,62 @@ function DoctorDetailPage() {
           </div>
         </div>
       </div>
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-8 relative animate-fadeIn">
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowReportModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <AlertCircle size={28} className="text-red-600" />
+              <h2 className="text-xl font-bold text-gray-900">
+                Report Dr. {doctor.username}
+              </h2>
+            </div>
+
+            {/* Textarea */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for Reporting
+              </label>
+              <textarea
+                rows={4}
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="Write your reason clearly and respectfully..."
+                className="w-full border border-gray-300 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReport}
+                disabled={!reportReason.trim()}
+                className="px-5 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition disabled:opacity-50"
+              >
+                Submit Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
       <AppointmentModal
         isOpen={isAppointmentModalOpen}

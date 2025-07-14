@@ -255,3 +255,18 @@ class DoctorReview(models.Model):
 
     def __str__(self):
         return f"Review by {self.patient.username} for {self.doctor.user.username}"        
+    
+class DoctorReport(models.Model):
+    patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='doctor_reports')
+    doctor = models.ForeignKey('doctor.DoctorProfile', on_delete=models.CASCADE, related_name='reported_by')
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Doctor Report"
+        verbose_name_plural = "Doctor Reports"
+
+    def __str__(self):
+        return f"Report by {self.patient.username} on Dr. {self.doctor.user.username}"
+  

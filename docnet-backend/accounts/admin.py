@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message,MedicalRecord,Notification,DoctorReview
+from .models import User, PatientProfile, Payment,Appointment,EmergencyPayment,ChatRoom,Message,MedicalRecord,Notification,DoctorReview,DoctorReport
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
@@ -95,4 +95,10 @@ class DoctorReviewAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)  
     readonly_fields = ('created_at',)
 
-    
+@admin.register(DoctorReport)
+class DoctorReportAdmin(admin.ModelAdmin):
+    list_display = ('patient', 'doctor', 'created_at')
+    search_fields = ('patient__username', 'doctor__user__username', 'reason')
+    list_filter = ('created_at',)
+    readonly_fields = ('created_at',)
+  

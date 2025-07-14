@@ -18,7 +18,7 @@ from datetime import timedelta, datetime
 from django.utils.timezone import localtime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
-from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message,MedicalRecord, Notification,DoctorReview
+from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message,MedicalRecord, Notification,DoctorReview,DoctorReport
 from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
 from rest_framework import generics, filters, permissions
@@ -44,7 +44,7 @@ from .serializers import (
     EmergencyConsultationConfirmationSerializer,
     MedicalRecordSerializer,
     NotificationSerializer,DoctorReviewSerializer,
-    ContactMessageSerializer
+    ContactMessageSerializer,DoctorReportSerializer
 )
 from core.utils import (
     OTPManager, 
@@ -1287,3 +1287,26 @@ class ContactMessageView(APIView):
             serializer.save()
             return Response({"message": "Message sent successfully!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class SubmitDoctorReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, username):
+        try:
+            doctor = DoctorProfile.objects.get(user__username=username)
+        except DoctorProfile.DoesNotExist:
+            return Response({'detail': 'Doctor not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        reason = request.data.get('reason', '').strip()
+
+        if not reason:
+            return Response({'reason': 'This field is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        report = DoctorReport.objects.create(
+            patient=request.user,
+            doctor=doctor,
+            reason=reason
+        )
+
+        serializer = DoctorReportSerializer(report)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

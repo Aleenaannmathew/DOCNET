@@ -10,7 +10,7 @@ import cloudinary
 import cloudinary.uploader
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from .models import User ,PatientProfile,MedicalRecord,Notification,DoctorReview
+from .models import User ,PatientProfile,MedicalRecord,Notification,DoctorReview,DoctorReport
 from doctor.models import DoctorProfile, Wallet, WalletHistory
 from rest_framework import serializers
 from .models import Payment, Appointment,EmergencyPayment
@@ -1273,3 +1273,11 @@ class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactMessage
         fields = '__all__'            
+
+class DoctorReportSerializer(serializers.ModelSerializer):
+    patient = serializers.ReadOnlyField(source='patient.username')
+    doctor = serializers.ReadOnlyField(source='doctor.user.username')
+
+    class Meta:
+        model = DoctorReport
+        fields = ['id', 'patient', 'doctor', 'reason', 'created_at']        
