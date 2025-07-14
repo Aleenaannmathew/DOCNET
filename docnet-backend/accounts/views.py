@@ -1310,3 +1310,5 @@ class SubmitDoctorReportView(APIView):
 
         serializer = DoctorReportSerializer(report)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    

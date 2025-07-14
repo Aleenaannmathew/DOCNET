@@ -13,9 +13,9 @@ from doctor.models import DoctorProfile,Wallet
 from .serializers import AdminLoginSerializer, AdminUserSerializer, PaymentListSerializer 
 from django.shortcuts import get_object_or_404
 from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer, AdminAppointmentListSerializer
-from accounts.models import User, PatientProfile,Appointment,Payment
+from accounts.models import User, PatientProfile,Appointment,Payment,DoctorReport
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
-from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer
+from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer,DoctorReports
 from rest_framework_simplejwt.exceptions import TokenError
 from django.db.models import Count, Sum, Q, F
 from rest_framework.decorators import api_view, permission_classes
@@ -503,3 +503,11 @@ class AdminPaymentPDFExportView(APIView):
         p.showPage()
         p.save()
         return response
+
+class DoctorReportsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, doctor_id):
+        reports = DoctorReport.objects.filter(doctor_id=doctor_id)
+        serializer = DoctorReports(reports, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

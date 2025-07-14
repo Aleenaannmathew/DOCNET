@@ -4,8 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/authSlice';
 import { adminAxios } from '../../axios/AdminAxios';
 import { toast } from 'react-toastify';
-import { 
-  ArrowLeft, CheckCircle, XCircle, UserRound, CalendarDays, 
+import {
+  ArrowLeft, CheckCircle, XCircle, UserRound, CalendarDays,
   Briefcase, GraduationCap, Globe, Award, Phone, Mail, MapPin,
   FileText, Hospital, Clock, FileCheck, User, Building, MoreVertical,
   Shield, AlertTriangle, Eye, Download, Edit
@@ -16,10 +16,12 @@ export default function DoctorDetail() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { token } = useSelector((state) => state.auth);
-  
+
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
@@ -30,7 +32,7 @@ export default function DoctorDetail() {
     confirmText: '',
     confirmButtonClass: ''
   });
-  
+
   const fetchDoctorDetails = async () => {
     try {
       setLoading(true);
@@ -40,7 +42,7 @@ export default function DoctorDetail() {
     } catch (err) {
       console.error('Error fetching doctor details:', err);
       setError('Failed to load doctor details. Please try again.');
-      
+
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
         dispatch(logout());
         navigate('/admin/admin-login');
@@ -50,7 +52,7 @@ export default function DoctorDetail() {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchDoctorDetails();
   }, [doctorId, token]);
@@ -83,7 +85,7 @@ export default function DoctorDetail() {
     }
     closeConfirmDialog();
   };
-  
+
   const handleApprove = async () => {
     try {
       await adminAxios.patch(`/doctors/${doctorId}/approval/`, { action: 'approve' });
@@ -92,13 +94,30 @@ export default function DoctorDetail() {
     } catch (err) {
       console.error('Error approving doctor:', err);
       toast.error('Failed to approve doctor');
-      
+
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
         dispatch(logout());
         navigate('/admin/admin-login');
       }
     }
   };
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      if (activeTab === 'reports') {
+        try {
+          setLoadingReports(true);
+          const response = await adminAxios.get(`/doctors/${doctorId}/reports/`);
+          setReports(response.data);
+        } catch (err) {
+          toast.error('Failed to load reports');
+        } finally {
+          setLoadingReports(false);
+        }
+      }
+    };
+    fetchReports();
+  }, [activeTab]);
 
   const confirmApprove = () => {
     showConfirmDialog(
@@ -109,7 +128,7 @@ export default function DoctorDetail() {
       'bg-emerald-600 hover:bg-emerald-700'
     );
   };
-  
+
   const handleReject = async () => {
     try {
       await adminAxios.patch(`/doctors/${doctorId}/approval/`, { action: 'reject' });
@@ -118,7 +137,7 @@ export default function DoctorDetail() {
     } catch (err) {
       console.error('Error rejecting doctor:', err);
       toast.error('Failed to reject doctor');
-      
+
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
         dispatch(logout());
         navigate('/admin/admin-login');
@@ -135,12 +154,12 @@ export default function DoctorDetail() {
       'bg-red-600 hover:bg-red-700'
     );
   };
-  
+
   const toggleBlock = async () => {
     try {
       const action = doctor.user.is_active ? 'block' : 'unblock';
       await adminAxios.patch(`/doctors/${doctorId}/block/`, { action });
-      
+
       setDoctor(prev => ({
         ...prev,
         user: {
@@ -148,12 +167,12 @@ export default function DoctorDetail() {
           is_active: !prev.user.is_active
         }
       }));
-      
+
       toast.success(`Doctor ${action}ed successfully`);
     } catch (err) {
       console.error(`Error ${doctor.user.is_active ? 'blocking' : 'unblocking'} doctor:`, err);
       toast.error(`Failed to ${doctor.user.is_active ? 'block' : 'unblock'} doctor`);
-      
+
       if (err.response && (err.response.status === 401 || err.response.status === 403)) {
         dispatch(logout());
         navigate('/admin/admin-login');
@@ -164,7 +183,7 @@ export default function DoctorDetail() {
   const confirmToggleBlock = () => {
     const isBlocking = doctor.user.is_active;
     const action = isBlocking ? 'block' : 'unblock';
-    
+
     showConfirmDialog(
       `${isBlocking ? 'Block' : 'Unblock'} Doctor`,
       `Are you sure you want to ${action} Dr. ${doctor?.name}? ${isBlocking ? 'They will lose access to the platform immediately.' : 'They will regain access to the platform.'}`,
@@ -173,23 +192,23 @@ export default function DoctorDetail() {
       isBlocking ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'
     );
   };
-  
+
   const getProfileImage = () => {
     if (doctor?.user?.profile_image) {
       return (
         <div className="relative">
-          <img 
-            src={doctor.user.profile_image} 
-            alt={doctor.name} 
+          <img
+            src={doctor.user.profile_image}
+            alt={doctor.name}
             className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-lg"
           />
           <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full border-2 border-white"></div>
         </div>
       );
     }
-    
+
     const emoji = doctor?.gender?.toLowerCase() === 'female' ? '👩‍⚕️' : '👨‍⚕️';
-    
+
     return (
       <div className="relative">
         <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center text-3xl border-4 border-white shadow-lg">
@@ -199,7 +218,7 @@ export default function DoctorDetail() {
       </div>
     );
   };
-  
+
   const getStatusBadge = () => {
     if (!doctor.user?.is_active) {
       return (
@@ -209,7 +228,7 @@ export default function DoctorDetail() {
         </div>
       );
     }
-    
+
     if (doctor.is_approved === true) {
       return (
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -218,7 +237,7 @@ export default function DoctorDetail() {
         </div>
       );
     }
-    
+
     if (doctor.is_approved === false) {
       return (
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-red-50 text-red-700 border border-red-200">
@@ -227,7 +246,7 @@ export default function DoctorDetail() {
         </div>
       );
     }
-    
+
     return (
       <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200">
         <Clock size={14} />
@@ -255,11 +274,10 @@ export default function DoctorDetail() {
   const TabButton = ({ id, label, isActive, onClick }) => (
     <button
       onClick={() => onClick(id)}
-      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-        isActive
-          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-      }`}
+      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${isActive
+        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+        }`}
     >
       {label}
     </button>
@@ -302,7 +320,7 @@ export default function DoctorDetail() {
       </div>
     );
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -313,7 +331,7 @@ export default function DoctorDetail() {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
@@ -334,7 +352,7 @@ export default function DoctorDetail() {
       </div>
     );
   }
-  
+
   if (!doctor) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
@@ -355,7 +373,7 @@ export default function DoctorDetail() {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -372,7 +390,7 @@ export default function DoctorDetail() {
                   Back to Doctors
                 </button>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex items-center gap-3">
                 {doctor.is_approved === null && (
@@ -393,7 +411,7 @@ export default function DoctorDetail() {
                     </button>
                   </>
                 )}
-                
+
                 <div className="relative">
                   <button
                     onClick={() => setShowActionMenu(!showActionMenu)}
@@ -401,7 +419,7 @@ export default function DoctorDetail() {
                   >
                     <MoreVertical size={18} />
                   </button>
-                  
+
                   {showActionMenu && (
                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-10">
                       <button
@@ -409,9 +427,8 @@ export default function DoctorDetail() {
                           confirmToggleBlock();
                           setShowActionMenu(false);
                         }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                          doctor.user?.is_active ? 'text-red-700' : 'text-emerald-700'
-                        }`}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${doctor.user?.is_active ? 'text-red-700' : 'text-emerald-700'
+                          }`}
                       >
                         {doctor.user?.is_active ? 'Block Doctor' : 'Unblock Doctor'}
                       </button>
@@ -431,7 +448,7 @@ export default function DoctorDetail() {
           <div className="relative">
             {/* Background Pattern */}
             <div className="h-32 bg-gradient-to-r from bg-white to-bg-white rounded-t-2xl"></div>
-            
+
             {/* Profile Content */}
             <div className="relative px-6 pb-6">
               <div className="flex flex-col sm:flex-row sm:items-end sm:gap-6 -mt-12">
@@ -439,7 +456,7 @@ export default function DoctorDetail() {
                 <div className="flex justify-center sm:justify-start">
                   {getProfileImage()}
                 </div>
-                
+
                 {/* Profile Info */}
                 <div className="flex-1 text-center sm:text-left mt-4 sm:mt-0">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -448,7 +465,7 @@ export default function DoctorDetail() {
                       <p className="text-gray-600 mb-3">{doctor.specialization || 'Medical Professional'}</p>
                       {getStatusBadge()}
                     </div>
-                    
+
                     <div className="flex items-center gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-1">
                         <Clock size={16} />
@@ -465,29 +482,35 @@ export default function DoctorDetail() {
         {/* Navigation Tabs */}
         <div className="mb-8">
           <div className="flex gap-2 overflow-x-auto">
-            <TabButton 
-              id="overview" 
-              label="Overview" 
-              isActive={activeTab === 'overview'} 
-              onClick={setActiveTab} 
+            <TabButton
+              id="overview"
+              label="Overview"
+              isActive={activeTab === 'overview'}
+              onClick={setActiveTab}
             />
-            <TabButton 
-              id="professional" 
-              label="Professional Info" 
-              isActive={activeTab === 'professional'} 
-              onClick={setActiveTab} 
+            <TabButton
+              id="professional"
+              label="Professional Info"
+              isActive={activeTab === 'professional'}
+              onClick={setActiveTab}
             />
-            <TabButton 
-              id="documents" 
-              label="Documents" 
-              isActive={activeTab === 'documents'} 
-              onClick={setActiveTab} 
+            <TabButton
+              id="documents"
+              label="Documents"
+              isActive={activeTab === 'documents'}
+              onClick={setActiveTab}
             />
-            <TabButton 
-              id="account" 
-              label="Account Status" 
-              isActive={activeTab === 'account'} 
-              onClick={setActiveTab} 
+            <TabButton
+              id="account"
+              label="Account Status"
+              isActive={activeTab === 'account'}
+              onClick={setActiveTab}
+            />
+            <TabButton
+              id="reports"
+              label="Reports"
+              isActive={activeTab === 'reports'}
+              onClick={setActiveTab}
             />
           </div>
         </div>
@@ -542,7 +565,7 @@ export default function DoctorDetail() {
                 <InfoCard icon={FileText} label="Registration ID" value={doctor.registration_id} />
               </div>
             </div>
-            
+
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Workplace Information</h2>
               <div className="space-y-4">
@@ -566,13 +589,13 @@ export default function DoctorDetail() {
                     <p className="text-sm text-gray-500">Professional certification document</p>
                   </div>
                 </div>
-                
+
                 {doctor.certificate ? (
                   <div className="flex items-center gap-2">
-                    <a 
-                      href={doctor.certificate} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href={doctor.certificate}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
                     >
                       <Eye size={16} />
@@ -614,17 +637,16 @@ export default function DoctorDetail() {
                     <h3 className="font-semibold text-gray-900">Account Status</h3>
                   </div>
                   <div className="mb-2">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
-                      doctor.user?.is_active 
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                        : 'bg-red-50 text-red-700 border border-red-200'
-                    }`}>
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${doctor.user?.is_active
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-red-50 text-red-700 border border-red-200'
+                      }`}>
                       {doctor.user?.is_active ? 'Active' : 'Blocked'}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600">
-                    {doctor.user?.is_active 
-                      ? "Doctor has access to the platform" 
+                    {doctor.user?.is_active
+                      ? "Doctor has access to the platform"
                       : "Doctor access has been restricted"}
                   </p>
                 </div>
@@ -659,6 +681,37 @@ export default function DoctorDetail() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'reports' && (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Reported Issues</h2>
+            {loadingReports ? (
+              <p className="text-gray-500">Loading reports...</p>
+            ) : reports.length === 0 ? (
+              <p className="text-gray-500 italic">No reports have been submitted for this doctor.</p>
+            ) : (
+              <ul className="space-y-4">
+                {reports.map((report) => (
+                  <li key={report.id} className="bg-white p-4 border border-gray-200 rounded-xl shadow-sm">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          <span className="font-medium text-gray-800">{report.patient_name}</span> reported:
+                        </p>
+                        <p className="text-gray-800">{report.reason}</p>
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        {new Date(report.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric', month: 'short', day: 'numeric'
+                        })}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
