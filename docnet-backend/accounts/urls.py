@@ -2,7 +2,7 @@ from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView,DoctorReviewListView,SubmitDoctorReviewView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView,EmergencyConsultationListView
 from .views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI, MedicalRecordListView, MedicalRecordDetailView,UserNotificationListView,ActiveDoctorsView,EmergencyConsultationDetailView
-from .views import DownloadReceiptView,ContactMessageView,SubmitDoctorReportView
+from .views import DownloadReceiptView,ContactMessageView,SubmitDoctorReportView,HasConsultedDoctorView
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
@@ -44,4 +44,5 @@ urlpatterns = [
     path('download-receipt/<int:appointment_id>/', DownloadReceiptView.as_view(), name='download-receipt'),
     path('contact/', ContactMessageView.as_view(), name='contact-message'),
     path('doctor-reports/<str:username>/submit/', SubmitDoctorReportView.as_view(), name='submit-doctor-report'),
+    path('doctors/<str:username>/has-consulted/', HasConsultedDoctorView.as_view(), name='has-consulted-doctor'),
 ]

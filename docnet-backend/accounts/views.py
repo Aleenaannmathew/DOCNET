@@ -1262,6 +1262,36 @@ class SubmitDoctorReviewView(APIView):
         serializer = DoctorReviewSerializer(review)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+class HasConsultedDoctorView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, username):
+        try:
+            doctor = DoctorProfile.objects.get(user__username=username)
+        except DoctorProfile.DoesNotExist:
+            return Response({'detail': 'Doctor not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        patient = request.user
+
+        has_appointment = Appointment.objects.filter(
+            payment__patient=patient,
+            payment__slot__doctor=doctor,
+            status='completed'
+        ).exists()
+
+        has_emergency_payment = EmergencyPayment.objects.filter(
+            patient=patient,
+            doctor=doctor,
+            payment_status='success',
+            consultation_started=True,
+            consultation_end_time__isnull=False
+        ).exists()
+
+        has_consulted = has_appointment or has_emergency_payment
+
+        return Response({'has_consulted': has_consulted}, status=status.HTTP_200_OK)
+
 
 class DownloadReceiptView(APIView):
     permission_classes = [IsAuthenticated]

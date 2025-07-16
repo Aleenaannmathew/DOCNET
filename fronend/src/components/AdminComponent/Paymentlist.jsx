@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Download, Eye, MoreHorizontal, CreditCard, DollarSign, AlertCircle, TrendingUp, Menu, Bell } from 'lucide-react';
+import { Search, Filter, DollarSign, CreditCard, AlertCircle, TrendingUp, Menu, Bell } from 'lucide-react';
 import AdminSidebar from './AdminSidebar';
 import { adminAxios } from '../../axios/AdminAxios';
 import { useSelector } from 'react-redux';
@@ -9,6 +9,7 @@ const PaymentHistory = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [typeFilter, setTypeFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [count, setCount] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -24,6 +25,7 @@ const PaymentHistory = () => {
           params: {
             status: statusFilter !== 'All Status' ? statusFilter.toLowerCase() : undefined,
             search: searchTerm || undefined,
+            type: typeFilter !== 'All' ? typeFilter.toLowerCase() : undefined,
             page: currentPage
           }
         });
@@ -32,7 +34,7 @@ const PaymentHistory = () => {
         setCount(response.data?.count || 0);
       } catch (err) {
         console.error('Error fetching payments', err);
-        setPayments([]); // prevent null state
+        setPayments([]);
         setCount(0);
       } finally {
         setLoading(false);
@@ -40,7 +42,7 @@ const PaymentHistory = () => {
     };
 
     fetchPayments();
-  }, [searchTerm, statusFilter, currentPage]);
+  }, [searchTerm, statusFilter, typeFilter, currentPage]);
 
   const getStatusColor = (status = '') => {
     switch (status.toLowerCase()) {
@@ -65,13 +67,13 @@ const PaymentHistory = () => {
     }
   };
 
-  const totalAmount = (payments || []).reduce(
+  const totalAmount = payments.reduce(
     (sum, payment) => payment.payment_status === 'success' ? sum + parseFloat(payment.amount || 0) : sum, 0
   );
 
-  const completedPayments = (payments || []).filter(p => p.payment_status === 'success').length;
-  const pendingPayments = (payments || []).filter(p => p.payment_status === 'pending').length;
-  const failedPayments = (payments || []).filter(p => p.payment_status === 'failed').length;
+  const completedPayments = payments.filter(p => p.payment_status === 'success').length;
+  const pendingPayments = payments.filter(p => p.payment_status === 'pending').length;
+  const failedPayments = payments.filter(p => p.payment_status === 'failed').length;
 
   const totalPages = Math.ceil(count / pageSize);
 
@@ -90,7 +92,7 @@ const PaymentHistory = () => {
                 </button>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Payment History</h1>
-                  <p className="text-gray-600 mt-1">All payments including emergency & scheduled consultations</p>
+                  <p className="text-gray-600 mt-1">Normal & Emergency Consultation Payments</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
@@ -104,7 +106,6 @@ const PaymentHistory = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white p-6 rounded-xl shadow-sm border flex justify-between items-center">
               <div>
@@ -136,7 +137,6 @@ const PaymentHistory = () => {
             </div>
           </div>
 
-          {/* Filters */}
           <div className="bg-white p-6 rounded-xl shadow-sm border mb-6 flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0">
             <div className="flex space-x-4 w-full lg:w-auto">
               <div className="relative w-full max-w-sm">
@@ -162,11 +162,20 @@ const PaymentHistory = () => {
                   <option>Failed</option>
                 </select>
               </div>
+              <div className="relative">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
+                  className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option>All</option>
+                  <option>Normal</option>
+                  <option>Emergency</option>
+                </select>
+              </div>
             </div>
-           
           </div>
 
-          {/* Table */}
           <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
             <table className="w-full min-w-[1000px]">
               <thead className="bg-gray-50 border-b">
@@ -179,14 +188,13 @@ const PaymentHistory = () => {
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-600">METHOD</th>
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-600">DATE & TIME</th>
                   <th className="text-left py-3 px-6 text-sm font-semibold text-gray-600">STATUS</th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="9" className="py-8 text-center text-gray-400">Loading...</td></tr>
-                ) : (payments || []).length === 0 ? (
-                  <tr><td colSpan="9" className="py-8 text-center text-gray-400">No transactions found.</td></tr>
+                  <tr><td colSpan="8" className="py-8 text-center text-gray-400">Loading...</td></tr>
+                ) : payments.length === 0 ? (
+                  <tr><td colSpan="8" className="py-8 text-center text-gray-400">No transactions found.</td></tr>
                 ) : (
                   payments.map((payment, index) => (
                     <tr key={payment.id} className="border-b hover:bg-gray-50">
@@ -210,7 +218,7 @@ const PaymentHistory = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-6">{payment.doctor_name}</td>
+                      <td className="py-4 px-6">{payment.doctor_name || 'N/A'}</td>
                       <td className="py-4 px-6 font-semibold">Rs.{parseFloat(payment.amount || 0).toFixed(2)}</td>
                       <td className="py-4 px-6 flex items-center space-x-2">
                         {getPaymentMethodIcon(payment.payment_method)}
@@ -232,7 +240,6 @@ const PaymentHistory = () => {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="mt-6 flex justify-between items-center">
             <p className="text-sm text-gray-600">Showing {Math.min(count, pageSize * currentPage)} of {count} results</p>
             <div className="flex space-x-2">

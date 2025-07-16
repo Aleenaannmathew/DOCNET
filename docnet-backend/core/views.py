@@ -6,6 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.conf import settings
 from django.utils import timezone
+from itertools import chain
 from collections import OrderedDict
 from rest_framework.pagination import PageNumberPagination
 from django.db.models.functions import TruncMonth
@@ -15,7 +16,7 @@ from django.shortcuts import get_object_or_404
 from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer, AdminAppointmentListSerializer
 from accounts.models import User, PatientProfile,Appointment,Payment,DoctorReport
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
-from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer,DoctorReports
+from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer,DoctorReports,UnifiedPaymentSerializer
 from rest_framework_simplejwt.exceptions import TokenError
 from django.db.models import Count, Sum, Q, F
 from rest_framework.decorators import api_view, permission_classes
@@ -423,24 +424,39 @@ class AdminPaymentHistoryAPIView(APIView):
         status = request.query_params.get('status')
         search = request.query_params.get('search')
 
-        queryset = Payment.objects.select_related('patient', 'slot__doctor__user').all()
-
+        # Normal payments
+        normal_qs = Payment.objects.select_related('patient', 'slot__doctor__user').all()
         if status:
-            queryset = queryset.filter(payment_status=status.lower())
-
+            normal_qs = normal_qs.filter(payment_status=status.lower())
         if search:
-            queryset = queryset.filter(
+            normal_qs = normal_qs.filter(
                 Q(patient__username__icontains=search) |
                 Q(payment_id__icontains=search) |
                 Q(slot__doctor__user__username__icontains=search)
             )
 
-        queryset = queryset.order_by('-timestamp')
+        # Emergency payments
+        emergency_qs = EmergencyPayment.objects.select_related('patient', 'doctor__user').all()
+        if status:
+            emergency_qs = emergency_qs.filter(payment_status=status.lower())
+        if search:
+            emergency_qs = emergency_qs.filter(
+                Q(patient__username__icontains=search) |
+                Q(payment_id__icontains=search) |
+                Q(doctor__user__username__icontains=search)
+            )
 
-       
+        # Merge both
+        combined = sorted(
+            chain(normal_qs, emergency_qs),
+            key=lambda x: x.timestamp,
+            reverse=True
+        )
+
+        # Paginate manually
         paginator = StandardResultsSetPagination()
-        page = paginator.paginate_queryset(queryset, request)
-        serializer = PaymentListSerializer(page, many=True)
+        page = paginator.paginate_queryset(combined, request)
+        serializer = UnifiedPaymentSerializer(page, many=True)
 
         return paginator.get_paginated_response(serializer.data)
     

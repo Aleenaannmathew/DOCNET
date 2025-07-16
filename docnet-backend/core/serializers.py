@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from doctor.models import DoctorProfile, DoctorSlot, Wallet
-from accounts.models import User, PatientProfile, Payment,Appointment,DoctorReport
+from accounts.models import User, PatientProfile, Payment,Appointment,DoctorReport,EmergencyPayment
 
 
 User = get_user_model()
@@ -174,7 +174,41 @@ class PaymentListSerializer(serializers.ModelSerializer):
         ]
 
     def get_type(self, obj):
-        return "Consultation"   
+        return "Consultation"  
+
+class UnifiedPaymentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    payment_id = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+    payment_method = serializers.CharField()
+    date = serializers.DateTimeField(source='timestamp', format='%b %d, %Y')
+    time = serializers.DateTimeField(source='timestamp', format='%I:%M %p')
+    type = serializers.SerializerMethodField()
+    patient_name = serializers.SerializerMethodField()
+    patient_id = serializers.SerializerMethodField()
+    patient_avatar = serializers.SerializerMethodField()
+    doctor_name = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return "Emergency" if isinstance(obj, EmergencyPayment) else "Consultation"
+
+    def get_patient_name(self, obj):
+        return obj.patient.username
+
+    def get_patient_id(self, obj):
+        return obj.patient.id
+
+    def get_patient_avatar(self, obj):
+        return obj.patient.profile_image
+
+    def get_doctor_name(self, obj):
+        if isinstance(obj, Payment):
+            return obj.slot.doctor.user.username if obj.slot and obj.slot.doctor else None
+        elif isinstance(obj, EmergencyPayment):
+            return obj.doctor.user.username
+        return None
+
 
 class DoctorEarningsSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.user.username')

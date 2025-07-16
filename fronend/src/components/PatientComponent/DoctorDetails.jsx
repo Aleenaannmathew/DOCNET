@@ -216,6 +216,7 @@ function DoctorDetailPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [hasConsulted, setHasConsulted] = useState(false);
 
 
   // Fetch doctor details
@@ -234,6 +235,20 @@ function DoctorDetailPage() {
 
     fetchDoctorDetails();
   }, [slug]);
+
+  useEffect(() => {
+    const checkConsultationStatus = async () => {
+      if (!user || !doctor?.username) return;
+      try {
+        const response = await userAxios.get(`/doctors/${doctor.username}/has-consulted/`);
+        setHasConsulted(response.data.has_consulted);
+      } catch (error) {
+        console.error('Error checking consultation status:', error);
+      }
+    };
+
+    checkConsultationStatus();
+  }, [user, doctor]);
 
   const handleSubmitReview = async () => {
     if (reviewRating === 0 || appointmentReason.trim() === '') {
@@ -434,18 +449,18 @@ function DoctorDetailPage() {
   };
 
   const handleSubmitReport = async () => {
-  try {
-    await userAxios.post(`/doctor-reports/${doctor.username}/submit/`, {
-      reason: reportReason
-    });
-    toast.success('Report submitted successfully.');
-    setShowReportModal(false);
-    setReportReason('');
-  } catch (error) {
-    toast.error('Failed to submit report. Please try again.');
-    console.error(error);
-  }
-};
+    try {
+      await userAxios.post(`/doctor-reports/${doctor.username}/submit/`, {
+        reason: reportReason
+      });
+      toast.success('Report submitted successfully.');
+      setShowReportModal(false);
+      setReportReason('');
+    } catch (error) {
+      toast.error('Failed to submit report. Please try again.');
+      console.error(error);
+    }
+  };
 
   const renderStars = (rating) => {
     const fullStars = Math.floor(rating);
@@ -723,7 +738,7 @@ function DoctorDetailPage() {
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold mb-8 text-gray-900">Patient Reviews</h2>
 
-                {user && (
+                {user && hasConsulted && (
                   <div className="mb-8 bg-gray-50 p-6 rounded-xl border border-gray-200">
                     <h4 className="text-lg font-semibold mb-4 text-gray-900">Submit a Review</h4>
 
@@ -757,6 +772,12 @@ function DoctorDetailPage() {
                       {submittingReview ? 'Submitting...' : 'Submit Review'}
                     </button>
                   </div>
+                )}
+
+                {user && !hasConsulted && (
+                  <p className="text-sm text-gray-500 mb-6">
+                    Only patients who have consulted with this doctor can leave a review.
+                  </p>
                 )}
 
 
