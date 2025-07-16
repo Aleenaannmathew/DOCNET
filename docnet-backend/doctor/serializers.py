@@ -166,22 +166,23 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source='user.username')
     email = serializers.ReadOnlyField(source='user.email')
     phone = serializers.ReadOnlyField(source='user.phone')
-    prefer_24hr_consultation = serializers.BooleanField()
-    emergency_status = serializers.BooleanField()
     profile_image = serializers.ReadOnlyField(source='user.profile_image')
     is_verified = serializers.ReadOnlyField(source='user.is_verified')
     role = serializers.ReadOnlyField(source='user.role')
+    certificate = serializers.CharField(required=False, allow_null=True)
 
     class Meta:
         model = DoctorProfile
         fields = [
-            'user_id', 'slug', 'username', 'email', 'phone', 'prefer_24hr_consultation', 
-            'emergency_status', 'profile_image', 'registration_id', 'hospital', 
-            'specialization', 'languages', 'age', 'gender', 'experience', 
-            'is_approved', 'is_verified', 'role'
+            'user_id', 'slug', 'username', 'email', 'phone',
+            'prefer_24hr_consultation', 'emergency_status', 'profile_image',
+            'registration_id', 'hospital', 'specialization', 'languages',
+            'age', 'gender', 'experience', 'location', 'is_approved',
+            'is_verified', 'role', 'certificate'
         ]
-        read_only_fields = ['registration_id', 'specialization', 'is_approved']
-
+        read_only_fields = [
+            'registration_id', 'specialization', 'is_approved'
+        ]
 
 class DoctorProfileUpdateSerializer(serializers.Serializer):
  
@@ -190,7 +191,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     profile_image = serializers.ImageField(required=False, allow_null=True)
     
-    
+    certificate = serializers.URLField(required=False, allow_null=True)
     hospital = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
     languages = serializers.CharField(required=False, allow_blank=True, default='English', max_length=255)
     location = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
@@ -235,15 +236,24 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
             except Exception as e:
                 raise serializers.ValidationError(f"Image upload failed: {str(e)}")
         
-      
-        for attr, value in self.validated_data.items():
-            if attr in ['username', 'email', 'phone']:
-                setattr(user, attr, value)
+        certificate_file = self.validated_data.pop('certificate', None)
+        if certificate_file:
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    certificate_file,
+                    folder="doctor_certificates",
+                    resource_type="raw"  
+                )
+                doctor_profile.certificate = upload_result['secure_url']
+            except Exception as e:
+                raise serializers.ValidationError(f"Certificate upload failed: {str(e)}")
+            
+        for attr in ['username', 'email', 'phone']:
+            if attr in self.validated_data:
+                setattr(user, attr, self.validated_data[attr])
         
         
-        profile_fields = ['hospital', 'languages','location', 'age', 'gender', 'experience']
-        
-        for field in profile_fields:
+        for field in ['hospital', 'languages', 'location', 'age', 'gender', 'experience']:
             if field in self.validated_data:
                 setattr(doctor_profile, field, self.validated_data[field])
             
@@ -267,6 +277,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
                 'age': doctor_profile.age,
                 'gender': doctor_profile.gender,
                 'experience': doctor_profile.experience,
+                'certificate': doctor_profile.certificate,
                 'is_approved': doctor_profile.is_approved
             }
         }

@@ -5,10 +5,10 @@ import * as Yup from 'yup';
 import { doctorAxios } from '../../axios/DoctorAxios';
 import { ToastContainer, toast } from 'react-toastify';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Camera, Save, X, ChevronDown, ChevronRight, CheckCircle, FileText, 
-  User, Lock, Calendar, Stethoscope, Clipboard, Bell, HelpCircle, 
-  LogOut, Search, Edit3, Shield, Award, MapPin, Globe, Clock, 
+import {
+  Camera, Save, X, ChevronDown, ChevronRight, CheckCircle, FileText,
+  User, Lock, Calendar, Stethoscope, Clipboard, Bell, HelpCircle,
+  LogOut, Search, Edit3, Shield, Award, MapPin, Globe, Clock,
   Phone, Mail, Building2, Languages, Users, Heart,
   MapPinHouseIcon
 } from 'lucide-react';
@@ -25,9 +25,10 @@ const Settings = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('Profile Information');
   const [isEditing, setIsEditing] = useState(false);
-  
+
   const [profileImage, setProfileImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [certificate, setCertificate] = useState(null);
   const [certificatePreview, setCertificatePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -41,25 +42,25 @@ const Settings = () => {
     username: Yup.string()
       .min(3, 'Username must be at least 3 characters')
       .required('Username is required'),
-    
+
     email: Yup.string()
       .email('Please enter a valid email address')
       .required('Email is required'),
-    
+
     phone: Yup.string()
       .matches(/^[0-9+\-\s()]{7,15}$/, 'Please enter a valid phone number')
       .nullable(),
-    
+
     hospital: Yup.string()
       .max(100, 'Hospital name must be less than 100 characters')
       .nullable(),
-    
+
     languages: Yup.string()
       .required('Please select a language'),
 
     location: Yup.string()
       .required('Please add your location'),
-    
+
     age: Yup.number()
       .integer('Age must be a whole number')
       .min(21, 'Age must be at least 21')
@@ -68,11 +69,11 @@ const Settings = () => {
       .transform((value, originalValue) => {
         return originalValue === '' ? null : value;
       }),
-    
+
     gender: Yup.string()
       .oneOf(['male', 'female', 'other', 'prefer not to say'], 'Please select a valid gender')
       .nullable(),
-    
+
     experience: Yup.number()
       .integer('Experience must be a whole number')
       .min(0, 'Experience cannot be negative')
@@ -120,7 +121,7 @@ const Settings = () => {
     { value: 'prefer not to say', label: 'Prefer not to say' }
   ];
 
-  // Initialize preview image
+  
   useEffect(() => {
     if (user) {
       setPreviewImage(user.profile_image || null);
@@ -130,7 +131,7 @@ const Settings = () => {
     }
   }, [user]);
 
-  // Fetch detailed doctor profile data
+  
   useEffect(() => {
     if (user && token && !profileFetched && !loading) {
       fetchDoctorDetails();
@@ -141,7 +142,8 @@ const Settings = () => {
     try {
       setLoading(true);
       const response = await doctorAxios.get('doctor-profile/');
-      
+      console.log(response.data)
+
       if (response.data) {
         const mergedData = {
           ...response.data,
@@ -152,7 +154,7 @@ const Settings = () => {
           gender: response.data.gender || '',
           experience: response.data.experience || '',
         };
-        
+
         dispatch(updateUser({
           ...user,
           ...mergedData,
@@ -166,7 +168,7 @@ const Settings = () => {
           setCertificatePreview(response.data.certificate);
         }
       }
-      
+
       setProfileFetched(true);
     } catch (err) {
       console.error('Error fetching doctor details:', err);
@@ -193,7 +195,7 @@ const Settings = () => {
   // File validation functions
   const validateProfileImage = (file) => {
     if (!file) return null;
-    
+
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
       return 'Please select a valid image file (JPEG, PNG, or GIF)';
@@ -206,7 +208,7 @@ const Settings = () => {
 
   const validateCertificate = (file) => {
     if (!file) return null;
-    
+
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
       return 'Please select a valid certificate file (PDF, JPEG, or PNG)';
@@ -225,7 +227,7 @@ const Settings = () => {
         toast.error(error);
         return;
       }
-      
+
       setProfileImage(file);
       setPreviewImage(URL.createObjectURL(file));
     }
@@ -239,7 +241,7 @@ const Settings = () => {
         toast.error(error);
         return;
       }
-      
+      setCertificate(file);
       setCertificatePreview(file.name);
     }
   };
@@ -254,73 +256,77 @@ const Settings = () => {
   };
 
   const handleSubmit = async (values, { setSubmitting, setFieldError }) => {
-  
-  try {
-    setLoading(true);
-    
-    if (profileImage) {
-      const imageError = validateProfileImage(profileImage);
-      if (imageError) {
-        toast.error(imageError);
-        setSubmitting(false);
-        setLoading(false);
-        return;
+
+    try {
+      setLoading(true);
+
+      if (profileImage) {
+        const imageError = validateProfileImage(profileImage);
+        if (imageError) {
+          toast.error(imageError);
+          setSubmitting(false);
+          setLoading(false);
+          return;
+        }
       }
-    }
-    
-    const formDataToSend = new FormData();
-    
-    Object.keys(values).forEach(key => {
-      if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
-        formDataToSend.append(key, values[key]);
-      }
-    });
-    
-    if (profileImage) {
-      formDataToSend.append('profile_image', profileImage);
-    }
-    
-    const response = await doctorAxios.put('doctor-profile/update', formDataToSend, {
-      headers: { 
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    
-    
-    if (response.data) {
-      dispatch(updateUser(response.data));
-      toast.success('Profile updated successfully!');
-      setIsEditing(false);
-      setCertificatePreview(response.data.doctor_profile?.certificate || null);
-    }
-  } catch (err) {
-    console.error('Error updating profile:', err);
-    console.error('Error response:', err.response);
-    
-    if (err.response?.data && typeof err.response.data === 'object') {
-      Object.keys(err.response.data).forEach(field => {
-        if (err.response.data[field]) {
-          setFieldError(field, err.response.data[field][0] || err.response.data[field]);
+
+      const formDataToSend = new FormData();
+
+      Object.keys(values).forEach(key => {
+        if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
+          formDataToSend.append(key, values[key]);
         }
       });
-    } else {
-      toast.error(`Failed to update profile: ${err.response?.data?.detail || err.message}`);
+
+      if (profileImage) {
+        formDataToSend.append('profile_image', profileImage);
+      }
+
+      if (certificate) {
+        formDataToSend.append('certificate', certificate);
+      }
+
+      const response = await doctorAxios.put('doctor-profile/update', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      console.log(response.data)
+      if (response.data) {
+        dispatch(updateUser(response.data));
+        toast.success('Profile updated successfully!');
+        setIsEditing(false);
+        setCertificatePreview(response.data.doctor_profile?.certificate || null);
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      console.error('Error response:', err.response);
+
+      if (err.response?.data && typeof err.response.data === 'object') {
+        Object.keys(err.response.data).forEach(field => {
+          if (err.response.data[field]) {
+            setFieldError(field, err.response.data[field][0] || err.response.data[field]);
+          }
+        });
+      } else {
+        toast.error(`Failed to update profile: ${err.response?.data?.detail || err.message}`);
+      }
+    } finally {
+      setLoading(false);
+      setSubmitting(false);
     }
-  } finally {
-    setLoading(false);
-    setSubmitting(false);
-  }
-};
+  };
 
   const toggleEditMode = () => {
     setIsEditing(!isEditing);
-    
+
     if (isEditing) {
       if (previewImage && previewImage.startsWith('blob:')) {
         URL.revokeObjectURL(previewImage);
       }
       setProfileImage(null);
       setPreviewImage(user.profile_image || null);
+      setCertificate(null);
       setCertificatePreview(user.doctor_profile?.certificate || null);
     }
   };
@@ -366,19 +372,19 @@ const Settings = () => {
         theme="light"
         className="mt-20"
       />
-      
+
       {showSuccess && (
         <div className="fixed top-4 right-4 z-50 bg-emerald-500 text-white px-6 py-4 rounded-xl shadow-lg flex items-center space-x-3">
           <CheckCircle className="h-5 w-5" />
           <span className="font-medium">{successMessage}</span>
         </div>
       )}
-      
+
       {/* Modern Header */}
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        <DocSidebar/>
+        <DocSidebar />
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
@@ -388,9 +394,9 @@ const Settings = () => {
               <div className="flex flex-col lg:flex-row items-center justify-between">
                 <div className="flex items-center mb-4 lg:mb-0">
                   <div className="relative mr-6">
-                    <img 
-                      src={getProfileImageUrl()} 
-                      alt={user.username} 
+                    <img
+                      src={getProfileImageUrl()}
+                      alt={user.username}
                       className="w-20 h-20 rounded-2xl object-cover border-4 border-white/20"
                     />
                     {isEditing && (
@@ -476,7 +482,7 @@ const Settings = () => {
                           <p className="text-gray-500">Manage your personal details</p>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Username</label>
@@ -486,9 +492,8 @@ const Settings = () => {
                               name="username"
                               type="text"
                               disabled={!isEditing}
-                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                                errors.username && touched.username ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${errors.username && touched.username ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                             />
                           </div>
                           <ErrorMessage name="username" component="p" className="mt-2 text-sm text-red-600" />
@@ -502,9 +507,8 @@ const Settings = () => {
                               name="email"
                               type="email"
                               disabled={!isEditing}
-                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                                errors.email && touched.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${errors.email && touched.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                             />
                           </div>
                           <ErrorMessage name="email" component="p" className="mt-2 text-sm text-red-600" />
@@ -518,9 +522,8 @@ const Settings = () => {
                               name="phone"
                               type="tel"
                               disabled={!isEditing}
-                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                                errors.phone && touched.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${errors.phone && touched.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                             />
                           </div>
                           <ErrorMessage name="phone" component="p" className="mt-2 text-sm text-red-600" />
@@ -530,14 +533,14 @@ const Settings = () => {
                     <div className="p-8 border-b border-gray-100">
                       <div className="flex items-center mb-6">
                         <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
-                                                   <Stethoscope className="w-6 h-6 text-blue-600" />
+                          <Stethoscope className="w-6 h-6 text-blue-600" />
                         </div>
                         <div>
                           <h3 className="text-xl font-bold text-gray-900">Professional Information</h3>
                           <p className="text-gray-500">Your medical practice details</p>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Hospital/Clinic</label>
@@ -547,9 +550,8 @@ const Settings = () => {
                               name="hospital"
                               type="text"
                               disabled={!isEditing}
-                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                                errors.hospital && touched.hospital ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${errors.hospital && touched.hospital ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                             />
                           </div>
                           <ErrorMessage name="hospital" component="p" className="mt-2 text-sm text-red-600" />
@@ -563,9 +565,8 @@ const Settings = () => {
                               <Field
                                 name="languages"
                                 as="select"
-                                className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none ${
-                                  errors.languages && touched.languages ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                                }`}
+                                className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none ${errors.languages && touched.languages ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                  }`}
                               >
                                 {languageOptions.map(lang => (
                                   <option key={lang} value={lang}>{lang}</option>
@@ -579,7 +580,7 @@ const Settings = () => {
                           </div>
                           <ErrorMessage name="languages" component="p" className="mt-2 text-sm text-red-600" />
                         </div>
-                        
+
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
                           <div className="relative">
@@ -588,9 +589,8 @@ const Settings = () => {
                               name="location"
                               type="text"
                               disabled={!isEditing}
-                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                                errors.location && touched.location ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${errors.location && touched.location ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                             />
                           </div>
                           <ErrorMessage name="location" component="p" className="mt-2 text-sm text-red-600" />
@@ -607,9 +607,8 @@ const Settings = () => {
                               disabled={!isEditing}
                               min="0"
                               max="60"
-                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                                errors.experience && touched.experience ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${errors.experience && touched.experience ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                             />
                           </div>
                           <ErrorMessage name="experience" component="p" className="mt-2 text-sm text-red-600" />
@@ -628,7 +627,7 @@ const Settings = () => {
                           <p className="text-gray-500">Your personal details</p>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Age</label>
@@ -639,9 +638,8 @@ const Settings = () => {
                               disabled={!isEditing}
                               min="21"
                               max="80"
-                              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${
-                                errors.age && touched.age ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                              } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 ${errors.age && touched.age ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                } ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
                             />
                           </div>
                           <ErrorMessage name="age" component="p" className="mt-2 text-sm text-red-600" />
@@ -654,9 +652,8 @@ const Settings = () => {
                               <Field
                                 name="gender"
                                 as="select"
-                                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none ${
-                                  errors.gender && touched.gender ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                                }`}
+                                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none ${errors.gender && touched.gender ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                  }`}
                               >
                                 {genderOptions.map(option => (
                                   <option key={option.value} value={option.value}>{option.label}</option>
@@ -684,7 +681,7 @@ const Settings = () => {
                           <p className="text-gray-500">Your professional credentials</p>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">Registration ID</label>
@@ -747,7 +744,7 @@ const Settings = () => {
                           <p className="text-gray-500">Upload your professional license</p>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-4">
                         {certificatePreview && (
                           <div className="flex items-center space-x-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
@@ -755,11 +752,20 @@ const Settings = () => {
                               <FileText size={28} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {typeof certificatePreview === 'string' 
-                                  ? certificatePreview.split('/').pop() 
-                                  : certificatePreview.name}
-                              </p>
+                              {typeof certificatePreview === 'string' ? (
+                                <a
+                                  href={certificatePreview}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-medium text-indigo-600 hover:underline"
+                                >
+                                  {certificatePreview.split('/').pop()}
+                                </a>
+                              ) : (
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {certificatePreview.name}
+                                </p>
+                              )}
                               <p className="text-sm text-gray-500">Medical License/Certificate</p>
                             </div>
                             {isEditing && (
@@ -790,8 +796,8 @@ const Settings = () => {
                                 />
                               </label>
                               <span className="text-sm text-gray-500">
-                                {certificatePreview && typeof certificatePreview === 'object' 
-                                  ? certificatePreview.name 
+                                {certificatePreview && typeof certificatePreview === 'object'
+                                  ? certificatePreview.name
                                   : 'PDF, JPG, or PNG (max 10MB)'}
                               </span>
                             </div>
@@ -813,9 +819,8 @@ const Settings = () => {
                         <button
                           type="submit"
                           disabled={isSubmitting}
-                          className={`bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-medium flex items-center space-x-2 transition-all duration-200 ${
-                            isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
-                          }`}
+                          className={`bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-medium flex items-center space-x-2 transition-all duration-200 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                            }`}
                         >
                           {isSubmitting ? (
                             <>

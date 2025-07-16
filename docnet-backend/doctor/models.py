@@ -17,7 +17,7 @@ class DoctorProfile(models.Model):
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='doctor_profile')
     registration_id = models.CharField(max_length=50, unique=True, db_index=True)
-    certificate = models.FileField(upload_to='doctor_certificates/', blank=True, null=True)
+    certificate = models.URLField(max_length=500, blank=True, null=True)
     hospital = models.CharField(max_length=255, blank=True, null=True)
     languages = models.CharField(max_length=255, default='English')
     age = models.PositiveIntegerField(
