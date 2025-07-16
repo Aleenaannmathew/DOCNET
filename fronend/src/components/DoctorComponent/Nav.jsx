@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { FaBars, FaTimes, FaUserMd, FaColumns, FaStethoscope, FaUserCircle, FaSignOutAlt } from 'react-icons/fa'
 import { useSelector, useDispatch } from 'react-redux'
 import { Link, useNavigate } from 'react-router-dom'
+import { logout } from '../../store/authSlice'
 
 const ProfessionalNav = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -13,10 +14,16 @@ const ProfessionalNav = () => {
   const isDoctorApproved = isDoctorAuthenticated && user?.doctor_profile?.is_approved
   const dashboardPath = isDoctorApproved ? '/doctor/dashboard' : '/doctor/pending-approval'
 
-  const handleLogout = () => {
-    dispatch({ type: 'LOGOUT' }) // Change this to your actual logout action
-    navigate('/doctor/doctor-login')
-  }
+  const handleLogout = async () => {
+      try {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
+        dispatch(logout())
+        navigate('/doctor-login')
+      } catch (error) {
+        console.error('Logout error:', error)
+      }
+    }
 
   return (
     <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-2xl sticky top-0 z-50 border-b border-emerald-500/20">
@@ -47,12 +54,7 @@ const ProfessionalNav = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {['About', 'Benefits', 'Features', 'Testimonials', 'FAQ'].map((item) => (
-              <a key={item} href={`/doctor/${item.toLowerCase()}`} className="relative px-4 py-2 text-slate-300 hover:text-white font-medium transition-all duration-300 group">
-                <span className="relative z-10">{item}</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </a>
-            ))}
+
 
             {isDoctorAuthenticated ? (
               <>
@@ -99,16 +101,7 @@ const ProfessionalNav = () => {
       {/* Mobile Menu */}
       <div className={`md:hidden transition-all duration-300 ${isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <div className="px-4 pt-2 pb-4 space-y-2 bg-gradient-to-b from-slate-800 to-slate-900 border-t border-emerald-500/20">
-          {['About', 'Benefits', 'Features', 'Testimonials', 'FAQ'].map((item) => (
-            <a
-              key={item}
-              href={`/doctor/${item.toLowerCase()}`}
-              className="block px-4 py-3 text-slate-300 hover:text-white hover:bg-gradient-to-r hover:from-emerald-500/10 hover:to-blue-500/10 rounded-lg font-medium transition-all duration-300"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              {item}
-            </a>
-          ))}
+          
 
           <div className="pt-4 flex flex-col space-y-3">
             {isDoctorAuthenticated ? (

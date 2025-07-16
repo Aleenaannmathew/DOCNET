@@ -10,13 +10,13 @@ const GoogleAuthButton = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const handleGoogleLoginSuccess = async (tokenResponse) => {
+    const handleGoogleLoginSuccess = async (codeResponse) => {
         try {
-            if (!tokenResponse || !tokenResponse.access_token) {
-                throw new Error ('Invalid Google token response');
+            if (!codeResponse || !codeResponse.code) {
+                throw new Error('Authorization code not found in Google response');
             }
             const response = await doctorAxios.post('google-login-doctor/', {
-                token: tokenResponse.access_token
+                code: codeResponse.code
             });
 
             const data = response.data;
@@ -43,12 +43,10 @@ const GoogleAuthButton = () => {
     };
 
     const googleLogin = useGoogleLogin({
-        onSuccess: handleGoogleLoginSuccess,
-        onError: () => console.log('Google Login Failed'),
-        flow: 'implicit',
-        scope: 'openid profile email',
-        responseType: 'id_token',
-    });
+            onSuccess: handleGoogleLoginSuccess,
+            flow: 'auth-code', 
+            
+        });
 
     return(
         <button

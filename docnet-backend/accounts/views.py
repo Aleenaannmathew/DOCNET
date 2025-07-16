@@ -121,7 +121,7 @@ class VerifyOTPView(APIView):
             result = OTPManager.verify_otp(user, entered_otp, 'registration', expiry_minutes=1)
             
             if result['success']:
-                # Mark user as verified
+                
                 user.is_verified = True
                 user.save()
                 
@@ -479,6 +479,8 @@ class GoogleLoginView(APIView):
                 f'Authentication failed: {str(e)}',
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+        
  
 class UserLogoutView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1036,7 +1038,6 @@ class EmergencyConsultationConfirmationView(APIView):
         return payment
     
     def get(self, request, payment_id):
-        """Retrieve emergency consultation confirmation details"""
         payment = self.get_object(payment_id)
         
         if payment is None:
@@ -1049,7 +1050,6 @@ class EmergencyConsultationConfirmationView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, payment_id):
-        """Update consultation status (start, end consultation)"""
         payment = self.get_object(payment_id)
         
         if payment is None:
@@ -1071,7 +1071,6 @@ class EmergencyConsultationConfirmationView(APIView):
             )
     
     def _handle_start_consultation(self, payment):
-        """Handle starting the consultation"""
         if payment.consultation_started:
             return Response(
                 {"error": "Consultation already started"}, 
@@ -1095,7 +1094,6 @@ class EmergencyConsultationConfirmationView(APIView):
         }, status=status.HTTP_200_OK)
     
     def _handle_end_consultation(self, payment):
-        """Handle ending the consultation"""
         if not payment.consultation_started:
             return Response(
                 {"error": "Consultation has not been started yet"}, 
@@ -1134,7 +1132,8 @@ class ValidateChatAccessAPI(APIView):
             # Find a valid appointment
             appointment = Appointment.objects.get(
                 payment__slot__id=slot_id,
-                payment__payment_status='success'
+                payment__payment_status='success',
+                status='completed'
             )
 
             # Check if consultation is still valid

@@ -14,7 +14,7 @@ import {
 import React, { useState, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { logout } from '../../store/authSlice' // Removed updateEmergencyStatus import
+import { logout } from '../../store/authSlice' 
 import { doctorAxios } from '../../axios/DoctorAxios';
 
 function DocSidebar() {

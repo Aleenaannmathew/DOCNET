@@ -25,7 +25,6 @@ export default function DoctorOtpVerificationPage() {
   useEffect(() => {
     startTimer();
 
-    // Check for required state
     if (!email) {
       navigate(isPasswordReset ? '/doctor/doctor-reset-password' : '/doctor/register');
     }
@@ -42,12 +41,10 @@ export default function DoctorOtpVerificationPage() {
   }, [email, isPasswordReset, navigate]);
 
   const startTimer = () => {
-    // Clear any existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
 
-    // Start new timer
     timerRef.current = setInterval(() => {
       setRemainingTime(prev => {
         if (prev <= 1) {
@@ -87,7 +84,6 @@ export default function DoctorOtpVerificationPage() {
     setIsLoading(true);
     try {
       if (isPasswordReset) {
-        // Handle password reset OTP verification
         const response = await doctorAxios.post('/verify-password-reset-otp/', {
           email,
           otp: otpValue,
@@ -95,12 +91,10 @@ export default function DoctorOtpVerificationPage() {
         console.log('OTP Verification Response:', response.data);
 
         if (response.data.success) {
-          // Extract the reset_token from the response
           const resetToken = response.data.reset_token;
-          
+
           console.log("Navigating to reset password with token:", resetToken);
-          
-          // Navigate to the reset password page with the token
+
           navigate('/doctor/doctor-reset-password', {
             state: {
               email,
@@ -113,14 +107,12 @@ export default function DoctorOtpVerificationPage() {
           throw new Error(response.data.message || 'OTP verification failed');
         }
       } else {
-        // Handle registration OTP verification
         const response = await doctorAxios.post('/verify-otp/', {
           user_id: userId,
           otp: otpValue
         });
 
         if (response.data.success) {
-          // For registration flow, redirect to login with success message
           navigate('/doctor/doctor-login?verified=true', {
             replace: true
           });
@@ -129,7 +121,6 @@ export default function DoctorOtpVerificationPage() {
         }
       }
     } catch (error) {
-      // Clear OTP fields on error
       setOtp(['', '', '', '', '', '']);
       if (inputRefs.current[0]) {
         inputRefs.current[0].focus();
@@ -155,8 +146,8 @@ export default function DoctorOtpVerificationPage() {
       if (response.data.success) {
         setMessage('OTP resent successfully');
         setError('');
-        setRemainingTime(120); // Reset timer to 2 minutes
-        startTimer(); // Restart the timer
+        setRemainingTime(120);
+        startTimer();
       } else {
         throw new Error(response.data.message || 'Failed to resend OTP');
       }
@@ -181,7 +172,6 @@ export default function DoctorOtpVerificationPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 to-teal-100 p-4">
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
-        {/* Header */}
         <div className="bg-teal-700 px-6 py-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-white">
             <Key size={32} />
@@ -191,7 +181,6 @@ export default function DoctorOtpVerificationPage() {
           </h1>
         </div>
 
-        {/* Content */}
         <div className="p-6">
           <div className="mb-6 space-y-2 text-center">
             <p className="text-sm text-gray-600">
@@ -202,7 +191,6 @@ export default function DoctorOtpVerificationPage() {
             </p>
           </div>
 
-          {/* OTP Input */}
           <div className="mb-8 flex justify-center gap-2 sm:gap-4">
             {otp.map((digit, index) => (
               <input
@@ -219,7 +207,6 @@ export default function DoctorOtpVerificationPage() {
             ))}
           </div>
 
-          {/* Timer */}
           <div className="mb-4 text-center">
             {remainingTime > 0 ? (
               <div className="flex items-center justify-center space-x-2">
@@ -237,7 +224,6 @@ export default function DoctorOtpVerificationPage() {
             )}
           </div>
 
-          {/* Messages */}
           {message && (
             <div className="mt-4 mb-6 flex items-center rounded-lg bg-green-100 p-4 text-left text-sm text-green-800">
               <CheckCircle className="mr-3 h-5 w-5 flex-shrink-0" />
@@ -252,7 +238,6 @@ export default function DoctorOtpVerificationPage() {
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <button
               onClick={handleVerify}

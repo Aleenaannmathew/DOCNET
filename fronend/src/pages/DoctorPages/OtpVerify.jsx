@@ -1,4 +1,3 @@
-import React from 'react'
 import DoctorOtpVerificationPage from '../../components/DoctorComponent/Otp'
 
 function OtpVerify() {

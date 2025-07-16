@@ -631,13 +631,8 @@ export default function AppointmentDetails() {
                   <div className="mt-6 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                     {!isEmergency && appointmentData.status === 'scheduled' && (
                       <>
-                        <button className="flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                          <Calendar className="w-4 h-4" />
-                          <span>Reschedule</span>
-                        </button>
-                        <button className="flex items-center justify-center space-x-2 px-6 py-3 border border-red-300 text-red-700 rounded-lg hover:bg-red-50">
-                          <span>Cancel Appointment</span>
-                        </button>
+                        
+                        
                       </>
                     )}
                     {isEmergency && emergencyData.payment_status === 'pending' && (

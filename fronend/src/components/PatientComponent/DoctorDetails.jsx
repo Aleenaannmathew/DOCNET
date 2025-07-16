@@ -578,15 +578,6 @@ function DoctorDetailPage() {
                   </div>
 
                   <div className="flex items-center gap-6 mb-4">
-                    <div className="flex items-center gap-2">
-                      {renderStars(Math.floor(doctor.rating || 0))}
-                      <span className="font-semibold text-gray-900">
-                        {doctor.rating}
-                      </span>
-                      <span className="text-gray-500">
-                        ({doctor.totalReviews} reviews)
-                      </span>
-                    </div>
                     <div className="flex items-center text-gray-600">
                       <Award size={16} className="mr-1" />
                       <span className="font-medium">{doctor.experience} years exp.</span>

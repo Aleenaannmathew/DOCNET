@@ -345,17 +345,35 @@ class DoctorResetPasswordView(APIView):
 
 class GoogleLoginView(APIView):
     def post(self, request):
-        access_token = request.data.get('token')
+        code = request.data.get('code')  
 
-        if not access_token:
-            return ResponseManager.error_response('Access token is required')
-        
+        if not code:
+            return ResponseManager.error_response('Authorization code is required')
+
         try:
-            # Get user info from Google
+           
+            token_response = requests.post('https://oauth2.googleapis.com/token', data={
+                'code': code,
+                'client_id': settings.GOOGLE_CLIENT_ID,
+                'client_secret': settings.GOOGLE_CLIENT_SECRET,
+                'redirect_uri': 'postmessage',
+                'grant_type': 'authorization_code',
+            })
+
+            if token_response.status_code != 200:
+                return ResponseManager.error_response('Failed to exchange code for tokens.')
+
+            token_data = token_response.json()
+            access_token = token_data.get('access_token')
+
+            if not access_token:
+                return ResponseManager.error_response('Access token not received from Google.')
+
+           
             google_result = GoogleAuthManager.get_user_info(access_token)
             if not google_result['success']:
                 return ResponseManager.error_response(google_result['error'])
-            
+
             email = google_result['userinfo']['email']
 
             try:
@@ -366,27 +384,23 @@ class GoogleLoginView(APIView):
                     user.save()
 
                 if user.role != 'doctor':
-                    return ResponseManager.error_response(
-                        'This login is for doctors only'
-                    )
+                    return ResponseManager.error_response('This login is for doctor only.')
 
             except User.DoesNotExist:
-                # Create new doctor user
                 username = GoogleAuthManager.generate_unique_username(email)
-                
+
                 user = User.objects.create(
                     username=username,
                     email=email,
                     role='doctor',
                     is_verified=True
-                )          
-
+                )
                 DoctorProfile.objects.create(user=user)
 
-            # Generate JWT tokens
+            
             tokens = GoogleAuthManager.create_jwt_tokens(user)
 
-            # Check if profile is complete
+           
             try:
                 doctor_profile = DoctorProfile.objects.get(user=user)
                 is_profile_complete = doctor_profile.age is not None
@@ -875,7 +889,7 @@ class DoctorAnalyticsView(APIView):
         doctor = user.doctor_profile
         wallet = doctor.wallet.first()
 
-        # Handle doctors without wallets (probably no appointments yet)
+        
         if not wallet:
             return Response({
                 "wallet_balance": Decimal('0.00'),
