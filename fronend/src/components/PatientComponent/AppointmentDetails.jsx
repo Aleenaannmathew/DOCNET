@@ -18,8 +18,8 @@ export default function AppointmentDetails() {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { id } = useParams(); 
-  const {token} = useSelector((state)=>state.auth)
+  const { id } = useParams();
+  const { token } = useSelector((state) => state.auth)
   const [slotId, setSlotId] = useState('');
   const [isEmergency, setIsEmergency] = useState(false);
 
@@ -38,7 +38,7 @@ export default function AppointmentDetails() {
     const fetchAppointmentDetails = async () => {
       try {
         setLoading(true);
-        
+
         // First try to fetch as regular appointment
         try {
           const response = await userAxios.get(`appointment-details/${id}`);
@@ -49,7 +49,7 @@ export default function AppointmentDetails() {
           }
         } catch (error) {
         }
-        
+
         // If not a regular appointment, try emergency consultation
         const emergencyResponse = await userAxios.get(`emergency-consultation-details/${id}`);
         if (emergencyResponse.data) {
@@ -71,9 +71,13 @@ export default function AppointmentDetails() {
     }
   }, [id]);
 
-  
+  const handleDoctorClick = () => {
+  if (appointmentData?.doctor_info?.slug) {
+    navigate(`/doctor-details/${appointmentData.doctor_info.slug}`);
+  }
+};
 
-  
+
 
   const getProfileImageUrl = () => {
     if (user?.profile_image) return user.profile_image;
@@ -141,12 +145,12 @@ export default function AppointmentDetails() {
 
   const calculateTax = (amount) => {
     if (!amount) return '0.00';
-    return (parseFloat(amount) * 0.18).toFixed(2); 
+    return (parseFloat(amount) * 0.18).toFixed(2);
   };
 
   const calculateServiceFee = (amount) => {
     if (!amount) return '0.00';
-    return (parseFloat(amount) * 0.05).toFixed(2); 
+    return (parseFloat(amount) * 0.05).toFixed(2);
   };
 
   const calculateSubtotal = (amount) => {
@@ -173,7 +177,7 @@ export default function AppointmentDetails() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Appointment not found</p>
-          <button 
+          <button
             onClick={() => navigate('/appointments')}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
@@ -199,7 +203,7 @@ export default function AppointmentDetails() {
         className="z-50"
       />
       {/* Header */}
-      <Navbar/>
+      <Navbar />
 
       <div className="pt-24 pb-8 px-4">
         <div className="max-w-6xl mx-auto">
@@ -208,9 +212,9 @@ export default function AppointmentDetails() {
               <div className="flex flex-col sm:flex-row items-center mb-6 lg:mb-0">
                 <div className="relative mb-4 sm:mb-0 sm:mr-6">
                   {user?.profile_image ? (
-                    <img 
-                      src={getProfileImageUrl()} 
-                      alt={user.username} 
+                    <img
+                      src={getProfileImageUrl()}
+                      alt={user.username}
                       className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                     />
                   ) : (
@@ -289,12 +293,11 @@ export default function AppointmentDetails() {
                         </h1>
                         <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <span className="flex items-center space-x-1">
-                            <span className={`w-2 h-2 rounded-full ${
-                              (isEmergency ? emergencyData.payment_status : appointmentData.status) === 'scheduled' || 
-                              (isEmergency ? emergencyData.payment_status : appointmentData.status) === 'upcoming' ? 'bg-orange-500' : 
-                              (isEmergency ? emergencyData.payment_status : appointmentData.status) === 'completed' || 
-                              (isEmergency ? emergencyData.payment_status : appointmentData.status) === 'success' ? 'bg-green-500' : 'bg-red-500'
-                            }`}></span>
+                            <span className={`w-2 h-2 rounded-full ${(isEmergency ? emergencyData.payment_status : appointmentData.status) === 'scheduled' ||
+                                (isEmergency ? emergencyData.payment_status : appointmentData.status) === 'upcoming' ? 'bg-orange-500' :
+                                (isEmergency ? emergencyData.payment_status : appointmentData.status) === 'completed' ||
+                                  (isEmergency ? emergencyData.payment_status : appointmentData.status) === 'success' ? 'bg-green-500' : 'bg-red-500'
+                              }`}></span>
                             <span>{getStatusText(isEmergency ? emergencyData.payment_status : appointmentData.status)}</span>
                           </span>
                           <span>#{isEmergency ? emergencyData.payment_id : appointmentData.payment_id}</span>
@@ -308,7 +311,7 @@ export default function AppointmentDetails() {
                           <VideoCallButton slotId={appointmentData.slot_id} token={token} />
                         )}
                         {isEmergency && emergencyData.payment_status === 'success' && !emergencyData.consultation_started && (
-                          <button 
+                          <button
                             onClick={() => navigate(`/emergency-consultation/${emergencyData.id}`)}
                             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
                           >
@@ -316,7 +319,7 @@ export default function AppointmentDetails() {
                           </button>
                         )}
                         {isEmergency && emergencyData.consultation_started && !emergencyData.consultation_end_time && (
-                          <button 
+                          <button
                             onClick={() => navigate(`/emergency-consultation/${emergencyData.id}`)}
                             className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
                           >
@@ -332,31 +335,28 @@ export default function AppointmentDetails() {
                       <nav className="flex space-x-8">
                         <button
                           onClick={() => setActiveTab('details')}
-                          className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'details'
+                          className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'details'
                               ? 'border-blue-600 text-blue-600'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           {isEmergency ? 'Consultation Details' : 'Appointment Details'}
                         </button>
                         <button
                           onClick={() => setActiveTab('doctor')}
-                          className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'doctor'
+                          className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'doctor'
                               ? 'border-blue-600 text-blue-600'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           Doctor Information
                         </button>
                         <button
                           onClick={() => setActiveTab('payment')}
-                          className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'payment'
+                          className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'payment'
                               ? 'border-blue-600 text-blue-600'
                               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           Payment Details
                         </button>
@@ -388,8 +388,8 @@ export default function AppointmentDetails() {
                               <div>
                                 <p className="text-sm text-gray-500">Time</p>
                                 <p className="font-medium text-gray-900">
-                                  {isEmergency ? 
-                                    formatEmergencyTimeRange(emergencyData.consultation_start_time, emergencyData.consultation_end_time) : 
+                                  {isEmergency ?
+                                    formatEmergencyTimeRange(emergencyData.consultation_start_time, emergencyData.consultation_end_time) :
                                     formatTime(appointmentData.appointment_time)}
                                 </p>
                               </div>
@@ -493,7 +493,10 @@ export default function AppointmentDetails() {
                           <div className="flex-1">
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                               <div>
-                                <h3 className="text-xl font-bold text-gray-900">
+                                <h3
+                                  onClick={handleDoctorClick}
+                                  className="text-xl font-bold text-blue-700 hover:underline cursor-pointer"
+                                >
                                   Dr. {isEmergency ? emergencyData.doctor_name : appointmentData.doctor_info?.doctor_name}
                                 </h3>
                                 <p className="text-blue-600 font-medium">
@@ -541,24 +544,24 @@ export default function AppointmentDetails() {
                           <div className="flex justify-between">
                             <span className="text-gray-600">Consultation Fee</span>
                             <span className="font-medium">
-                              Rs. {isEmergency ? 
-                                calculateSubtotal(emergencyData.amount) : 
+                              Rs. {isEmergency ?
+                                calculateSubtotal(emergencyData.amount) :
                                 calculateSubtotal(appointmentData.payment_amount)}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Service Fee</span>
                             <span className="font-medium">
-                              Rs. {isEmergency ? 
-                                calculateServiceFee(emergencyData.amount) : 
+                              Rs. {isEmergency ?
+                                calculateServiceFee(emergencyData.amount) :
                                 calculateServiceFee(appointmentData.payment_amount)}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Tax</span>
                             <span className="font-medium">
-                              Rs. {isEmergency ? 
-                                calculateTax(emergencyData.amount) : 
+                              Rs. {isEmergency ?
+                                calculateTax(emergencyData.amount) :
                                 calculateTax(appointmentData.payment_amount)}
                             </span>
                           </div>
@@ -579,8 +582,8 @@ export default function AppointmentDetails() {
                           <CreditCard className="w-8 h-8 text-gray-400" />
                           <div>
                             <p className="font-medium text-gray-900">
-                              {isEmergency ? 
-                                (emergencyData.payment_method || 'Online Payment') : 
+                              {isEmergency ?
+                                (emergencyData.payment_method || 'Online Payment') :
                                 (appointmentData.payment_method || 'Online Payment')}
                             </p>
                             <p className="text-sm text-gray-500">Razorpay Payment Gateway</p>
@@ -592,7 +595,7 @@ export default function AppointmentDetails() {
                       <div className="bg-white rounded-xl shadow-sm p-6">
                         <div className="flex justify-between items-center mb-4">
                           <h3 className="text-lg font-semibold text-gray-900">Transaction Details</h3>
-                         
+
                         </div>
                         <div className="space-y-3">
                           <div className="flex justify-between">
@@ -615,10 +618,9 @@ export default function AppointmentDetails() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Payment Status</span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              (isEmergency ? emergencyData.payment_status : appointmentData.payment_status) === 'success' ? 
-                              'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(isEmergency ? emergencyData.payment_status : appointmentData.payment_status) === 'success' ?
+                                'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
                               {(isEmergency ? emergencyData.payment_status : appointmentData.payment_status) === 'success' ? 'Paid' : 'Failed'}
                             </span>
                           </div>
@@ -631,8 +633,8 @@ export default function AppointmentDetails() {
                   <div className="mt-6 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                     {!isEmergency && appointmentData.status === 'scheduled' && (
                       <>
-                        
-                        
+
+
                       </>
                     )}
                     {isEmergency && emergencyData.payment_status === 'pending' && (

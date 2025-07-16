@@ -490,6 +490,7 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
         return {
             'doctor_name': doctor_profile.user.username,
             'registration_id': doctor_profile.registration_id,
+            'slug': doctor_profile.slug,
             'hospital': doctor_profile.hospital,
             'specialization': doctor_profile.specialization,
             'experience': doctor_profile.experience,

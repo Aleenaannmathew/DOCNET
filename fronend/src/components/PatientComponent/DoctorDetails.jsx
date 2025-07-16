@@ -217,6 +217,7 @@ function DoctorDetailPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [hasConsulted, setHasConsulted] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
 
   // Fetch doctor details
@@ -601,15 +602,17 @@ function DoctorDetailPage() {
                 </div>
 
                 {/* 🚩 Report Icon on top-right */}
-                <div className="ml-4">
-                  <button
-                    onClick={() => setShowReportModal(true)}
-                    title="Report Doctor"
-                    className="text-red-600 hover:text-red-700 transition-colors"
-                  >
-                    <AlertCircle size={28} />
-                  </button>
-                </div>
+                {hasConsulted && (
+                  <div className="ml-4">
+                    <button
+                      onClick={() => setShowReportModal(true)}
+                      title="Report Doctor"
+                      className="text-red-600 hover:text-red-700 transition-colors"
+                    >
+                      <AlertCircle size={28} />
+                    </button>
+                  </div>
+                )}
               </div>
 
 
@@ -783,7 +786,7 @@ function DoctorDetailPage() {
 
                 {/* Review List */}
                 <div className="space-y-6">
-                  {reviews.length > 0 ? reviews.map((review) => (
+                  {(showAllReviews ? reviews : reviews.slice(0, 2)).map((review) => (
                     <div key={review.id} className="p-6 bg-gray-50 rounded-xl border border-gray-200">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
@@ -805,7 +808,20 @@ function DoctorDetailPage() {
                       </div>
                       <p className="text-gray-700 leading-relaxed">{review.comment}</p>
                     </div>
-                  )) : (
+                  ))}
+
+                  {reviews.length > 2 && (
+                    <div className="text-center mt-6">
+                      <button
+                        onClick={() => setShowAllReviews(!showAllReviews)}
+                        className="text-blue-600 hover:underline font-medium"
+                      >
+                        {showAllReviews ? 'Show Less Reviews' : 'Show All Reviews'}
+                      </button>
+                    </div>
+                  )}
+
+                  {reviews.length === 0 && (
                     <p className="text-gray-500 text-center py-8">No reviews available</p>
                   )}
                 </div>

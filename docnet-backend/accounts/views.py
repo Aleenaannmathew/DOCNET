@@ -788,19 +788,19 @@ class ValidateVideoCallAPI(APIView):
                 payment__payment_status='success'
             )
             
-            # slot = appointment.payment.slot
-            # slot_time = datetime.combine(slot.date, slot.start_time)
+            slot = appointment.payment.slot
+            slot_time = datetime.combine(slot.date, slot.start_time)
             
-            # slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            # start_window = slot_time - timedelta(minutes=15)
-            # end_window = slot_time + timedelta(minutes=slot.duration)
+            start_window = slot_time - timedelta(minutes=15)
+            end_window = slot_time + timedelta(minutes=slot.duration)
             
-            # if not (start_window <= now <= end_window):
-            #     return Response(
-            #         {"error": "Video call is only available during your scheduled time"},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
+            if not (start_window <= now <= end_window):
+                return Response(
+                    {"error": "Video call is only available during your scheduled time"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
                 
             return Response({
@@ -1331,13 +1331,36 @@ class SubmitDoctorReportView(APIView):
         if not reason:
             return Response({'reason': 'This field is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        patient = request.user
+
+        # Check if the patient had a completed consultation (normal)
+        appointment = Appointment.objects.filter(
+            payment__patient=patient,
+            payment__slot__doctor=doctor,
+            status='completed'
+        ).exists()
+
+        # Check if the patient had a completed emergency consultation
+        emergency = EmergencyPayment.objects.filter(
+            patient=patient,
+            doctor=doctor,
+            payment_status='success',
+            consultation_started=True,
+            consultation_end_time__isnull=False
+        ).exists()
+
+        if not appointment and not emergency:
+            return Response({'detail': 'You can only report doctors you have consulted with.'}, status=status.HTTP_403_FORBIDDEN)
+
+        
+        if DoctorReport.objects.filter(patient=patient, doctor=doctor).exists():
+            return Response({'detail': 'You have already reported this doctor.'}, status=status.HTTP_400_BAD_REQUEST)
+
         report = DoctorReport.objects.create(
-            patient=request.user,
+            patient=patient,
             doctor=doctor,
             reason=reason
         )
 
         serializer = DoctorReportSerializer(report)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    
