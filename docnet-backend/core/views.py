@@ -337,11 +337,16 @@ class AdminDashboardView(APIView):
         total_patients = User.objects.filter(role='patient').count()
         total_appointments = Appointment.objects.count()
 
-        total_normal_revenue = Payment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-        total_emergency_revenue = EmergencyPayment.objects.filter(payment_status='success').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
+        total_normal_revenue = Payment.objects.filter(payment_status='success').aggregate(
+            Sum('amount')
+        )['amount__sum'] or Decimal('0')
+        total_emergency_revenue = EmergencyPayment.objects.filter(payment_status='success').aggregate(
+            Sum('amount')
+        )['amount__sum'] or Decimal('0')
 
         total_revenue = total_normal_revenue + total_emergency_revenue
-        admin_profit = total_revenue * Decimal('0.1')
+        admin_commission_rate = Decimal('0.10')
+        admin_profit = total_revenue * admin_commission_rate
 
         
         months_list = ['January', 'February', 'March', 'April', 'May', 'June',
