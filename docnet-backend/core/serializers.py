@@ -155,6 +155,36 @@ class AdminAppointmentListSerializer(serializers.ModelSerializer):
             }
         return None     
     
+class EmergencyAppointmentSerializer(serializers.ModelSerializer):
+    slot = serializers.SerializerMethodField()
+    patient = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(source='timestamp')
+
+    class Meta:
+        model = EmergencyPayment
+        fields = [
+            'id', 'payment_status', 'reason', 'created_at',
+            'doctor', 'patient', 'slot'
+        ]
+
+    def get_patient(self, obj):
+        return {
+            'username': obj.patient.username,
+            'email': obj.patient.email,
+        }
+
+    def get_slot(self, obj):
+        return {
+            'doctor': {
+                'name': obj.doctor.user.get_full_name() or obj.doctor.user.username,
+                'specialization': getattr(obj.doctor, 'specialization', 'General'),
+                'gender': obj.doctor.gender if hasattr(obj.doctor, 'gender') else 'unknown'
+            },
+            'date': obj.timestamp.date(),
+            'start_time': obj.timestamp.time(),
+        }
+
+    
 class PaymentListSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.username')
     patient_id = serializers.CharField(source='patient.id')

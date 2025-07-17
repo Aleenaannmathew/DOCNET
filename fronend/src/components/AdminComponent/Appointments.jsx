@@ -38,9 +38,9 @@ export default function AppointmentsList() {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const response = await adminAxios.get('/appointments-list/', { 
-        params: { 
-          page, 
+      const response = await adminAxios.get('/appointments-list/', {
+        params: {
+          page,
           page_size: pageSize,
           search: searchTerm,
           status: statusFilter !== 'all' ? statusFilter : undefined,
@@ -50,19 +50,19 @@ export default function AppointmentsList() {
           Authorization: `Bearer ${token}`
         }
       });
-      
+
       const { data } = response;
       setAppointments(data.results || []);
       setTotalPages(Math.ceil((data.count || 0) / pageSize));
 
-      
+
       const newStats = {
         total: data.count || 0,
         confirmed: 0,
         pending: 0,
         completed: 0,
       };
-      
+
       (data.results || []).forEach(appointment => {
         switch ((appointment.status || '').toLowerCase()) {
           case 'confirmed': newStats.confirmed++; break;
@@ -71,7 +71,7 @@ export default function AppointmentsList() {
           default: newStats.pending++; break;
         }
       });
-      
+
       setStats(newStats);
     } catch (err) {
       console.error('Error fetching appointments:', err);
@@ -96,7 +96,8 @@ export default function AppointmentsList() {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, isEmergency = false) => {
+    const value = (status || '').toLowerCase();
     const statusConfig = {
       confirmed: {
         bg: 'bg-blue-50',
@@ -116,15 +117,35 @@ export default function AppointmentsList() {
         border: 'border-emerald-200',
         icon: CheckCheck
       },
+      success: {
+        bg: 'bg-green-50',
+        text: 'text-green-700',
+        border: 'border-green-200',
+        icon: CheckCircle
+      },
+      failed: {
+        bg: 'bg-red-50',
+        text: 'text-red-700',
+        border: 'border-red-200',
+        icon: AlertTriangle
+      },
+      refunded: {
+        bg: 'bg-yellow-50',
+        text: 'text-yellow-700',
+        border: 'border-yellow-200',
+        icon: RefreshCw
+      },
     };
 
-    const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
+    const config = statusConfig[value] || statusConfig.pending;
     const Icon = config.icon;
+
 
     return (
       <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${config.bg} ${config.text} border ${config.border}`}>
         <Icon size={14} />
-        {status?.charAt(0).toUpperCase() + status?.slice(1) || 'Pending'}
+        {value.charAt(0).toUpperCase() + value.slice(1)}
+        {isEmergency && <span className="ml-1 text-xs text-red-500">(Emergency)</span>}
       </div>
     );
   };
@@ -170,8 +191,8 @@ export default function AppointmentsList() {
 
   const AppointmentRow = ({ appointment, index }) => {
     const patient = appointment.patient || {};
-    const doctor = appointment.slot?.doctor || {};
     const slot = appointment.slot || {};
+    const doctor = appointment.is_emergency ? slot?.doctor : appointment.slot?.doctor;
 
     const getPatientName = () => {
       if (patient.username) return patient.username;
@@ -240,7 +261,10 @@ export default function AppointmentsList() {
         </td>
 
         <td className="px-6 py-4 whitespace-nowrap">
-          {getStatusBadge(appointment.status)}
+          {getStatusBadge(
+            appointment.is_emergency ? appointment.payment_status : appointment.status,
+            appointment.is_emergency
+          )}
         </td>
 
         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -295,6 +319,7 @@ export default function AppointmentsList() {
             </div>
           </div>
         </td>
+
       </tr>
     );
   };
@@ -313,7 +338,7 @@ export default function AppointmentsList() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="bg-white border-b border-gray-200">
           <div className="px-4 sm:px-6 lg:px-8">
@@ -530,16 +555,15 @@ export default function AppointmentsList() {
                             } else {
                               pageNum = page - 2 + i;
                             }
-                            
+
                             return (
                               <button
                                 key={pageNum}
                                 onClick={() => handlePageChange(pageNum)}
-                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                  pageNum === page
-                                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                                }`}
+                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${pageNum === page
+                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                  }`}
                               >
                                 {pageNum}
                               </button>

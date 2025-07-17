@@ -7,6 +7,8 @@ from django.contrib.auth import authenticate
 from django.conf import settings
 from django.utils import timezone
 from itertools import chain
+from django.core.paginator import Paginator
+from itertools import chain
 from collections import OrderedDict
 from rest_framework.pagination import PageNumberPagination
 from django.db.models.functions import TruncMonth
@@ -16,7 +18,7 @@ from django.shortcuts import get_object_or_404
 from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer, AdminAppointmentListSerializer
 from accounts.models import User, PatientProfile,Appointment,Payment,DoctorReport
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
-from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer,DoctorReports,UnifiedPaymentSerializer
+from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer,DoctorReports,UnifiedPaymentSerializer,EmergencyAppointmentSerializer
 from rest_framework_simplejwt.exceptions import TokenError
 from django.db.models import Count, Sum, Q, F
 from rest_framework.decorators import api_view, permission_classes
@@ -276,57 +278,81 @@ class AdminAppointmentListView(APIView):
         now = timezone.now()
         threshold = now - timedelta(minutes=30)
 
-        # Auto-update outdated scheduled appointments
+        # Auto-update outdated appointments
         Appointment.objects.filter(
             status='scheduled',
             created_at__lte=threshold
         ).update(status='completed')
 
-        # Get filter parameters from request
         search_term = request.query_params.get('search', '').strip()
         status_filter = request.query_params.get('status', '').strip().lower()
         date_filter = request.query_params.get('date_filter', '').strip().lower()
 
-        # Base queryset
-        queryset = Appointment.objects.select_related(
-            'payment', 'payment__slot', 'payment__slot__doctor__user',
-            'payment__patient'
-        ).order_by('-created_at')
+        # Normal Appointments
+        normal_qs = Appointment.objects.select_related(
+            'payment', 'payment__slot', 'payment__slot__doctor__user', 'payment__patient'
+        ).all()
+
+        # Emergency Appointments
+        emergency_qs = EmergencyPayment.objects.select_related(
+            'doctor__user', 'patient'
+        ).all()
 
         # Apply filters
         if search_term:
-            queryset = queryset.filter(
-                Q(payment__patient__user__first_name__icontains=search_term) |
-                Q(payment__patient__user__last_name__icontains=search_term) |
-                Q(payment__patient__user__email__icontains=search_term) |
-                Q(payment__slot__doctor__user__first_name__icontains=search_term) |
-                Q(payment__slot__doctor__user__last_name__icontains=search_term) |
-                Q(payment__slot__doctor__user__email__icontains=search_term)
+            normal_qs = normal_qs.filter(
+                Q(payment__patient__username__icontains=search_term) |
+                Q(payment__slot__doctor__user__first_name__icontains=search_term)
+            )
+            emergency_qs = emergency_qs.filter(
+                Q(patient__username__icontains=search_term) |
+                Q(doctor__user__first_name__icontains=search_term)
             )
 
         if status_filter and status_filter != 'all':
-            queryset = queryset.filter(status__iexact=status_filter)
+            normal_qs = normal_qs.filter(status=status_filter)
+            emergency_qs = emergency_qs.filter(payment_status=status_filter)
 
         if date_filter and date_filter != 'all':
             today = timezone.now().date()
             if date_filter == 'today':
-                queryset = queryset.filter(payment__slot__date=today)
+                normal_qs = normal_qs.filter(payment__slot__date=today)
+                emergency_qs = emergency_qs.filter(timestamp__date=today)
             elif date_filter == 'tomorrow':
                 tomorrow = today + timedelta(days=1)
-                queryset = queryset.filter(payment__slot__date=tomorrow)
+                normal_qs = normal_qs.filter(payment__slot__date=tomorrow)
+                emergency_qs = emergency_qs.filter(timestamp__date=tomorrow)
             elif date_filter == 'week':
                 next_week = today + timedelta(days=7)
-                queryset = queryset.filter(
-                    payment__slot__date__range=[today, next_week]
-                )
+                normal_qs = normal_qs.filter(payment__slot__date__range=[today, next_week])
+                emergency_qs = emergency_qs.filter(timestamp__date__range=[today, next_week])
 
-      
-        paginator = StandardResultsSetPagination()
-        page = paginator.paginate_queryset(queryset, request)
-        serializer = AdminAppointmentListSerializer(page, many=True)
+        # Serialize both
+        normal_data = AdminAppointmentListSerializer(normal_qs, many=True).data
+        emergency_data = EmergencyAppointmentSerializer(emergency_qs, many=True).data
 
-        return paginator.get_paginated_response(serializer.data)
+        # Mark emergency
+        for e in emergency_data:
+            e["is_emergency"] = True
+        for n in normal_data:
+            n["is_emergency"] = False
 
+        combined_data = sorted(
+            chain(normal_data, emergency_data),
+            key=lambda x: x.get("created_at", ""), reverse=True
+        )
+
+        # Manual pagination
+        page_size = int(request.query_params.get("page_size", 10))
+        page_number = int(request.query_params.get("page", 1))
+        paginator = Paginator(combined_data, page_size)
+        page = paginator.page(page_number)
+
+        return Response({
+            "count": paginator.count,
+            "results": list(page),
+        })
+    
 class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
