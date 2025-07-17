@@ -19,6 +19,7 @@ const PatientSidebar = ({ activeTab, setActiveTab }) => {
     { name: 'Change Password', icon: Lock },
     { name: 'Booking History', icon: History },
     { name: 'Medical Records', icon: FileText },
+    { name: 'Notifications', icon: Bell },
     { name: 'Logout', icon: LogOut }
   ];
 
@@ -33,6 +34,8 @@ const PatientSidebar = ({ activeTab, setActiveTab }) => {
       navigate('/booking-history');
     } else if (tab === 'Medical Records') {
       navigate('/medical-records');
+    } else if (tab === 'Notifications') {
+      navigate('/notifications');
     } else {
       setActiveTab(tab);
     }

@@ -703,7 +703,6 @@ class EmergencyStatusUpdateView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 class DoctorEmergencyConsultationListView(generics.ListAPIView):
-    """List all emergency consultations for a doctor"""
     serializer_class = EmergencyConsultationListSerializer
     permission_classes = [IsAuthenticated]
     

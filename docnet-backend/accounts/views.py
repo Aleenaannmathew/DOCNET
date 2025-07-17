@@ -1194,11 +1194,41 @@ class UserNotificationListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Fetch notifications for the logged-in user
         notifications = Notification.objects.filter(receiver=request.user).order_by('-created_at')
         serializer = NotificationSerializer(notifications, many=True)
         return Response(serializer.data)   
 
+class MarkNotificationAsReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            notif = Notification.objects.get(pk=pk, receiver=request.user)
+            notif.is_read = True
+            notif.save()
+            return Response({'status': 'marked as read'})
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found'}, status=404)
+        
+class MarkAllNotificationsReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        Notification.objects.filter(receiver=request.user, is_read=False).update(is_read=True)
+        return Response({'status': 'all marked as read'})
+
+class DeleteNotificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            notif = Notification.objects.get(pk=pk, receiver=request.user)
+            notif.delete()
+            return Response({'status': 'deleted'})
+        except Notification.DoesNotExist:
+            return Response({'error': 'Notification not found'}, status=404)
+        
+                    
 class DoctorReviewListView(generics.ListAPIView):
     serializer_class = DoctorReviewSerializer
     permission_classes = [permissions.AllowAny]

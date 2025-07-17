@@ -94,17 +94,12 @@ def send_password_reset_otp_task(self,email,otp):
 @shared_task
 def send_appointment_day_notifications():
     local_now = localtime()
-    today = local_now.date()
-
-
-   
+    today = local_now.date()  
     appointments = Appointment.objects.filter(
         status='scheduled',
         payment__slot__date=today,
         notification_sent=False 
     )
-
-
     channel_layer = get_channel_layer()
 
     for appointment in appointments:
@@ -117,9 +112,7 @@ def send_appointment_day_notifications():
             message=f"Reminder: You have an appointment today at {appointment.payment.slot.start_time}.",
             notification_type='consultation'
         )
-
-
-       
+  
         async_to_sync(channel_layer.group_send)(
             f'notifications_{patient.id}',
             {

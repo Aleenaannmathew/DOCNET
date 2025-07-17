@@ -22,6 +22,7 @@ import EmerConfirmationPage from '../pages/PatientPages/EmerConfirmationPage';
 import PatientChat from '../pages/PatientPages/PatientChat';
 import Medical from '../pages/PatientPages/Medical';
 import EmergencyDetailPage from '../pages/PatientPages/EmergencyDetailPage';
+import Notify from '../pages/PatientPages/Notify';
 
 
 
@@ -75,6 +76,7 @@ function UserRoutes() {
         <Route path='/emergency-confirmation/payment/:payment_id' element={<EmerConfirmationPage/>}/>
         <Route path='/chat-room/:id' element={<PatientChat/>}/>
         <Route path='/medical-records' element={<Medical/>}/>
+        <Route path='/notifications' element={<Notify/>}/>
        
         
       </Route>

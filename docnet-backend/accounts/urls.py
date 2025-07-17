@@ -2,7 +2,7 @@ from django.urls import path
 from .views import UserRegistrationView, UserLoginView, VerifyOTPView, ResendOTPView, PatientProfileView,PatientProfileUpdateView, CheckEmailView,SendPasswordResetOTPView, VerifyPasswordResetOTPView, GoogleLoginView,BookingConfirmationByPaymentView,DoctorReviewListView,SubmitDoctorReviewView
 from .views import ResetPasswordView, ChangePasswordView, UserLogoutView, DoctorListView, DoctorDetailView, DoctorSlotsView, CreatePaymentView, VerifyPaymentView, BookingHistoryView,AppointmentDetailView, ValidateVideoCallAPI,EmergencyDoctorListView,EmergencyConsultationListView
 from .views import CreateEmergencyPaymentView, VerifyEmergencyPaymentView, ValidateEmergencyVideoCallAPI,EmergencyConsultationConfirmationView, ValidateChatAccessAPI, MedicalRecordListView, MedicalRecordDetailView,UserNotificationListView,ActiveDoctorsView,EmergencyConsultationDetailView
-from .views import DownloadReceiptView,ContactMessageView,SubmitDoctorReportView,HasConsultedDoctorView
+from .views import DownloadReceiptView,ContactMessageView,SubmitDoctorReportView,HasConsultedDoctorView,MarkNotificationAsReadView,MarkAllNotificationsReadView,DeleteNotificationView
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='register'),
@@ -38,6 +38,9 @@ urlpatterns = [
     path('records/', MedicalRecordListView.as_view(), name='medical-records-list'),
     path('records/<int:pk>/', MedicalRecordDetailView.as_view(), name='medical-record-detail'),
     path('user-notifications/', UserNotificationListView.as_view(), name='doctor-notifications'),
+    path('user-notifications/<int:pk>/mark-read/', MarkNotificationAsReadView.as_view(), name='mark-notification-read'),
+    path('user-notifications/mark-all-read/', MarkAllNotificationsReadView.as_view(), name='mark-all-read'),
+    path('user-notifications/<int:pk>/delete/', DeleteNotificationView.as_view(), name='delete-notification'),
     path('active-doctors/', ActiveDoctorsView.as_view(), name='active-doctors'),
     path('doctor-reviews/<str:username>/', DoctorReviewListView.as_view(), name='get_doctor_reviews'),
     path('doctor-reviews/<str:username>/submit/', SubmitDoctorReviewView.as_view(), name='submit_doctor_review'),
