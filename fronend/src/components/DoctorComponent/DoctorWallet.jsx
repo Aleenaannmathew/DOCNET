@@ -16,7 +16,7 @@ const TransactionCard = ({ transaction, last = false }) => {
     failed: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' }
   };
 
-  const config = statusConfig['completed']; // Default to completed for now
+  const config = statusConfig['completed']; 
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);

@@ -79,8 +79,6 @@ class UserRegistrationView(APIView):
             with transaction.atomic():
                 user = serializer.save()
                 otp = OTPManager.create_otp_verification(user)
-                user_logger.info(f"OTP generated for user {user.id}")
-                user_logger.debug(f"User registration - User ID: {user.id}, Email: {user.email}")
 
                 email_queued = EmailManager.send_registration_otp(user.email, otp, 'patient')
                 if not email_queued:

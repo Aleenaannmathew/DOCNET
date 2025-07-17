@@ -61,7 +61,6 @@ class EmailManager:
     def send_registration_otp(email, otp, user_type='user'):
         try:
             task = send_registration_otp_task.delay(email,otp)
-            logger.info(f"Registration OTP task queued for {email}, Task ID: {task.id}")
             return True
         except Exception as e:
             logger.error(f"Failed to queue registration OTP email task: {str(e)}")

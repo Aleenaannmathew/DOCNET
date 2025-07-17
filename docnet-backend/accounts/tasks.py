@@ -23,7 +23,6 @@ def send_email_task(self,subject,message,recipient_list,from_email=None):
             recipient_list=recipient_list,
             fail_silently=False,
         )    
-        logger.info(f"Email sent successfully to {recipient_list}")
         return f"Email sent successfully to {recipient_list}"
     except Exception as exc:
         logger.error(f"Email sending failed: {str(exc)}")
@@ -32,8 +31,21 @@ def send_email_task(self,subject,message,recipient_list,from_email=None):
 @shared_task(bind=True, max_retries=2)
 def send_registration_otp_task(self, email, otp):
     try:
-        subject = 'DOCNET - User Email Verification'
-        message = f'Your OTP for DOCNET registration is: {otp}'
+        subject = 'Complete Your DOCNET Registration – Verify Your Email'
+        message = f"""
+        Hi there,
+
+        Thank you for signing up with DOCNET – your trusted telehealth partner.
+
+        To complete your registration, please verify your email by entering the following OTP:
+
+        🔐 OTP: {otp}
+
+        This OTP is valid for 10 minutes. If you didn’t request this, you can safely ignore this email.
+
+        Best regards,  
+        The DOCNET Team
+        """
 
         send_mail(
             subject=subject,
@@ -42,7 +54,6 @@ def send_registration_otp_task(self, email, otp):
             recipient_list=[email],
             fail_silently=False,
         )    
-        logger.info(f"Registration OTP send successfully to {email}")
         return f"Registration OTP send to {email}"
     
     except Exception as exc:
@@ -52,8 +63,21 @@ def send_registration_otp_task(self, email, otp):
 @shared_task(bind=True, max_retires=3)
 def send_password_reset_otp_task(self,email,otp):
     try:
-        subject = 'DOCNET - Password Reset OTP'
-        message = f'Your OTP for password reset is: {otp}'
+        subject = 'DOCNET – Your Password Reset Code'
+        message = f"""
+            Hi,
+
+            We received a request to reset your password for your DOCNET account.
+
+            Please use the OTP below to proceed:
+
+            🔐 OTP: {otp}
+
+            This OTP is valid for 10 minutes. If you did not request this, no action is needed.
+
+            Stay safe,  
+            The DOCNET Team
+            """
 
         send_mail(
             subject=subject,
@@ -62,7 +86,6 @@ def send_password_reset_otp_task(self,email,otp):
             recipient_list=[email],
             fail_silently=False,
         )
-        logger.info(f"Password reset OTP sent successfully to {email}")
         return f"Password reset OTP sent to {email}"
     except Exception as exc:
         logger.error(f"Password reset OTP sending failed: {str(exc)}")
@@ -74,11 +97,11 @@ def send_appointment_day_notifications():
     today = local_now.date()
 
 
-    # Only pick appointments which have not been sent a notification
+   
     appointments = Appointment.objects.filter(
         status='scheduled',
         payment__slot__date=today,
-        notification_sent=False  # ✅ Only pick unsent ones
+        notification_sent=False 
     )
 
 
@@ -96,7 +119,7 @@ def send_appointment_day_notifications():
         )
 
 
-        # Send real-time WebSocket notification
+       
         async_to_sync(channel_layer.group_send)(
             f'notifications_{patient.id}',
             {
@@ -107,7 +130,5 @@ def send_appointment_day_notifications():
             }
         )
 
-
-        # ✅ Mark this appointment as notification sent
         appointment.notification_sent = True
         appointment.save()

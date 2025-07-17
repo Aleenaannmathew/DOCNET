@@ -10,7 +10,7 @@ const Navbar = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  
+
   // Get auth state from Redux
   const { isAuthenticated, user, token } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
@@ -110,10 +110,10 @@ const Navbar = () => {
           type: notification.notification_type,
           title: notification.notification_type === 'emergency' ? 'Emergency Alert' : 'New Notification',
           message: notification.message,
-          time: new Date(notification.created_at).toLocaleString('en-US', { 
-            hour: 'numeric', 
-            minute: 'numeric', 
-            hour12: true 
+          time: new Date(notification.created_at).toLocaleString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
           }),
           read: notification.is_read,
           icon: getNotificationIcon(notification.notification_type)
@@ -219,7 +219,7 @@ const Navbar = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
           <a href="/" className={getNavLinkClasses('/')}>Home</a>
@@ -229,14 +229,14 @@ const Navbar = () => {
           <a href="/contact" className={getNavLinkClasses('/contact')}>Contact</a>
           <a href="/blog" className={getNavLinkClasses('/blog')}>Blog</a>
         </div>
-        
+
         {/* Auth Section */}
         <div className="hidden md:flex items-center space-x-4">
           {isAuthenticated ? (
             <div className="flex items-center space-x-3 relative">
               {/* Notification Section */}
               <div className="relative notification-menu-container">
-                <button 
+                <button
                   onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                   className="relative flex items-center justify-center w-10 h-10 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
                 >
@@ -326,10 +326,10 @@ const Navbar = () => {
                   onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                   className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg p-2 transition-colors duration-200"
                 >
-                  {user?.profileImage ? (
-                    <img 
-                      src={user.profileImage} 
-                      alt="Profile" 
+                  {user?.profile_image ? (
+                    <img
+                      src={user.profile_image}
+                      alt="Profile"
                       className="w-10 h-10 rounded-full object-cover border-2 border-blue-200"
                     />
                   ) : (
@@ -350,7 +350,7 @@ const Navbar = () => {
                       <UserCircle size={18} />
                       <span>View Profile</span>
                     </button>
-                    
+
                     <hr className="my-2" />
                     <button
                       onClick={handleLogout}
@@ -365,13 +365,13 @@ const Navbar = () => {
             </div>
           ) : (
             <>
-              <button 
+              <button
                 onClick={handleLoginClick}
                 className="text-blue-600 font-medium hover:text-blue-700 transition-colors duration-200 px-4 py-2"
               >
                 Sign In
               </button>
-              <button 
+              <button
                 onClick={handleRegisterClick}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105"
               >
@@ -380,7 +380,7 @@ const Navbar = () => {
             </>
           )}
         </div>
-        
+
         {/* Mobile menu button */}
         <div className="md:hidden">
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-gray-600 hover:text-blue-600 transition-colors">
@@ -400,19 +400,29 @@ const Navbar = () => {
               <a href="/about" className={`block ${getNavLinkClasses('/about')}`}>About</a>
               <a href="/contact" className={`block ${getNavLinkClasses('/contact')}`}>Contact</a>
               <a href="/blog" className={`block ${getNavLinkClasses('/blog')}`}>Blog</a>
-              
+
               {isAuthenticated ? (
                 <div className="pt-4 border-t border-gray-200 space-y-3">
                   <div className="flex items-center space-x-3">
                     {user?.profileImage ? (
-                      <img 
-                        src={user.profileImage} 
-                        alt="Profile" 
+                      <img
+                        src={user.profileImage}
+                        alt="Profile"
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
                       <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
                         <User size={16} className="text-blue-600" />
+                      </div>
+                    )}{user?.profile_image ? (
+                      <img
+                        src={user.profile_image}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-blue-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center border-2 border-blue-200">
+                        <User size={20} className="text-blue-600" />
                       </div>
                     )}
                     <span className="font-medium text-gray-700">{user?.username || user?.name || "User"}</span>
@@ -446,13 +456,13 @@ const Navbar = () => {
                 </div>
               ) : (
                 <div className="pt-4 border-t border-gray-200 space-y-3">
-                  <button 
+                  <button
                     onClick={handleLoginClick}
                     className="block w-full text-left text-blue-600 font-medium"
                   >
                     Sign In
                   </button>
-                  <button 
+                  <button
                     onClick={handleRegisterClick}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium w-full"
                   >
