@@ -277,9 +277,27 @@ const DoctorSlots = () => {
       toast.success(`${bulkData.selectedTimes.length} slots created successfully`);
     } catch (error) {
       console.error('Error creating bulk slots:', error);
-      toast.error(' Slots already created');
+      if (error.response?.data) {
+      const data = error.response.data;
+
+      let errorMsg = 'Failed to create slots.';
+      if (Array.isArray(data.non_field_errors)) {
+        errorMsg = data.non_field_errors.join(' ');
+      } else if (typeof data.detail === 'string') {
+        errorMsg = data.detail;
+      } else if (typeof data.message === 'string') {
+        errorMsg = data.message;
+      }
+
+      toast.error(`Error: ${errorMsg}`);
+    } else if (error.message === 'All selected time slots are already booked') {
+      toast.error(error.message);
+    } else {
+      toast.error('Something went wrong while creating slots.');
     }
-  };
+  }
+};
+
 
   const updateSlot = async (slotId, slotData) => {
     try {
@@ -299,9 +317,24 @@ const DoctorSlots = () => {
       toast.success('Slot updated successfully');
     } catch (error) {
       console.error('Error updating slot:', error);
-      toast.error('Failed to update slot');
+      if (error.response?.data) {
+      const data = error.response.data;
+
+      let errorMsg = 'Failed to update slot.';
+      if (Array.isArray(data.non_field_errors)) {
+        errorMsg = data.non_field_errors.join(' ');
+      } else if (typeof data.detail === 'string') {
+        errorMsg = data.detail;
+      } else if (typeof data.message === 'string') {
+        errorMsg = data.message;
+      }
+
+      toast.error(`Error: ${errorMsg}`);
+    } else {
+      toast.error('Something went wrong while updating the slot.');
     }
-  };
+  }
+};
 
   
 
