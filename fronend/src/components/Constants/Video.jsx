@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { FiVideo, FiMic } from 'react-icons/fi';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { MdMicOff, MdPhoneDisabled, MdVideocamOff } from 'react-icons/md';
 
 const VideoCall = ({ slotId, token, onEndCall }) => {
@@ -196,7 +198,16 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
               pendingCandidates.current.push(candidate);
             }
           }
+
+          if (msg.type === 'user_left') {
+            toast.warn('The other user has left the call');
+            setStatus('Other user left the call');
+            setTimeout(()=>{
+              endCall();
+            }, 2000);
+          }
         };
+
       } catch (err) {
         addDebug(`Start error: ${err.message}`);
         setError('Could not access media devices');
@@ -244,19 +255,21 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col">
-      <div className="bg-gray-800 p-2 text-center text-sm">
-        <div>Status: {status}</div>
+    
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+    <ToastContainer position="top-center" autoClose={3000} />
+      <div className="bg-gray-800 p-2 text-center text-sm w-full">
+        <div className="text-white">Status: {status}</div>
         <div className="text-xs text-gray-400 mt-1">
           Room: {slotId} | User: {currentUser} | ICE: {isConnected ? 'Connected' : 'Not Connected'} |
           Remote Video: {hasRemoteStream ? 'Yes' : 'No'} | Peer: {remotePeerConnected ? 'Yes' : 'No'}
         </div>
       </div>
 
-      <div className="flex-1 relative bg-black">
+      <div className="relative flex-1 bg-black flex items-center justify-center">
         <video
           ref={remoteVideoRef}
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
           autoPlay
           playsInline
           onClick={tryPlayRemoteVideo}
@@ -264,12 +277,12 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
         />
 
         {!hasRemoteStream && (
-          <div className="flex items-center justify-center h-full text-center">
+          <div className="text-white text-xl z-10">
             <p className="text-xl">{status}</p>
           </div>
         )}
 
-        <div className="absolute bottom-20 right-4 w-1/4 max-w-xs border-2 border-gray-600 rounded overflow-hidden">
+        <div className="absolute bottom-24 right-4 w-1/4 max-w-xs border-2 border-gray-600 rounded overflow-hidden z-10">
           <video
             ref={localVideoRef}
             autoPlay

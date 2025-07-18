@@ -191,7 +191,7 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     profile_image = serializers.ImageField(required=False, allow_null=True)
     
-    certificate = serializers.URLField(required=False, allow_null=True)
+    certificate = serializers.FileField(required=False, allow_null=True)
     hospital = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
     languages = serializers.CharField(required=False, allow_blank=True, default='English', max_length=255)
     location = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)

@@ -179,9 +179,7 @@ class DoctorBlockView(APIView):
 
 
 class AdminPatientListView(APIView):
-  
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    
+    permission_classes = [IsAuthenticated, IsAdminUser] 
     def get(self, request):
         try:
            
@@ -201,7 +199,6 @@ class AdminPatientListView(APIView):
 
 class PatientStatusToggleView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
-    
     def put(self, request, patient_id):
         try:
             try:
@@ -243,9 +240,7 @@ class PatientStatusToggleView(APIView):
         
 
 class PatientDetailView(APIView):
-   
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    
+    permission_classes = [IsAuthenticated, IsAdminUser] 
     def get(self, request, patient_id):
         try:
            
@@ -273,7 +268,6 @@ class StandardResultsSetPagination(PageNumberPagination):
 
 class AdminAppointmentListView(APIView):
     permission_classes = [IsAdminUser]
-
     def get(self, request):
         now = timezone.now()
         threshold = now - timedelta(minutes=30)

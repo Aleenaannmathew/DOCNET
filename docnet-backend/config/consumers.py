@@ -177,7 +177,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             }))
 
     async def user_left(self, event):
-        """Handle user_left group message - notify about participant leaving"""
         if event["sender_channel"] != self.channel_name:
             await self.send(text_data=json.dumps({
                 "type": "user_left",
@@ -186,7 +185,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def validate_appointment(self, room_name, user_id):
-        """Validate that the user has permission to join this regular video call"""
         try:
             appointment = Appointment.objects.select_related(
                 'payment__slot__doctor__user', 
@@ -213,7 +211,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def validate_emergency_consultation(self, emergency_id, user_id):
-        """Validate that the user has permission to join this emergency video call"""
         try:
             emergency_payment = EmergencyPayment.objects.select_related(
                 'doctor__user', 

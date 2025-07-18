@@ -786,19 +786,19 @@ class ValidateVideoCallAPI(APIView):
                 payment__payment_status='success'
             )
             
-            slot = appointment.payment.slot
-            slot_time = datetime.combine(slot.date, slot.start_time)
+            # slot = appointment.payment.slot
+            # slot_time = datetime.combine(slot.date, slot.start_time)
             
-            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+            # slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            start_window = slot_time - timedelta(minutes=15)
-            end_window = slot_time + timedelta(minutes=slot.duration)
+            # start_window = slot_time - timedelta(minutes=15)
+            # end_window = slot_time + timedelta(minutes=slot.duration)
             
-            if not (start_window <= now <= end_window):
-                return Response(
-                    {"error": "Video call is only available during your scheduled time"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            # if not (start_window <= now <= end_window):
+            #     return Response(
+            #         {"error": "Video call is only available during your scheduled time"},
+            #         status=status.HTTP_400_BAD_REQUEST
+            #     )
             
                 
             return Response({

@@ -43,7 +43,6 @@ class BlockedUserMiddleware:
 
         except (InvalidToken, AuthenticationFailed) as e:
             logger.debug(f"Authentication failed in middleware: {str(e)}")
-            # Let unauthenticated requests fall through
             pass
         except Exception as e:
             logger.error(f"Unexpected error in BlockedUserMiddleware: {str(e)}")

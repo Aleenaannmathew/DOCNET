@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiVideo } from 'react-icons/fi';
 import axios from 'axios';
+import ReactDOM from 'react-dom';
 import VideoCall from './Video';
 import { userAxios } from '../../axios/UserAxios';
 import { ToastContainer, toast } from 'react-toastify';
@@ -40,11 +41,13 @@ const VideoCallButton = ({ slotId, token }) => {
       </button>
 
       {showVideoCall && (
+        ReactDOM.createPortal(
         <VideoCall 
           slotId={slotId} 
           token={token} 
           onEndCall={() => setShowVideoCall(false)} 
-        />
+        />,
+        document.body)
       )}
 
       {/* Toast Container */}
