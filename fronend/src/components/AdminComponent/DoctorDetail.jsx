@@ -103,21 +103,34 @@ export default function DoctorDetail() {
   };
 
   useEffect(() => {
-    const fetchReports = async () => {
-      if (activeTab === 'reports') {
-        try {
-          setLoadingReports(true);
-          const response = await adminAxios.get(`/doctors/${doctorId}/reports/`);
-          setReports(response.data);
-        } catch (err) {
-          toast.error('Failed to load reports');
-        } finally {
-          setLoadingReports(false);
-        }
-      }
-    };
-    fetchReports();
-  }, [activeTab]);
+  const fetchReports = async () => {
+    try {
+      const response = await adminAxios.get(`/doctors/${doctorId}/reports/`);
+      setReports(response.data);
+    } catch (err) {
+      toast.error('Failed to load reports');
+    }
+  };
+
+  fetchReports();
+}, [doctorId]);
+
+  const markReportAsRead = async (reportId) => {
+    try {
+      await adminAxios.patch(`/report/${reportId}/mark-read/`);
+      setReports((prevReports) =>
+        prevReports.map((r) =>
+          r.id === reportId ? { ...r, is_read: true } : r
+        )
+      );
+      toast.success('Marked report as read');
+    } catch (err) {
+      console.error('Failed to mark report as read:', err);
+      toast.error('Failed to mark report as read');
+    }
+  };
+
+  const unreadCount = reports.filter(report => !report.is_read).length;
 
   const confirmApprove = () => {
     showConfirmDialog(
@@ -508,7 +521,16 @@ export default function DoctorDetail() {
             />
             <TabButton
               id="reports"
-              label="Reports"
+              label={
+                <>
+                  Reports
+                  {unreadCount > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-red-600 text-white rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
+                </>
+              }
               isActive={activeTab === 'reports'}
               onClick={setActiveTab}
             />
@@ -694,18 +716,34 @@ export default function DoctorDetail() {
             ) : (
               <ul className="space-y-4">
                 {reports.map((report) => (
-                  <li key={report.id} className="bg-white p-4 border border-gray-200 rounded-xl shadow-sm">
+                  <li
+                    key={report.id}
+                    className={`bg-white p-4 border rounded-xl shadow-sm transition-colors ${report.is_read ? 'border-gray-200' : 'border-yellow-300 bg-yellow-50'
+                      }`}
+                  >
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-sm text-gray-600 mb-1">
                           <span className="font-medium text-gray-800">{report.patient_name}</span> reported:
                         </p>
                         <p className="text-gray-800">{report.reason}</p>
+
+                        {!report.is_read && (
+                          <button
+                            onClick={() => markReportAsRead(report.id)}
+                            className="mt-2 text-sm text-blue-600 hover:underline"
+                          >
+                            Mark as read
+                          </button>
+                        )}
                       </div>
-                      <div className="text-sm text-gray-400">
+                      <div className="text-sm text-gray-400 text-right">
                         {new Date(report.created_at).toLocaleDateString('en-US', {
                           year: 'numeric', month: 'short', day: 'numeric'
                         })}
+                        {report.is_read && (
+                          <div className="text-green-600 text-xs mt-1 font-medium">Read</div>
+                        )}
                       </div>
                     </div>
                   </li>

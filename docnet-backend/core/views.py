@@ -100,12 +100,12 @@ class AdminVerifyToken(APIView):
         }, status=status.HTTP_200_OK)
     
 class DoctorListView(APIView):
-
     permission_classes = [IsAuthenticated, IsAdminUser]
     
     def get(self, request):
-      
-        doctors = DoctorProfile.objects.select_related('user').all()
+        doctors = DoctorProfile.objects.select_related('user').annotate(
+            unread_report_count=Count('reported_by', filter=Q(reported_by__is_read=False))
+        )
         serializer = DoctorProfileListSerializer(doctors, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -552,3 +552,15 @@ class DoctorReportsView(APIView):
         reports = DoctorReport.objects.filter(doctor_id=doctor_id)
         serializer = DoctorReports(reports, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class MarkReportAsReadView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, report_id):
+        try:
+            report = DoctorReport.objects.get(id=report_id)
+            report.is_read = True
+            report.save()
+            return Response({'message': 'Report marked as read.'}, status=status.HTTP_200_OK)
+        except DoctorReport.DoesNotExist:
+            return Response({'error': 'Report not found.'}, status=status.HTTP_404_NOT_FOUND)

@@ -34,21 +34,23 @@ export default function DoctorsManagement() {
 
   // Fetch doctors from API
   useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
-        setLoading(true);
-        const response = await adminAxios.get('/doctors/');
-        setDoctors(response.data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load doctors. Please try again later.');
-        console.error('Error fetching doctors: ', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDoctors();
-  }, []);
+  const fetchDoctors = async () => {
+    try {
+      setLoading(true);
+      const response = await adminAxios.get('/doctors/');
+      console.log(response.data)
+      setDoctors(response.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load doctors. Please try again later.');
+      console.error('Error fetching doctors: ', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchDoctors();
+}, []);
+
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -248,23 +250,30 @@ export default function DoctorsManagement() {
   };
   
   const getProfileImage = (doctor) => {
-    if (doctor?.user?.profile_image) {
-      return (
+  const unreadCount = doctor.unread_report_count;
+
+  return (
+    <div className="relative w-10 h-10">
+      {doctor?.user?.profile_image ? (
         <img 
           src={doctor.user.profile_image} 
           alt={doctor.name || 'Doctor'} 
           className="w-10 h-10 rounded-full object-cover"
         />
-      );
-    }
-    
-    const emoji = doctor.gender?.toLowerCase() === 'female' ? '👩‍⚕️' : '👨‍⚕️';
-    return (
-      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-lg">
-        {emoji}
-      </div>
-    );
-  };
+      ) : (
+        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-lg">
+          {doctor.gender?.toLowerCase() === 'female' ? '👩‍⚕️' : '👨‍⚕️'}
+        </div>
+      )}
+
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow">
+          {unreadCount}
+        </span>
+      )}
+    </div>
+  );
+};
 
   return (
     <div className="flex h-screen bg-gray-50 text-gray-800 font-sans">

@@ -250,7 +250,7 @@ class DoctorReview(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('patient', 'doctor')  # Prevent duplicate reviews
+        unique_together = ('patient', 'doctor')  
         ordering = ['-created_at']
 
     def __str__(self):
@@ -261,6 +261,7 @@ class DoctorReport(models.Model):
     doctor = models.ForeignKey('doctor.DoctorProfile', on_delete=models.CASCADE, related_name='reported_by')
     reason = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-created_at']

@@ -422,3 +422,5 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'notification_type': event['notification_type'],
             'sender': event['sender'],
         }))
+
+        
