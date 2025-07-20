@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DoctorProfile,DoctorSlot, Wallet, WalletHistory,ContactMessage
+from .models import DoctorProfile,DoctorSlot, Wallet, WalletHistory,ContactMessage,Withdrawal
 
 @admin.register(DoctorProfile)
 class DoctorProfileAdmin(admin.ModelAdmin):
@@ -58,6 +58,33 @@ class WalletHistoryAdmin(admin.ModelAdmin):
     def wallet_doctor_username(self, obj):
         return obj.wallet.doctor.user.username
     wallet_doctor_username.short_description = 'Doctor Username'
+
+@admin.register(Withdrawal)
+class WithdrawalAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'doctor',
+        'amount',
+        'status',
+        'payout_status',
+        'requested_at',
+        'processed_at',
+    )
+    list_filter = ('status', 'payout_status', 'requested_at')
+    search_fields = ('doctor__user__email', 'doctor__user__first_name', 'doctor__user__last_name', 'payout_reference_id')
+    readonly_fields = ('requested_at', 'processed_at')
+
+    fieldsets = (
+        (None, {
+            'fields': ('doctor', 'amount', 'status')
+        }),
+        ('Payout Details', {
+            'fields': ('payout_reference_id', 'payout_status', 'remarks')
+        }),
+        ('Timestamps', {
+            'fields': ('requested_at', 'processed_at')
+        }),
+    )    
 
 @admin.register(ContactMessage)
 class ContactMessageAdmin(admin.ModelAdmin):

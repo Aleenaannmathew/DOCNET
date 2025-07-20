@@ -7,6 +7,7 @@ import { useSelector } from 'react-redux';
 import axios from 'axios';
 import 'react-toastify/dist/ReactToastify.css';
 import { userAxios } from '../../axios/UserAxios';
+import DocnetLoading from '../Constants/Loading';
 
 const MedicalRecordsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -111,9 +112,7 @@ const MedicalRecordsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
+      <DocnetLoading/>
     );
   }
 

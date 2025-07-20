@@ -27,6 +27,7 @@ import {
   Zap
 } from 'lucide-react';
 import PatientSidebar from './SideBar';
+import DocnetLoading from '../Constants/Loading';
 
 const BookingHistoryPage = () => {
   const dispatch = useDispatch();
@@ -360,12 +361,7 @@ const BookingHistoryPage = () => {
 
                 {/* Loading State */}
                 {loading && (
-                  <div className="p-6">
-                    <div className="flex items-center justify-center py-12">
-                      <Loader className="w-8 h-8 text-blue-500 animate-spin mr-3" />
-                      <span className="text-gray-600">Loading your bookings...</span>
-                    </div>
-                  </div>
+                  <DocnetLoading/>
                 )}
 
                 {/* Error State */}

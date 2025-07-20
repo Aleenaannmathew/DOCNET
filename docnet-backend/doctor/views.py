@@ -161,8 +161,7 @@ class DoctorProfileRetrieveUpdateView(APIView):
                 f"Error retrieving profile: {str(e)}",
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
+        
 class DoctorProfileUpdateView(APIView):
     permission_classes = [IsAuthenticated]
     def put(self, request):
@@ -187,9 +186,7 @@ class DoctorProfileUpdateView(APIView):
                 f"Error updating profile: {str(e)}",
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
-        
+       
 class DoctorChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -842,7 +839,7 @@ class DoctorDashboardView(APIView):
         doctor = user.doctor_profile
 
         try:
-            wallet = doctor.wallet.first()  
+            wallet = doctor.wallet
             total_revenue = wallet.balance
         except:
             total_revenue = Decimal('0.00')
@@ -886,9 +883,8 @@ class DoctorAnalyticsView(APIView):
             return Response({"detail": "Doctor profile not found."}, status=404)
 
         doctor = user.doctor_profile
-        wallet = doctor.wallet.first()
-
-        
+        wallet, created = Wallet.objects.get_or_create(doctor=doctor)
+     
         if not wallet:
             return Response({
                 "wallet_balance": Decimal('0.00'),
@@ -956,7 +952,7 @@ class DoctorCSVExportView(APIView):
         doctor = user.doctor_profile
 
         try:
-            wallet = doctor.wallet.first()
+            wallet = doctor.wallet
             transactions = wallet.history.all().order_by('-updated_date')
         except:
             return Response({"detail": "Wallet not found."}, status=404)
@@ -984,7 +980,7 @@ class DoctorPDFExportView(APIView):
         doctor = user.doctor_profile
 
         try:
-            wallet = doctor.wallet.first()
+            wallet = doctor.wallet
             transactions = wallet.history.all().order_by('-updated_date')[:10]
         except:
             return Response({"detail": "Wallet not found."}, status=404)
@@ -1093,45 +1089,27 @@ class MarkNotificationAsReadView(APIView):
         serializer = NotificationMarkAsReadSerializer(notification)
         return Response({"message": "Notification marked as read.", "notification": serializer.data}, status=status.HTTP_200_OK) 
     
-class DoctorWalletWithdrawView(APIView):
+class RequestWithdrawalView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        doctor_profile = DoctorProfile.objects.get(user=request.user)
+        doctor_profile = request.user.doctor_profile
+        amount = Decimal(str(request.data.get('amount')))
         wallet = Wallet.objects.get(doctor=doctor_profile)
-        amount = Decimal(request.data.get('amount', 0))
 
-        if amount <= 0:
-            return Response({'detail': 'Enter a valid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount <= 0 or amount > wallet.balance:
+            return Response({'error': 'Invalid withdrawal amount'}, status=400)
 
-        if wallet.balance < amount:
-            return Response({'detail': 'Insufficient wallet balance.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        wallet.balance -= amount
-        wallet.save()
-
-        WalletHistory.objects.create(
-            wallet=wallet,
-            type='debit',
-            amount=amount,
-            new_balance=wallet.balance
-        )
-
-        # Save withdrawal entry
+        
         withdrawal = Withdrawal.objects.create(
             doctor=doctor_profile,
             amount=amount,
-            status='pending'  # You can update this later from the admin side
+            status='pending'
         )
 
+        serializer = WithdrawalSerializer(withdrawal)
         return Response({
-            'message': 'Withdrawal successful.',
-            'balance': wallet.balance,
-            'transaction': {
-                'id': withdrawal.id,
-                'amount': amount,
-                'type': 'debit',
-                'updated_date': withdrawal.requested_at,
-                'new_balance': wallet.balance,
-            }
-        }, status=status.HTTP_200_OK)
+            'message': 'Withdrawal request submitted',
+            'balance': str(wallet.balance),
+            'transaction': serializer.data
+        })

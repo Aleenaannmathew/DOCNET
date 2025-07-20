@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Filter, Loader } from 'lucide-react';
 import DoctorCard from './DoctorCard';
 import { userAxios } from '../../axios/UserAxios';
+import DocnetLoading from '../Constants/Loading';
 
 function DoctorsList({ activeFilters, searchQuery }) {  
   const [doctors, setDoctors] = useState([]);
@@ -87,10 +88,7 @@ function DoctorsList({ activeFilters, searchQuery }) {
 
   if (loading) {
     return (
-      <section className="flex justify-center items-center py-12">
-        <Loader className="animate-spin text-teal-700" size={32} />
-        <span className="ml-2 text-gray-600">Loading doctors...</span>
-      </section>
+      <DocnetLoading/>
     );
   }
 

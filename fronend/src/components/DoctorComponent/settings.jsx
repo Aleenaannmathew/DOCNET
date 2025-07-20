@@ -74,6 +74,19 @@ const Settings = () => {
       .oneOf(['male', 'female', 'other', 'prefer not to say'], 'Please select a valid gender')
       .nullable(),
 
+    bank_account: Yup.string()
+      .max(30, 'Bank Account must be less than 30 characters')
+      .nullable(),
+
+    ifsc_code: Yup.string()
+      .matches(/^[A-Za-z]{4}0[A-Z0-9a-z]{6}$/, 'Enter a valid IFSC code')
+      .max(20, 'IFSC Code must be less than 20 characters')
+      .nullable(),
+
+    beneficiary_id: Yup.string()
+      .max(100, 'Beneficiary ID must be less than 100 characters')
+      .nullable(),
+
     experience: Yup.number()
       .integer('Experience must be a whole number')
       .min(0, 'Experience cannot be negative')
@@ -82,6 +95,8 @@ const Settings = () => {
       .transform((value, originalValue) => {
         return originalValue === '' ? null : value;
       }),
+
+
   });
 
   // Initial form values
@@ -95,6 +110,9 @@ const Settings = () => {
     age: user?.doctor_profile?.age || '',
     gender: user?.doctor_profile?.gender || '',
     experience: user?.doctor_profile?.experience || '',
+    bank_account: user?.doctor_profile?.bank_account || '',
+    ifsc_code: user?.doctor_profile?.ifsc_code || '',
+    beneficiary_id: user?.doctor_profile?.beneficiary_id || '',
   };
 
   // Sidebar menu items with modern icons
@@ -121,7 +139,7 @@ const Settings = () => {
     { value: 'prefer not to say', label: 'Prefer not to say' }
   ];
 
-  
+
   useEffect(() => {
     if (user) {
       setPreviewImage(user.profile_image || null);
@@ -131,7 +149,7 @@ const Settings = () => {
     }
   }, [user]);
 
-  
+
   useEffect(() => {
     if (user && token && !profileFetched && !loading) {
       fetchDoctorDetails();
@@ -839,6 +857,55 @@ const Settings = () => {
                         </button>
                       </div>
                     )}
+                    <div className="p-8 border-t border-gray-100">
+                      <div className="flex items-center mb-6">
+                        <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mr-4">
+                          <Building2 className="w-6 h-6 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900">Banking Information</h3>
+                          <p className="text-gray-500">Details for receiving payouts</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Bank Account */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Bank Account</label>
+                          <Field
+                            name="bank_account"
+                            type="text"
+                            disabled={!isEditing}
+                            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${errors.bank_account && touched.bank_account ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                          />
+                          <ErrorMessage name="bank_account" component="p" className="mt-2 text-sm text-red-600" />
+                        </div>
+
+                        {/* IFSC Code */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">IFSC Code</label>
+                          <Field
+                            name="ifsc_code"
+                            type="text"
+                            disabled={!isEditing}
+                            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${errors.ifsc_code && touched.ifsc_code ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                          />
+                          <ErrorMessage name="ifsc_code" component="p" className="mt-2 text-sm text-red-600" />
+                        </div>
+
+                        {/* Beneficiary ID */}
+                        <div className="lg:col-span-2">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Beneficiary ID</label>
+                          <Field
+                            name="beneficiary_id"
+                            type="text"
+                            disabled={!isEditing}
+                            className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${errors.beneficiary_id && touched.beneficiary_id ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
+                          />
+                          <ErrorMessage name="beneficiary_id" component="p" className="mt-2 text-sm text-red-600" />
+                        </div>
+                      </div>
+                    </div>
                   </Form>
                 )}
               </Formik>

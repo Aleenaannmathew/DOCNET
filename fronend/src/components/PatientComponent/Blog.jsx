@@ -265,22 +265,6 @@ const HealthcareBlog = () => {
                 ))}
               </div>
             </div>
-
-            {/* Newsletter Signup */}
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white">
-              <h3 className="text-lg font-bold mb-2">Stay Updated</h3>
-              <p className="text-blue-100 mb-4 text-sm">Get the latest healthcare insights delivered to your inbox.</p>
-              <div className="space-y-3">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-2 rounded-lg bg-white/20 border border-white/30 placeholder-white/70 text-white"
-                />
-                <button className="w-full bg-white text-blue-600 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                  Subscribe
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -335,13 +319,6 @@ const HealthcareBlog = () => {
               </div>
             </article>
           ))}
-        </div>
-
-        {/* Load More Button */}
-        <div className="text-center mt-12">
-          <button className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-            Load More Articles
-          </button>
         </div>
       </div>
 

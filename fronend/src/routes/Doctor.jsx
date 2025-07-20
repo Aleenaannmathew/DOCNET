@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import DoctorPage from '../pages/DoctorPages/DoctorDashboard';
 import DoctorForm from '../pages/DoctorPages/DoctorForm';
 import DoctorRegister from '../pages/DoctorPages/DoctorRegister';
-import PendingApproval from '../pages/DoctorPages/Approval';
 import DoctorSignIn from '../pages/DoctorPages/DoctorSignIn';
 import Landing from '../pages/DoctorPages/Landing';
 import DoctorSettings from '../pages/DoctorPages/DoctorSettings';
@@ -59,12 +58,7 @@ function DoctorRoutes() {
         </PublicRoute>
       } />
 
-      {/* Pending Approval Route */}
-      <Route path="pending-approval" element={
-        <ProtectedRoute allowedRoles={['doctor']} checkApproval={false}>
-          <PendingApproval />
-        </ProtectedRoute>
-      } />
+     
 
       {/* Protected Doctor Routes */}
       <Route element={<ProtectedRoute allowedRoles={['doctor']} />}>

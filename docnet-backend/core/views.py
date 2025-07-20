@@ -18,14 +18,15 @@ from django.shortcuts import get_object_or_404
 from .serializers import DoctorProfileListSerializer, DoctorProfileDetailSerializer, AdminAppointmentListSerializer
 from accounts.models import User, PatientProfile,Appointment,Payment,DoctorReport
 from rest_framework_simplejwt.tokens import OutstandingToken, BlacklistedToken
-from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer,DoctorReports,UnifiedPaymentSerializer,EmergencyAppointmentSerializer
+from .serializers import PatientListSerializer, PatientDetailSerializer,DoctorEarningsSerializer,DoctorReports,UnifiedPaymentSerializer,EmergencyAppointmentSerializer,WithdrawalSerializer
 from rest_framework_simplejwt.exceptions import TokenError
 from django.db.models import Count, Sum, Q, F
+from django.db import transaction
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from accounts.models import User, Appointment, Payment, EmergencyPayment
-from doctor.models import DoctorProfile
+from doctor.models import DoctorProfile,Withdrawal,Wallet,WalletHistory
 from decimal import Decimal
 from datetime import timedelta
 from reportlab.pdfgen import canvas
@@ -33,7 +34,11 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from django.http import HttpResponse
 import csv
+from rest_framework.generics import ListAPIView
+from utilities.cashfree_payout import get_beneficiary_v2, create_beneficiary_v2, standard_transfer_v2
+import uuid,logging,requests
 
+logger = logging.getLogger(__name__)
 
 class AdminLoginView(APIView):
     permission_classes = [AllowAny]
@@ -490,6 +495,7 @@ class DoctorEarningsReportAPIView(APIView):
             'status': 'success',
             'data': serializer.data
         })  
+    
 
 class AdminPaymentCSVExportView(APIView):
     permission_classes = [IsAdminUser]
@@ -564,3 +570,165 @@ class MarkReportAsReadView(APIView):
             return Response({'message': 'Report marked as read.'}, status=status.HTTP_200_OK)
         except DoctorReport.DoesNotExist:
             return Response({'error': 'Report not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+class AdminWithdrawalListPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+
+
+class AdminWithdrawalListAPIView(ListAPIView):
+    serializer_class = WithdrawalSerializer
+    permission_classes = [IsAdminUser]
+    pagination_class = AdminWithdrawalListPagination
+
+    def get_queryset(self):
+        # Auto-fix status if payout_status is RECEIVED
+        Withdrawal.objects.filter(status='pending', payout_status='RECEIVED').update(status='completed')
+
+        queryset = Withdrawal.objects.select_related('doctor__user').order_by('-requested_at')
+        status = self.request.query_params.get('status')
+        search = self.request.query_params.get('search')
+
+        if status:
+            queryset = queryset.filter(status=status)
+
+        if search:
+            queryset = queryset.filter(
+                Q(doctor__user__username__icontains=search) |
+                Q(doctor__user__first_name__icontains=search) |
+                Q(doctor__user__last_name__icontains=search)
+            )
+
+        return queryset
+
+        
+class AdminWithdrawalActionView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        action_type = request.data.get('action')
+        remarks = request.data.get('remarks', '')
+
+        try:
+            withdrawal = Withdrawal.objects.select_related('doctor__wallet', 'doctor__user').get(id=pk)
+        except Withdrawal.DoesNotExist:
+            return Response({'error': 'Withdrawal not found'}, status=404)
+
+        if withdrawal.status != 'pending':
+            return Response({'error': 'Already processed'}, status=400)
+
+        if action_type == 'reject':
+            withdrawal.status = 'rejected'
+            withdrawal.processed_at = timezone.now()
+            withdrawal.remarks = remarks or 'Rejected by admin'
+            withdrawal.save()
+            return Response({'message': 'Withdrawal rejected successfully'})
+
+        elif action_type == 'approve':
+            try:
+                wallet = withdrawal.doctor.wallet
+            except AttributeError:
+                return Response({'error': 'Doctor wallet not found'}, status=400)
+
+            if wallet.balance < withdrawal.amount:
+                return Response({'error': 'Insufficient wallet balance'}, status=400)
+
+            if not withdrawal.doctor.bank_account or not withdrawal.doctor.ifsc_code:
+                return Response({'error': 'Doctor banking details not complete'}, status=400)
+
+            beneficiary_id = withdrawal.doctor.beneficiary_id or f"dr_{withdrawal.doctor.id}"
+            transfer_id = f"wd_{withdrawal.id}_{uuid.uuid4().hex[:6]}"
+
+            try:
+                with transaction.atomic():
+                    # Ensure beneficiary exists
+                    beneficiary_exists = False
+                    try:
+                        if get_beneficiary_v2(beneficiary_id=beneficiary_id):
+                            beneficiary_exists = True
+                    except Exception:
+                        pass
+
+                    if not beneficiary_exists:
+                        doctor_name = withdrawal.doctor.user.get_full_name() or withdrawal.doctor.user.username
+                        beneficiary_data = {
+                            "beneficiary_id": beneficiary_id,
+                            "beneficiary_name": doctor_name,
+                            "bank_account_number": withdrawal.doctor.bank_account,
+                            "bank_ifsc": withdrawal.doctor.ifsc_code,
+                            "beneficiary_email": withdrawal.doctor.user.email or "",
+                            "beneficiary_phone": getattr(withdrawal.doctor, 'phone_number', "") or ""
+                        }
+                        try:
+                            create_beneficiary_v2(beneficiary_data)
+                            withdrawal.doctor.beneficiary_id = beneficiary_id
+                            withdrawal.doctor.save()
+                        except Exception as e:
+                            logger.error(f"Create beneficiary failed: {e}")
+                            return Response({'error': str(e)}, status=500)
+
+                    # Initiate transfer
+                    payout_response = standard_transfer_v2(
+                        transfer_id=transfer_id,
+                        amount=withdrawal.amount,
+                        beneficiary_id=beneficiary_id,
+                        remarks=remarks or f"Withdrawal for {withdrawal.doctor.user.username}"
+                    )
+
+                    if not isinstance(payout_response, dict):
+                        return Response({'error': 'Invalid response from Cashfree'}, status=500)
+
+                    payout_status = payout_response.get('status', 'UNKNOWN')
+                    payout_data = payout_response.get('data', {})
+
+                    cashfree_reference = (
+                        payout_response.get('cf_transfer_id') or
+                        payout_response.get('cfTransferId') or
+                        payout_response.get('referenceId') or
+                        payout_data.get('cf_transfer_id') or
+                        payout_data.get('referenceId') or
+                        payout_data.get('utr')
+                    )
+
+                    # Determine final status
+                    if payout_status in ['SUCCESS', 'RECEIVED', 'ACCEPTED']:
+                        final_status = 'completed'
+                    elif payout_status in ['PENDING', 'PROCESSING']:
+                        final_status = 'pending'
+                    else:
+                        return Response({
+                            'error': f"Payout failed or unknown status: {payout_status}",
+                            'payout_response': payout_response
+                        }, status=500)
+
+                    withdrawal.status = final_status
+                    withdrawal.processed_at = timezone.now()
+                    withdrawal.remarks = remarks or f'Processed via Cashfree ({payout_status})'
+                    withdrawal.payout_reference_id = transfer_id
+                    withdrawal.payout_status = payout_status
+                    if hasattr(withdrawal, 'cashfree_reference_id') and cashfree_reference:
+                        withdrawal.cashfree_reference_id = cashfree_reference
+                    withdrawal.save()
+
+                    if final_status == 'completed':
+                        wallet.balance -= withdrawal.amount
+                        wallet.save()
+                        WalletHistory.objects.create(
+                            wallet=wallet,
+                            type=WalletHistory.DEBIT,
+                            amount=withdrawal.amount,
+                            new_balance=wallet.balance
+                        )
+
+                    return Response({
+                        'message': f'Withdrawal {final_status} via Cashfree',
+                        'cashfree_status': payout_status,
+                        'transfer_id': transfer_id,
+                        'reference': cashfree_reference
+                    })
+
+            except Exception as e:
+                logger.exception(f"Withdrawal processing failed: {e}")
+                return Response({'error': str(e)}, status=500)
+
+        return Response({'error': 'Invalid action type'}, status=400)

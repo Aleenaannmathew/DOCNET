@@ -10,57 +10,60 @@ const ProtectedRoute = ({
   const { token, user, isAuthenticated } = useSelector((state) => state.auth);
   const location = useLocation();
 
-
-  // If not authenticated, redirect to login
+  // 1. If not authenticated, redirect to login
   if (!isAuthenticated) {
     return <Navigate to={redirectPath} state={{ from: location }} replace />;
   }
 
-  // If no specific roles are required
+  // 2. If no specific roles are required (open route after login)
   if (allowedRoles.length === 0) {
-    if (isAuthenticated && user) {
+    if (user) {
       if (user.role === 'admin') {
         return <Navigate to="/admin/dashboard" replace />;
       }
       if (user.role === 'doctor') {
-        const shouldRedirectToDashboard = user?.doctor_profile?.is_approved;
-        return shouldRedirectToDashboard 
+        const isApproved = user?.doctor_profile?.is_approved;
+        return isApproved 
           ? <Navigate to="/doctor/dashboard" replace />
-          : <Navigate to="/doctor/pending-approval" replace />;
+          : <Navigate to="/doctor-login" replace />;
       }
       if (user.role === 'patient' || user.role === 'user') {
         return <Navigate to="/" replace />;
       }
     }
-    return children ? children : <Outlet />;
+    return children || <Outlet />;
   }
 
-  // Check if user role is allowed
+  // 3. Check if user's role is allowed
   const isRoleAllowed = allowedRoles.includes(user?.role);
-
   if (!isRoleAllowed) {
-    // Redirect based on user's actual role
     if (user?.role === 'admin') {
       return <Navigate to="/admin/dashboard" replace />;
     }
     if (user?.role === 'doctor') {
-      const shouldRedirectToDashboard = user?.doctor_profile?.is_approved;
-      return shouldRedirectToDashboard 
+      const isApproved = user?.doctor_profile?.is_approved;
+      return isApproved 
         ? <Navigate to="/doctor/dashboard" replace />
-        : <Navigate to="/doctor/pending-approval" replace />;
+        : <Navigate to="/doctor-login" replace />;
     }
     if (user?.role === 'patient' || user?.role === 'user') {
       return <Navigate to="/" replace />;
     }
-    return <Navigate to="/login" replace />;
+    return <Navigate to={redirectPath} replace />;
   }
 
-  // Special handling for doctor approval
-  if (checkApproval && user?.role === 'doctor' && !user?.doctor_profile?.is_approved && !location.pathname.includes('/pending-approval')) {
-    return <Navigate to="/doctor/pending-approval" replace />;
+  // 4. Doctor approval check — avoid infinite redirect loop
+  if (
+    checkApproval &&
+    user?.role === 'doctor' &&
+    !user?.doctor_profile?.is_approved &&
+    location.pathname !== '/doctor-login'
+  ) {
+    return <Navigate to="/doctor-login" replace />;
   }
 
-  return children ? children : <Outlet />;
+  // 5. User is authenticated, authorized, and approved (if needed)
+  return children || <Outlet />;
 };
 
 export default ProtectedRoute;

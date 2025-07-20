@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DoctorProfile, DoctorSlot, Wallet, WalletHistory
+from .models import DoctorProfile, DoctorSlot, Wallet, WalletHistory,Withdrawal
 from django.db import transaction
 import cloudinary
 from datetime import date, datetime
@@ -178,7 +178,8 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
             'prefer_24hr_consultation', 'emergency_status', 'profile_image',
             'registration_id', 'hospital', 'specialization', 'languages',
             'age', 'gender', 'experience', 'location', 'is_approved',
-            'is_verified', 'role', 'certificate'
+            'is_verified', 'role', 'certificate','bank_account', 'ifsc_code', 
+            'beneficiary_id',
         ]
         read_only_fields = [
             'registration_id', 'specialization', 'is_approved'
@@ -200,6 +201,10 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
     gender = serializers.ChoiceField(required=False, allow_blank=True, allow_null=True, 
                                     choices=['male', 'female', 'other', 'prefer not to say'])
     experience = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    bank_account = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=30)
+    ifsc_code = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
+    beneficiary_id = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=100)
+
     
     def validate_email(self, value):
         user = self.instance['user']
@@ -253,10 +258,11 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
                 setattr(user, attr, self.validated_data[attr])
         
         
-        for field in ['hospital', 'languages', 'location', 'age', 'gender', 'experience']:
+        for field in ['hospital', 'languages', 'location', 'age', 'gender', 'experience',
+                      'bank_account', 'ifsc_code', 'beneficiary_id']: 
             if field in self.validated_data:
                 setattr(doctor_profile, field, self.validated_data[field])
-            
+
         user.save()
         doctor_profile.save()
         
@@ -278,10 +284,12 @@ class DoctorProfileUpdateSerializer(serializers.Serializer):
                 'gender': doctor_profile.gender,
                 'experience': doctor_profile.experience,
                 'certificate': doctor_profile.certificate,
-                'is_approved': doctor_profile.is_approved
+                'is_approved': doctor_profile.is_approved,
+                'bank_account': doctor_profile.bank_account,
+                'ifsc_code': doctor_profile.ifsc_code,
+                'beneficiary_id': doctor_profile.beneficiary_id,
             }
         }
-
 
 class DoctorSlotSerializer(serializers.ModelSerializer):
     class Meta:
@@ -565,10 +573,25 @@ class NotificationMarkAsReadSerializer(serializers.ModelSerializer):
         fields = ['id', 'is_read']
         read_only_fields = ['id']        
 
-class WithdrawalSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+class WithdrawalSerializer(serializers.ModelSerializer):
+    updated_date = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    new_balance = serializers.SerializerMethodField()
 
-    def validate_amount(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Withdrawal amount must be greater than zero.")
-        return value        
+    class Meta:
+        model = Withdrawal
+        fields = ['id', 'amount', 'status', 'updated_date', 'type', 'new_balance']
+
+    def get_updated_date(self, obj):
+        return obj.processed_at or obj.requested_at
+
+    def get_type(self, obj):
+        return 'debit'
+
+    def get_new_balance(self, obj):
+        if obj.status == 'completed':
+            return obj.doctor.wallet.balance
+        elif obj.status == 'rejected':
+            return 'rejected'
+        else:
+            return None  

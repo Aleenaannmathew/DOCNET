@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from doctor.models import DoctorProfile, DoctorSlot, Wallet
+from doctor.models import DoctorProfile, DoctorSlot, Wallet,Withdrawal
 from accounts.models import User, PatientProfile, Payment,Appointment,DoctorReport,EmergencyPayment
 
 
@@ -247,7 +247,7 @@ class DoctorEarningsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Wallet
-        fields = ['doctor_name', 'specialization', 'total_earnings']      
+        fields = ['doctor_name', 'specialization', 'total_earnings']     
 
 class DoctorReports(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.username', read_only=True)
@@ -255,3 +255,39 @@ class DoctorReports(serializers.ModelSerializer):
     class Meta:
         model = DoctorReport
         fields = ['id', 'patient_name', 'reason', 'created_at', 'is_read']
+
+class WithdrawalSerializer(serializers.ModelSerializer):
+    updated_date = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
+    new_balance = serializers.SerializerMethodField()
+    doctor_name = serializers.CharField(source='doctor.user.get_full_name', read_only=True)
+    doctor_email = serializers.EmailField(source='doctor.user.email', read_only=True)
+    beneficiary_id = serializers.CharField(source='doctor.beneficiary_id', read_only=True)
+
+    class Meta:
+        model = Withdrawal
+        fields = [
+            'id',
+            'amount',
+            'status',
+            'updated_date',
+            'type',
+            'new_balance',
+            'doctor_name',
+            'doctor_email',
+            'beneficiary_id',
+        ]
+
+    def get_updated_date(self, obj):
+        return obj.processed_at or obj.requested_at
+
+    def get_type(self, obj):
+        return 'debit'
+
+    def get_new_balance(self, obj):
+        if obj.status == 'completed':
+            return obj.doctor.wallet.balance
+        elif obj.status == 'rejected':
+            return 'rejected'
+        else:
+            return None

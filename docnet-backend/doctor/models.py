@@ -34,6 +34,9 @@ class DoctorProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
     emergency_status = models.BooleanField(default=False)
+    bank_account = models.CharField(max_length=30, blank=True, null=True)
+    ifsc_code = models.CharField(max_length=20, blank=True, null=True)
+    beneficiary_id = models.CharField(max_length=100, blank=True, null=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     class Meta:
         verbose_name = "Doctor Profile"
@@ -89,7 +92,7 @@ class DoctorSlot(models.Model):
 
 
 class Wallet(models.Model):
-    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='wallet')
+    doctor = models.OneToOneField(DoctorProfile, on_delete=models.CASCADE, related_name='wallet')
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
@@ -124,13 +127,13 @@ class Withdrawal(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     processed_at = models.DateTimeField(null=True, blank=True)
     remarks = models.TextField(blank=True, null=True)
+    payout_reference_id = models.CharField(max_length=100, blank=True, null=True)
+    payout_status = models.CharField(max_length=50, blank=True, null=True)
+    cashfree_reference_id = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
         ordering = ['-requested_at']
 
-    def __str__(self):
-        return f"{self.doctor.user.username} requested ₹{self.amount} - {self.status}"
-    
 class ContactMessage(models.Model):
     PRIORITY_CHOICES = [
         ('normal', 'Normal'),

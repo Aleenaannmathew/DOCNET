@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import AdminLoginView, AdminVerifyToken, DoctorListView, DoctorDetailView, DoctorApprovalView, DoctorBlockView, AdminPatientListView, PatientDetailView, PatientStatusToggleView,AdminAppointmentListView,AdminDashboardView
-from .views import AdminPaymentHistoryAPIView,DoctorEarningsReportAPIView,AdminPaymentCSVExportView,AdminPaymentPDFExportView,DoctorReportsView,MarkReportAsReadView
+from .views import AdminPaymentHistoryAPIView,DoctorEarningsReportAPIView,AdminPaymentCSVExportView,AdminPaymentPDFExportView,DoctorReportsView,MarkReportAsReadView,AdminWithdrawalActionView,AdminWithdrawalListAPIView
 
 urlpatterns = [
     path('admin-login/', AdminLoginView.as_view(), name='admin_login'),
@@ -20,5 +20,7 @@ urlpatterns = [
     path('admin-payments/export-pdf/', AdminPaymentPDFExportView.as_view(), name='admin-payments-pdf'),
     path('doctors/<int:doctor_id>/reports/', DoctorReportsView.as_view(), name='doctor-reports'),
     path('report/<int:report_id>/mark-read/', MarkReportAsReadView.as_view(), name='mark-report-read'),
-  
+    path('admin-withdrawals/', AdminWithdrawalListAPIView.as_view(), name='admin-withdrawal-list'),
+    path('admin-withdrawal/<int:pk>/action/', AdminWithdrawalActionView.as_view(), name='withdrawal-action'),
+    
 ]

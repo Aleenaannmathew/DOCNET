@@ -4,6 +4,7 @@ import { userAxios } from '../../axios/UserAxios';
 import { useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import EmergencyVideoCallButton from '../Constants/EmergencyVideoButton';
+import DocnetLoading from '../Constants/Loading';
 
 export default function EmergencyConsultationConfirmation() {
   // Fixed: Changed paymentId to payment_id to match the route parameter
@@ -103,13 +104,7 @@ export default function EmergencyConsultationConfirmation() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 p-4 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading consultation details...</p>
-          <p className="text-sm text-gray-500 mt-2">Payment ID: {payment_id}</p>
-        </div>
-      </div>
+      <DocnetLoading/>
     );
   }
 

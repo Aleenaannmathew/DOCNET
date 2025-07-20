@@ -634,7 +634,6 @@ function DoctorDetailPage() {
           <nav className="flex space-x-8">
             {[
               { key: 'overview', label: 'Overview', icon: User },
-              { key: 'experience', label: 'Experience', icon: GraduationCap },
               { key: 'reviews', label: 'Reviews', icon: Star },
               { key: 'location', label: 'Location', icon: MapPin },
             ].map((tab) => {
@@ -701,41 +700,7 @@ function DoctorDetailPage() {
               </div>
             )}
 
-            {activeTab === 'experience' && (
-              <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
-                <h2 className="text-2xl font-bold mb-8 text-gray-900">Education & Experience</h2>
-
-                <div className="mb-10">
-                  <h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
-                    <GraduationCap className="text-blue-600" size={24} />
-                    Education
-                  </h3>
-                  <div className="space-y-4">
-                    {doctor.education?.map((edu, index) => (
-                      <div key={index} className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-3 flex-shrink-0"></div>
-                        <span className="text-gray-800 font-medium">{edu}</span>
-                      </div>
-                    )) || <p className="text-gray-500">No education data available</p>}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold mb-6 text-gray-900 flex items-center gap-2">
-                    <BadgeCheck className="text-green-600" size={24} />
-                    Certifications
-                  </h3>
-                  <div className="space-y-4">
-                    {doctor.certifications?.map((cert, index) => (
-                      <div key={index} className="flex items-start gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
-                        <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-800 font-medium">{cert}</span>
-                      </div>
-                    )) || <p className="text-gray-500">No certifications data available</p>}
-                  </div>
-                </div>
-              </div>
-            )}
+            
 
             {activeTab === 'reviews' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
@@ -840,17 +805,7 @@ function DoctorDetailPage() {
                       <h3 className="font-semibold mb-2 text-gray-900">Clinic Address</h3>
                       <p className="text-gray-700 leading-relaxed">
                         {doctor.hospital}<br />
-                        200 First Street SW<br />
-                        Rochester, MN 55905
                       </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 p-6 bg-green-50 rounded-xl border border-green-100">
-                    <Phone size={24} className="text-green-600 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-semibold mb-1 text-gray-900">Phone</h3>
-                      <p className="text-gray-700 font-medium">{doctor.phone}</p>
                     </div>
                   </div>
 
@@ -932,9 +887,7 @@ function DoctorDetailPage() {
                     </div>
                   </div>
                 ))}
-                {availableSlots.length === 0 && (
-                  <p className="text-sm text-gray-500">No available slots this week</p>
-                )}
+                
               </div>
               <button
                 onClick={handleBookAppointment}

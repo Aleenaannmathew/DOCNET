@@ -16,7 +16,7 @@ const TransactionCard = ({ transaction, last = false }) => {
     failed: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' }
   };
 
-  const config = statusConfig['completed']; 
+  const config = statusConfig['completed'];
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -244,39 +244,39 @@ const DoctorWallet = () => {
   const walletStats = processWalletStats();
 
   const exportToCSV = () => {
-  if (!walletData || !walletData.history || walletData.history.length === 0) {
-    toast.error('No transaction history to export.');
-    return;
-  }
+    if (!walletData || !walletData.history || walletData.history.length === 0) {
+      toast.error('No transaction history to export.');
+      return;
+    }
 
-  const headers = ['ID', 'Type', 'Amount (₹)', 'New Balance (₹)', 'Date'];
-  const rows = walletData.history.map(transaction => [
-    transaction.id,
-    transaction.type === 'credit' ? 'Income' : 'Expense',
-    parseFloat(transaction.amount).toFixed(2),
-    parseFloat(transaction.new_balance).toFixed(2),
-    new Date(transaction.updated_date).toLocaleString('en-IN')
-  ]);
+    const headers = ['ID', 'Type', 'Amount (₹)', 'New Balance (₹)', 'Date'];
+    const rows = walletData.history.map(transaction => [
+      transaction.id,
+      transaction.type === 'credit' ? 'Income' : 'Expense',
+      parseFloat(transaction.amount).toFixed(2),
+      parseFloat(transaction.new_balance).toFixed(2),
+      new Date(transaction.updated_date).toLocaleString('en-IN')
+    ]);
 
-  let csvContent = '';
-  csvContent += headers.join(',') + '\r\n';
-  rows.forEach(row => {
-    csvContent += row.join(',') + '\r\n';
-  });
+    let csvContent = '';
+    csvContent += headers.join(',') + '\r\n';
+    rows.forEach(row => {
+      csvContent += row.join(',') + '\r\n';
+    });
 
-  // Create blob and trigger download (best practice)
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', 'wallet_transactions.csv');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url); 
+    // Create blob and trigger download (best practice)
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'wallet_transactions.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
-  toast.success('Export started!');
-};
+    toast.success('Export started!');
+  };
 
 
   const filteredTransactions = (walletData?.history || [])
@@ -288,7 +288,7 @@ const DoctorWallet = () => {
 
   const handleWithdraw = async (amount) => {
     try {
-      const response = await doctorAxios.post('/doctor-wallet/withdraw/', { amount });
+      const response = await doctorAxios.post('/withdrawal-requests/', { amount });
       if (response.status === 200) {
         toast.success('Withdrawal successful!');
         // Update wallet data
@@ -464,7 +464,7 @@ const DoctorWallet = () => {
                   {filteredTransactions.length > 0 ? (
                     filteredTransactions.map((transaction, index) => (
                       <TransactionCard
-                        key={transaction.id}
+                        key={`${transaction.type}-${transaction.id}`}
                         transaction={transaction}
                         last={index === filteredTransactions.length - 1}
                       />

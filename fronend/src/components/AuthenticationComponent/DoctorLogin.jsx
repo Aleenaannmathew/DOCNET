@@ -7,7 +7,7 @@ import { User, Lock, X, CheckCircle, AlertCircle, Stethoscope, Shield, Calendar,
 import { doctorAxios } from '../../axios/DoctorAxios';
 import DocnetLoading from '../Constants/Loading';
 import { login } from '../../store/authSlice';
-import GoogleAuthButton from '../DoctorComponent/GoogleAuth';
+
 
 // Validation Schema using Yup
 const validationSchema = Yup.object({
@@ -336,15 +336,6 @@ export default function DoctorLogin() {
                         'Sign In to Dashboard'
                       )}
                     </button>
-
-                    {/* Divider */}
-                    <div className="flex items-center my-6">
-                      <hr className="flex-1 border-gray-200" />
-                      <span className="mx-4 text-sm text-gray-500 font-medium">or sign in with</span>
-                      <hr className="flex-1 border-gray-200" />
-                    </div>
-
-                    <GoogleAuthButton />
 
                     {/* Register link */}
                     <div className="text-center text-gray-600 pt-4">
