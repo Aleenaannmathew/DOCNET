@@ -186,9 +186,9 @@ export default function AppointmentDetails() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-      <ToastContainer
+      {/* <ToastContainer
         position="top-right"
-        autoClose={5000}
+        autoClose={3000}
         hideProgressBar={false}
         newestOnTop={false}
         closeOnClick
@@ -197,7 +197,7 @@ export default function AppointmentDetails() {
         draggable
         pauseOnHover
         className="z-50"
-      />
+      /> */}
       {/* Header */}
       <Navbar />
 

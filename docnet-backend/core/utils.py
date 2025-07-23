@@ -63,17 +63,14 @@ class EmailManager:
             task = send_registration_otp_task.delay(email,otp)
             return True
         except Exception as e:
-            logger.error(f"Failed to queue registration OTP email task: {str(e)}")
             return False
         
     @staticmethod
     def send_password_reset_otp(email, otp, user_type='user'):
         try:
             task = send_password_reset_otp_task.delay(email, otp)
-            logger.info(f"Password reset OTP task queued for {email}, Task ID: {task.id}")
             return True
         except Exception as e:
-            logger.error(f"Failed to queue password reset OTP email task: {str(e)}")
             return False
         
 class ValidationManager:

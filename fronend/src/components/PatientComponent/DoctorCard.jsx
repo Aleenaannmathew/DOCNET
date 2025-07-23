@@ -29,42 +29,42 @@ function DoctorCard({ doctor, onViewDetails }) {
 
   const getProfileImageUrl = (profileImage) => {
     if (!profileImage) return null;
-    
+
     if (profileImage.startsWith('http')) {
       return profileImage;
     }
-    
+
     if (profileImage.startsWith('/')) {
       return `${window.location.origin}${profileImage}`;
     }
-    
+
     return `${window.location.origin}/media/${profileImage}`;
   };
 
 
   const getNextAvailableSlot = () => {
-  if (doctor?.next_available_slot) {
-    const slot = doctor.next_available_slot;
-    if (slot.date && slot.time) {
-      if (slot.is_today) {
-        return `Today ${slot.time}`;
-      } else {
-        const date = new Date(slot.date);
-        return `${date.toLocaleDateString()} ${slot.time}`;
+    if (doctor?.next_available_slot) {
+      const slot = doctor.next_available_slot;
+      if (slot.date && slot.time) {
+        if (slot.is_today) {
+          return `Today ${slot.time}`;
+        } else {
+          const date = new Date(slot.date);
+          return `${date.toLocaleDateString()} ${slot.time}`;
+        }
+      }
+      if (slot.has_available_slots === false) {
+        return 'No available slots';
       }
     }
-    if (slot.has_available_slots === false) {
-      return 'No available slots';
-    }
-  }
-  return 'Check for availability';
-};
+    return 'Check for availability';
+  };
 
 
-  
+
 
   const profileImageUrl = getProfileImageUrl(doctor?.profile_image);
-  
+
 
   const handleViewDetails = () => {
     navigate(`/doctor-details/${doctor.slug}`);
@@ -85,9 +85,9 @@ function DoctorCard({ doctor, onViewDetails }) {
             }}
           />
         ) : null}
-        
+
         {/* Fallback avatar */}
-        <div 
+        <div
           className={`absolute inset-0 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center ${profileImageUrl ? 'hidden' : 'flex'}`}
         >
           {doctor?.username ? (
@@ -100,7 +100,7 @@ function DoctorCard({ doctor, onViewDetails }) {
         </div>
 
 
-        
+
       </div>
 
       {/* Doctor Information */}
@@ -115,18 +115,6 @@ function DoctorCard({ doctor, onViewDetails }) {
           </p>
         </div>
 
-        {/* Rating */}
-        {doctor?.rating && (
-          <div className="flex items-center justify-center mb-4 bg-yellow-50 rounded-lg py-2">
-            <div className="flex mr-2">
-              {renderStars(doctor.rating)}
-            </div>
-            <span className="text-sm font-semibold text-gray-700">
-              {doctor.rating} ({doctor.total_reviews || 0} reviews)
-            </span>
-          </div>
-        )}
-
         {/* Details */}
         <div className="space-y-3 mb-4">
           {doctor?.hospital && (
@@ -137,7 +125,7 @@ function DoctorCard({ doctor, onViewDetails }) {
               <span className="truncate font-medium">{doctor.hospital}</span>
             </div>
           )}
-          
+
           {doctor?.experience && (
             <div className="flex items-center text-sm text-gray-600">
               <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center mr-3">
@@ -173,7 +161,7 @@ function DoctorCard({ doctor, onViewDetails }) {
         </div>
 
         {/* View Details Button */}
-        <button 
+        <button
           onClick={handleViewDetails}
           className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 transform hover:scale-105"
         >

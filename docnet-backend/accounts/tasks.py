@@ -25,7 +25,6 @@ def send_email_task(self,subject,message,recipient_list,from_email=None):
         )    
         return f"Email sent successfully to {recipient_list}"
     except Exception as exc:
-        logger.error(f"Email sending failed: {str(exc)}")
         raise self.retry(exc=exc, countdown = 60* (2**self.request.retries))
     
 @shared_task(bind=True, max_retries=2)
@@ -57,7 +56,6 @@ def send_registration_otp_task(self, email, otp):
         return f"Registration OTP send to {email}"
     
     except Exception as exc:
-        logger.error(f"Registration OTP sending failed: {str(exc)}")
         raise self.retry(exc=exc, countdown=60*(2**self.request.retries))
     
 @shared_task(bind=True, max_retires=3)
@@ -88,7 +86,6 @@ def send_password_reset_otp_task(self,email,otp):
         )
         return f"Password reset OTP sent to {email}"
     except Exception as exc:
-        logger.error(f"Password reset OTP sending failed: {str(exc)}")
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
   
 @shared_task

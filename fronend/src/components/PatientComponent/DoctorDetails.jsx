@@ -592,6 +592,12 @@ function DoctorDetailPage() {
                       <span className="text-gray-600">{doctor.hospital}</span>
                     </div>
                   </div>
+                  <div className="flex items-center gap-1 mb-4">
+                    <span className="text-yellow-500 font-medium">
+                      ★ {doctor.average_rating?.toFixed(1) || '0.0'}
+                    </span>
+                    <span className="text-gray-500 text-sm">(out of 5)</span>
+                  </div>
 
                   <div className="flex items-center gap-6 mb-4">
                     <div className="flex items-center text-gray-600">
@@ -700,7 +706,7 @@ function DoctorDetailPage() {
               </div>
             )}
 
-            
+
 
             {activeTab === 'reviews' && (
               <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100">
@@ -887,7 +893,7 @@ function DoctorDetailPage() {
                     </div>
                   </div>
                 ))}
-                
+
               </div>
               <button
                 onClick={handleBookAppointment}

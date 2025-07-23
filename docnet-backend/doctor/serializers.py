@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+from django.db.models import Avg
 
 User = get_user_model()
 
@@ -171,6 +172,12 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     role = serializers.ReadOnlyField(source='user.role')
     certificate = serializers.CharField(required=False, allow_null=True)
 
+    average_rating = serializers.SerializerMethodField()
+
+    def get_average_rating(self, obj):
+        rating = obj.reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(rating, 1) if rating else 0.0
+
     class Meta:
         model = DoctorProfile
         fields = [
@@ -178,8 +185,8 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
             'prefer_24hr_consultation', 'emergency_status', 'profile_image',
             'registration_id', 'hospital', 'specialization', 'languages',
             'age', 'gender', 'experience', 'location', 'is_approved',
-            'is_verified', 'role', 'certificate','bank_account', 'ifsc_code', 
-            'beneficiary_id',
+            'is_verified', 'role', 'certificate', 'bank_account', 'ifsc_code',
+            'beneficiary_id', 'average_rating',
         ]
         read_only_fields = [
             'registration_id', 'specialization', 'is_approved'

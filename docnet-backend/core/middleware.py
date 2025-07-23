@@ -28,13 +28,9 @@ class BlockedUserMiddleware:
 
             if auth_result is not None:
                 user, token = auth_result
-
-                logger.debug(f"Authenticated user: {user.email}, is_active: {user.is_active}, id: {user.id}")
-
                 # Always get the latest user object from DB
                 fresh_user = User.objects.get(id=user.id)
                 if not fresh_user.is_active:
-                    logger.warning(f"Blocked user attempted access: {user.email}")
                     return JsonResponse({
                         'detail': 'Your account has been deactivated by admin.',
                         'message': 'Your account has been deactivated by admin.',
@@ -42,10 +38,8 @@ class BlockedUserMiddleware:
                     }, status=401)
 
         except (InvalidToken, AuthenticationFailed) as e:
-            logger.debug(f"Authentication failed in middleware: {str(e)}")
             pass
         except Exception as e:
-            logger.error(f"Unexpected error in BlockedUserMiddleware: {str(e)}")
             pass
 
         return self.get_response(request)

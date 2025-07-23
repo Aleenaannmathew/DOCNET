@@ -44,12 +44,10 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 if self.is_emergency:
                     emergency_id = self.room_name.replace('emergency_', '')
                     if not await self.validate_emergency_consultation(emergency_id, self.user_id):
-                        logger.error(f"Invalid emergency consultation for room {self.room_name}")
                         await self.close(code=4004)
                         return
                 else:
                     if not await self.validate_appointment(self.room_name, self.user_id):
-                        logger.error(f"Invalid appointment for room {self.room_name}")
                         await self.close(code=4004)
                         return
                     
@@ -99,9 +97,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             logger.error(f"Error in connect: {e}")
             await self.close(code=4000)
 
-    async def disconnect(self, close_code):
-        logger.info(f"User {getattr(self, 'user_id', 'unknown')} disconnecting from room {getattr(self, 'room_name', 'unknown')} with code {close_code}")
-        
+    async def disconnect(self, close_code):        
        
         if hasattr(self, 'room_group_name') and hasattr(self, 'user_id'):
             await self.channel_layer.group_send(
@@ -131,10 +127,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
-            
-            logger.debug(f"Received message type {message_type} from user {self.user_id}")
-            
-           
+                    
             if message_type in ['offer', 'answer', 'ice-candidate', 'chat']:
               
                 await self.channel_layer.group_send(
@@ -159,13 +152,11 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             logger.error(f"Error in receive from user {self.user_id}: {e}")
 
     async def signal_message(self, event):
-        """Handle signal_message group message - only send to other participants"""
         if event["sender_channel"] != self.channel_name:
             await self.send(text_data=json.dumps(event["message"]))
             logger.debug(f"Forwarded message from user {event.get('sender_user')} to user {self.user_id}")
 
     async def user_joined(self, event):
-        """Handle user_joined group message - notify about new participant"""
         if event["sender_channel"] != self.channel_name:
             await self.send(text_data=json.dumps({
                 "type": "user_joined",
@@ -192,17 +183,12 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             )
             
             is_doctor = appointment.payment.slot.doctor.user.id == user_id
-            is_patient = appointment.payment.patient.id == user_id
-            
-            logger.info(f"Validation for room {room_name}, user {user_id}: doctor={is_doctor}, patient={is_patient}")
-            
+            is_patient = appointment.payment.patient.id == user_id            
             return is_doctor or is_patient
             
         except Appointment.DoesNotExist:
-            logger.error(f"No valid appointment found for room {room_name}")
             return False
         except Exception as e:
-            logger.error(f"Error validating appointment for room {room_name}, user {user_id}: {e}")
             return False
 
     @database_sync_to_async
@@ -220,17 +206,12 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             is_patient = emergency_payment.patient.id == user_id
             
            
-            consultation_active = not emergency_payment.consultation_end_time
-            
-            logger.info(f"Emergency validation for room {emergency_id}, user {user_id}: doctor={is_doctor}, patient={is_patient}, active={consultation_active}")
-            
+            consultation_active = not emergency_payment.consultation_end_time            
             return (is_doctor or is_patient) and consultation_active
             
         except EmergencyPayment.DoesNotExist:
-            logger.error(f"No valid emergency consultation found for room {emergency_id}")
             return False
         except Exception as e:
-            logger.error(f"Error validating emergency consultation for room {emergency_id}, user {user_id}: {e}")
             return False
         
 
@@ -250,10 +231,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room_id = query_params.get("room_id", [None])[0]
         token = query_params.get("token", [None])[0]
 
-        logger.info(f"WebSocket connection attempt: room_id={self.room_id}, token_present={bool(token)}")
-
         if not token or not self.room_id:
-            logger.error("Missing token or room_id")
             await self.close()
             return
 
@@ -262,9 +240,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             user_id = access_token['user_id']
             self.scope['user'] = await database_sync_to_async(User.objects.get)(id=user_id)
             self.user = self.scope['user']
-            logger.info(f"User authenticated: {self.user.username}")
         except Exception as e:
-            logger.error(f"Authentication failed: {e}")
             await self.close()
             return
 
@@ -272,15 +248,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.room = await self.get_room(self.room_id)
 
         if not self.room or not await self.is_valid_user() or not await self.is_chat_allowed():
-            logger.error(f"Room not found: {self.room_id}")
-            logger.error(f"Invalid user for room: {self.user.username}")
-            logger.error("Chat period expired")
+            
             await self.close()
             return
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        logger.info(f"WebSocket connection accepted for user: {self.user.username}")
 
         
         messages = await self.get_chat_history()

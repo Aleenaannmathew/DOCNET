@@ -48,7 +48,6 @@ class DoctorRegistrationView(APIView):
             with transaction.atomic():
                 user = serializer.save()
                 otp = OTPManager.create_otp_verification(user)
-                doctor_logger.info(f"New doctor user created - ID: {user.id}, Email: {user.email}")
 
                 email_queued = EmailManager.send_registration_otp(user.email, otp, 'doctor')
                 if not email_queued:
@@ -118,10 +117,8 @@ class ResendOTPView(APIView):
         
         try:
             user = User.objects.get(id=user_id)
-            auth_logger.info(f"Resending OTP for user {user_id}")
             
             otp = OTPManager.create_otp_verification(user)
-            auth_logger.debug(f"New OTP generated for user {user.id}")
             
             # Send email
             email_queued = EmailManager.send_registration_otp(user.email, otp, 'doctor')
@@ -434,7 +431,6 @@ class DoctorLogoutView(APIView):
                 except TokenError:    
                     pass
                 except Exception as e:
-                    logger.error(f'Error blacklisting token: {str(e)}')
                     pass
             
             return ResponseManager.success_response(
@@ -444,7 +440,6 @@ class DoctorLogoutView(APIView):
             )
         
         except Exception as e:
-            logger.error(f'Logout error: {str(e)}')
             return ResponseManager.success_response(
                 data={'logout': True},
                 message='Logged out with warnings',
@@ -624,12 +619,9 @@ class EmergencyStatusUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-      
-        logger.info(f"GET request for emergency status from user: {request.user}")
-        
+              
         try:
             profile = DoctorProfile.objects.get(user=request.user)
-            logger.info(f"Found profile for {request.user}: emergency_status={profile.emergency_status}")
             
             return Response({
                 'emergency_status': profile.emergency_status,
@@ -638,22 +630,18 @@ class EmergencyStatusUpdateView(APIView):
             }, status=status.HTTP_200_OK)
             
         except DoctorProfile.DoesNotExist:
-            logger.error(f"DoctorProfile not found for user: {request.user}")
             return Response(
                 {'detail': 'Doctor profile not found.'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            logger.error(f"Unexpected error in GET: {str(e)}")
             return Response(
                 {'detail': 'An error occurred while fetching emergency status.'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     def post(self, request):
-      
-        logger.info(f"POST request for emergency status from user: {request.user}, data: {request.data}")
-        
+              
         serializer = EmergencyStatusSerializer(data=request.data)
         if serializer.is_valid():
             emergency_status = serializer.validated_data['emergency_status']
@@ -663,7 +651,6 @@ class EmergencyStatusUpdateView(APIView):
                 
                 # Check if doctor has opted for 24hr consultation
                 if not profile.prefer_24hr_consultation:
-                    logger.warning(f"User {request.user} tried to update emergency status without 24hr consultation preference")
                     return Response(
                         {'detail': 'Doctor has not opted for 24hr consultation.'},
                         status=status.HTTP_403_FORBIDDEN
@@ -673,22 +660,18 @@ class EmergencyStatusUpdateView(APIView):
                 old_status = profile.emergency_status
                 profile.emergency_status = emergency_status
                 profile.save(update_fields=['emergency_status'])
-                
-                logger.info(f"Emergency status updated for {request.user}: {old_status} -> {emergency_status}")
-                
+                                
                 return Response({
                     'message': 'Emergency status updated successfully.',
                     'emergency_status': profile.emergency_status
                 }, status=status.HTTP_200_OK)
                 
             except DoctorProfile.DoesNotExist:
-                logger.error(f"DoctorProfile not found for user: {request.user}")
                 return Response(
                     {'detail': 'Doctor profile not found.'}, 
                     status=status.HTTP_404_NOT_FOUND
                 )
             except Exception as e:
-                logger.error(f"Unexpected error in POST: {str(e)}")
                 return Response(
                     {'detail': 'An error occurred while updating emergency status.'}, 
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR

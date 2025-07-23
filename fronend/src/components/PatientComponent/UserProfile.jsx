@@ -233,7 +233,7 @@ const UserProfile = () => {
         profileFormData.append('profile_image', profileImage);
       }
       
-      // Debug: Log form data
+      
       for (let pair of profileFormData.entries()) {
       }
       

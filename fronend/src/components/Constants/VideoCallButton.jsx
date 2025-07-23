@@ -50,8 +50,6 @@ const VideoCallButton = ({ slotId, token }) => {
         document.body)
       )}
 
-      {/* Toast Container */}
-      <ToastContainer position="top-right" autoClose={3000} />
     </>
   );
 };

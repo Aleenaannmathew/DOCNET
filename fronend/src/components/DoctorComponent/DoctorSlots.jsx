@@ -841,7 +841,6 @@ const DoctorSlots = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <ToastContainer />
         <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -984,23 +983,38 @@ const DoctorSlots = () => {
 
     const bookedTimes = slotsForDate.map(slot => slot.time.substring(0, 5));
 
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (!formData.time || !formData.fee) {
-        toast.error('Please fill in all required fields');
-        return;
-      }
+    const handleSubmit = async (e) => {
+  e.preventDefault();
 
-      if (editingSlot) {
-        updateSlot(editingSlot.id, formData);
-      } else {
-        createSlot(formData);
-      }
-    };
+  if (!formData.time || !formData.fee) {
+    toast.error('Please fill in all required fields');
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
+    if (editingSlot) {
+      await updateSlot(editingSlot.id, formData);
+      setShowSlotModal(false);
+      setEditingSlot(null);
+      toast.success('Slot updated successfully');
+    } else {
+      await createSlot(formData);
+      setShowSlotModal(false);
+      setEditingSlot(null);
+      toast.success('Slot created successfully');
+    }
+  } catch (error) {
+    toast.error('Something went wrong. Please try again.');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <ToastContainer />
         <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -1152,7 +1166,6 @@ const DoctorSlots = () => {
     return (
 
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-        <ToastContainer />
         {/* Calendar Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-6">
           <div className="flex justify-between items-center">
@@ -1301,13 +1314,9 @@ const DoctorSlots = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       <DocSidebar />
-      <ToastContainer />
-
-
-
+      <ToastContainer position="top-right" autoClose={3000} />
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <ToastContainer />
         {/* Top bar */}
 
 
