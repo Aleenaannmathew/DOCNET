@@ -85,11 +85,9 @@ class VerifyOTPView(APIView):
             result = OTPManager.verify_otp(user, entered_otp, 'registration', expiry_minutes=settings.OTP_EXPIRY_MINUTES)
             
             if result['success']:
-                # Mark user as verified
                 user.is_verified = True
                 user.save()
                 
-                # Delete OTP record
                 result['otp_verification'].delete()
                 
                 return ResponseManager.success_response(
@@ -120,7 +118,6 @@ class ResendOTPView(APIView):
             
             otp = OTPManager.create_otp_verification(user)
             
-            # Send email
             email_queued = EmailManager.send_registration_otp(user.email, otp, 'doctor')
             if not email_queued:
                 doctor_logger.error(f"Failed to queue OTP email for {user.email}")
@@ -189,7 +186,6 @@ class DoctorChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Check if user is a doctor
         if request.user.role != 'doctor':
             return ResponseManager.error_response(
                 'This endpoint is only for doctors',
@@ -248,7 +244,6 @@ class DoctorSendPasswordResetOTPView(APIView):
                     'No doctor account found with this email address'
                 )
             
-            # Generate and send password reset OTP
             otp = OTPManager.create_otp_verification(user, 'password_reset')
             
             email_queued = EmailManager.send_registration_otp(user.email, otp, 'doctor')
@@ -282,7 +277,6 @@ class DoctorVerifyPasswordResetOTPView(APIView):
                     status.HTTP_404_NOT_FOUND
                 )
             
-            # Verify OTP using utility
             result = OTPManager.verify_otp(user, entered_otp, 'password_reset')
             
             if result['success']:
@@ -321,7 +315,6 @@ class DoctorResetPasswordView(APIView):
                     status.HTTP_404_NOT_FOUND
                 )
             
-            # Reset password using utility
             result = PasswordManager.reset_password(user, new_password)
             
             if result['success']:
@@ -501,7 +494,6 @@ class AvailableSlotsView(generics.ListAPIView):
 
         if date:
             try:
-                # Parse the date string properly
                 date_obj = datetime.strptime(date, '%Y-%m-%d').date()
                 queryset = queryset.filter(date=date_obj)
             except ValueError:
@@ -591,7 +583,6 @@ class ValidateVideoCallAPI(APIView):
             slot = appointment.payment.slot
             slot_time = datetime.combine(slot.date, slot.start_time)
             
-            # Make slot_time timezone-aware
             slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
             start_window = slot_time - timedelta(minutes=15)
@@ -649,14 +640,12 @@ class EmergencyStatusUpdateView(APIView):
             try:
                 profile = DoctorProfile.objects.get(user=request.user)
                 
-                # Check if doctor has opted for 24hr consultation
                 if not profile.prefer_24hr_consultation:
                     return Response(
                         {'detail': 'Doctor has not opted for 24hr consultation.'},
                         status=status.HTTP_403_FORBIDDEN
                     )
 
-                # Update emergency status
                 old_status = profile.emergency_status
                 profile.emergency_status = emergency_status
                 profile.save(update_fields=['emergency_status'])
@@ -688,7 +677,6 @@ class DoctorEmergencyConsultationListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        # Ensure user is a doctor
         if not hasattr(self.request.user, 'doctor_profile'):
             return EmergencyPayment.objects.none()
         
@@ -697,7 +685,6 @@ class DoctorEmergencyConsultationListView(generics.ListAPIView):
             doctor=doctor_profile
         ).select_related('patient', 'doctor__user').order_by('-timestamp')
         
-        # Filter by status if provided
         status_filter = self.request.query_params.get('status', None)
         if status_filter:
             if status_filter == 'today':
@@ -713,7 +700,6 @@ class DoctorEmergencyConsultationListView(generics.ListAPIView):
             elif status_filter == 'pending':
                 queryset = queryset.filter(payment_status='pending')
         
-        # Search functionality
         search = self.request.query_params.get('search', None)
         if search:
             queryset = queryset.filter(
@@ -891,7 +877,6 @@ class DoctorAnalyticsView(APIView):
         current_year = today.year
         week_start = today - timedelta(days=today.weekday())
 
-        # Filter transactions based on the filter_type
         if filter_type == 'daily':
             transactions = transactions.filter(updated_date__date=today)
         elif filter_type == 'weekly':
@@ -901,11 +886,9 @@ class DoctorAnalyticsView(APIView):
         elif filter_type == 'yearly':
             transactions = transactions.filter(updated_date__year=current_year)
 
-        # Apply pagination
         paginator = self.AnalyticsPagination()
         page = paginator.paginate_queryset(transactions, request)
 
-        # Serialize paginated transaction data
         txn_list = [{
             "date": txn.updated_date.strftime('%Y-%m-%d %H:%M'),
             "type": txn.type,
@@ -913,14 +896,12 @@ class DoctorAnalyticsView(APIView):
             "new_balance": txn.new_balance
         } for txn in page]
 
-        # Calculate revenues
         month_revenue = wallet.history.filter(updated_date__month=current_month, updated_date__year=current_year, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         week_revenue = wallet.history.filter(updated_date__date__gte=week_start, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         today_revenue = wallet.history.filter(updated_date__date=today, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         expected_weekly_revenue = (month_revenue / today.day) * 7 if today.day else Decimal('0.00')
         expected_monthly_revenue = (month_revenue / today.day) * 30 if today.day else Decimal('0.00')
 
-        # Return paginated response
         return paginator.get_paginated_response({
             "wallet_balance": wallet.balance,
             "transactions": txn_list,
@@ -1038,7 +1019,6 @@ class MedicalRecordAPIView(APIView):
         data['patient'] = appointment.payment.patient.id
         data['doctor'] = appointment.payment.slot.doctor.user.id
 
-        # Get or create medical record
         record, created = MedicalRecord.objects.get_or_create(
             appointment=appointment,
             defaults={

@@ -27,14 +27,14 @@ class DoctorProfileListSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
     is_active = serializers.SerializerMethodField()
-    unread_report_count = serializers.IntegerField(read_only=True)  # <- ADD THIS
+    unread_report_count = serializers.IntegerField(read_only=True)   
 
     class Meta:
         model = DoctorProfile
         fields = [
             'id', 'user', 'name', 'email', 'registration_id', 
             'age', 'gender', 'experience', 'hospital','specialization',
-            'is_approved', 'is_active', 'unread_report_count'  # <- INCLUDE IN FIELDS
+            'is_approved', 'is_active', 'unread_report_count' 
         ]
 
     def get_name(self, obj):

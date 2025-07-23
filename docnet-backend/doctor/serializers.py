@@ -10,13 +10,14 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 from django.db.models import Avg
+from django.conf import settings
 
 User = get_user_model()
 
 cloudinary.config(
-    cloud_name='ds9y1cj9u',
-    api_key='999752882965587',
-    api_secret='Hi9PbuFPRZ92UNjC8mpPtkg3ygw'
+    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+    api_key=settings.CLOUDINARY_API_KEY,
+    api_secret=settings.CLOUDINARY_API_SECRET
 )
 def cloudinary_upload(image_file):
     if not image_file:
@@ -407,14 +408,10 @@ class AppointmentDetailsSerializer(serializers.ModelSerializer):
         model = Appointment
         fields = [
             'id', 'status', 'created_at', 'updated_at','reason',
-            # Patient fields
             'patient_name', 'patient_email', 'patient_phone', 'patient_profile_image',
-            # Appointment fields
             'appointment_date', 'appointment_time', 'duration', 'consultation_type','slot_id', 'slot_notes',
-            # Payment fields
             'payment_amount', 'payment_status', 'payment_id', 'payment_method', 
             'razorpay_payment_id', 'payment_date',
-            # Profile fields
             'patient_profile', 'doctor_info'
         ]
     

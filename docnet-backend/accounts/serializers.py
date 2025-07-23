@@ -424,14 +424,12 @@ class BookingHistorySerializer(serializers.ModelSerializer):
         ]
 
 class AppointmentDetailSerializer(serializers.ModelSerializer):
-    # Patient information
     patient_name = serializers.CharField(source='payment.patient.username', read_only=True)
     patient_email = serializers.CharField(source='payment.patient.email', read_only=True)
     patient_phone = serializers.CharField(source='payment.patient.phone', read_only=True)
     patient_profile_image = serializers.CharField(source='payment.patient.profile_image', read_only=True)
     reason = serializers.CharField(read_only = True)
     
-    # Slot information
     appointment_date = serializers.DateField(source='payment.slot.date', read_only=True)
     appointment_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
     duration = serializers.IntegerField(source='payment.slot.duration', read_only=True)
@@ -439,7 +437,6 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
     slot_id = serializers.IntegerField(source='payment.slot_id', read_only=True)
     slot_notes = serializers.CharField(source='payment.slot.notes', read_only=True)
     
-    # Payment information
     payment_amount = serializers.DecimalField(source='payment.amount', max_digits=10, decimal_places=2, read_only=True)
     payment_status = serializers.CharField(source='payment.payment_status', read_only=True)
     payment_id = serializers.CharField(source='payment.payment_id', read_only=True)
@@ -447,24 +444,18 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
     razorpay_payment_id = serializers.CharField(source='payment.razorpay_payment_id', read_only=True)
     payment_date = serializers.DateTimeField(source='payment.timestamp', read_only=True)
     
-    # Patient profile information
     patient_profile = serializers.SerializerMethodField()
     
-    # Doctor information
     doctor_info = serializers.SerializerMethodField()
     
     class Meta:
         model = Appointment
         fields = [
             'id', 'status', 'created_at', 'updated_at',
-            # Patient fields
             'patient_name', 'patient_email', 'patient_phone', 'patient_profile_image',
-            # Appointment fields
             'appointment_date', 'appointment_time', 'duration', 'consultation_type','slot_id', 'slot_notes','reason',
-            # Payment fields
             'payment_amount', 'payment_status', 'payment_id', 'payment_method', 
             'razorpay_payment_id', 'payment_date',
-            # Profile fields
             'patient_profile', 'doctor_info'
         ]
     
@@ -497,24 +488,20 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
         }
 
 class BookingConfirmationSerializer(serializers.ModelSerializer):
-    # Appointment Information
     appointment_id = serializers.IntegerField(source='id', read_only=True)
     appointment_status = serializers.CharField(source='status', read_only=True)
     booking_date = serializers.DateTimeField(source='created_at', read_only=True)
     reason = serializers.CharField(read_only=True)
     
-    # Patient Information - Add error handling for missing relationships
     patient_name = serializers.SerializerMethodField()
     patient_email = serializers.SerializerMethodField()
     patient_phone = serializers.SerializerMethodField()
     
-    # Doctor Information - Add error handling
     doctor_name = serializers.SerializerMethodField()
     doctor_specialization = serializers.SerializerMethodField()
     doctor_hospital = serializers.SerializerMethodField()
     doctor_experience = serializers.SerializerMethodField()
     
-    # Slot Information - Add error handling
     appointment_date = serializers.SerializerMethodField()
     appointment_time = serializers.SerializerMethodField()
     appointment_end_time = serializers.SerializerMethodField()
@@ -522,7 +509,6 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
     consultation_type = serializers.SerializerMethodField()
     slot_fee = serializers.SerializerMethodField()
     
-    # Payment Information - Add error handling
     payment_id = serializers.SerializerMethodField()
     payment_status = serializers.SerializerMethodField()
     payment_amount = serializers.SerializerMethodField()
@@ -530,26 +516,19 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
     razorpay_payment_id = serializers.SerializerMethodField()
     payment_timestamp = serializers.SerializerMethodField()
     
-    # Additional Information
     booking_reference = serializers.SerializerMethodField()
     appointment_instructions = serializers.SerializerMethodField()
     
     class Meta:
         model = Appointment
         fields = [
-            # Appointment fields
             'appointment_id', 'appointment_status', 'booking_date','reason',
-            # Patient fields
             'patient_name', 'patient_email', 'patient_phone',
-            # Doctor fields
             'doctor_name', 'doctor_specialization', 'doctor_hospital', 'doctor_experience',
-            # Slot fields
             'appointment_date', 'appointment_time', 'appointment_end_time', 
             'duration', 'consultation_type', 'slot_fee',
-            # Payment fields
             'payment_id', 'payment_status', 'payment_amount', 'payment_method', 
             'razorpay_payment_id', 'payment_timestamp',
-            # Additional fields
             'booking_reference', 'appointment_instructions'
         ]
     
@@ -863,30 +842,25 @@ class VerifyEmergencyPaymentSerializer(serializers.Serializer):
             raise serializers.ValidationError("Payment record not found or already processed.")
 
         with transaction.atomic():
-            # Update payment record
             payment.razorpay_payment_id = validated_data['razorpay_payment_id']
             payment.razorpay_signature = validated_data['razorpay_signature']
             payment.payment_status = 'success'
             
-            
-            
-            # Start consultation automatically
             payment.start_consultation()
             payment.save()
 
-            # Update doctor's wallet
             doctor = payment.doctor
             wallet, created = Wallet.objects.get_or_create(
                 doctor=doctor,
                 defaults={'balance': Decimal('0.00')}
             )
             
-            # Emergency consultation: 85% to doctor, 15% platform fee
+           
             credited_amount = payment.amount * Decimal('0.85')
             wallet.balance += credited_amount
             wallet.save()
 
-            # Create wallet history
+          
             WalletHistory.objects.create(
                 wallet=wallet,
                 type='credit',
@@ -911,7 +885,6 @@ class EmergencyPaymentSerializer(serializers.ModelSerializer):
             'timestamp'
         ]
 class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
-    # Doctor related fields
     doctor_full_name = serializers.SerializerMethodField()
     doctor_initials = serializers.SerializerMethodField()
     doctor_specialization = serializers.SerializerMethodField()
@@ -919,20 +892,17 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
     doctor_hospital = serializers.SerializerMethodField()
     doctor_availability_status = serializers.SerializerMethodField()
     
-    # Patient related fields
     patient_full_name = serializers.SerializerMethodField()
     patient_age = serializers.SerializerMethodField()
     patient_phone = serializers.SerializerMethodField()
     patient_email = serializers.SerializerMethodField()
     
-    # Consultation related fields
     consultation_id = serializers.SerializerMethodField()
     consultation_status = serializers.SerializerMethodField()
     consultation_date = serializers.SerializerMethodField()
     consultation_time = serializers.SerializerMethodField()
     duration_minutes = serializers.SerializerMethodField()
     
-    # Payment related fields
     formatted_amount = serializers.SerializerMethodField()
     platform_fee = serializers.SerializerMethodField()
     tax_amount = serializers.SerializerMethodField()
@@ -950,7 +920,6 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
             'duration_minutes',
             'reason',
             
-            # Doctor fields
             'doctor_full_name',
             'doctor_initials',
             'doctor_specialization',
@@ -958,13 +927,11 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
             'doctor_hospital',
             'doctor_availability_status',
             
-            # Patient fields
             'patient_full_name',
             'patient_age',
             'patient_phone',
             'patient_email',
             
-            # Payment fields
             'formatted_amount',
             'platform_fee',
             'tax_amount',
@@ -976,7 +943,6 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
             'consultation_end_time',
         ]
     
-    # Doctor methods
     def get_doctor_full_name(self, obj):
        
         if hasattr(obj, 'doctor') and obj.doctor:

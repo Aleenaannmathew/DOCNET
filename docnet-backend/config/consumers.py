@@ -352,7 +352,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        # Extract query parameters
         query_params = parse_qs(self.scope["query_string"].decode())
         token = query_params.get("token", [None])[0]
 

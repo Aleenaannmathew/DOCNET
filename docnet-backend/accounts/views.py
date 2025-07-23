@@ -123,7 +123,6 @@ class VerifyOTPView(APIView):
                 user.is_verified = True
                 user.save()
                 
-                # Delete OTP record
                 result['otp_verification'].delete()
                 
                 return ResponseManager.success_response(
@@ -153,7 +152,6 @@ class ResendOTPView(APIView):
             user = User.objects.get(id=user_id)
             
             otp = OTPManager.create_otp_verification(user)
-            # Send email
             email_queued = EmailManager.send_registration_otp(user.email, otp, 'patient')
             if not email_queued:
                 user_logger.error(f"Failed to queue OTP email for {user.email}")
@@ -181,10 +179,8 @@ class PatientProfileView(APIView):
         try:
             user = request.user
             
-            # Get or create patient profile
             patient_profile, created = PatientProfile.objects.get_or_create(user=user)
             
-            # Prepare response data
             response_data = {
                 'id': user.id,
                 'username': user.username,
@@ -274,7 +270,6 @@ class SendPasswordResetOTPView(APIView):
                     'No patient account found with this email address'
                 )
             
-            # Generate and send password reset OTP
             otp = OTPManager.create_otp_verification(user, 'password_reset')
             
             email_queued = EmailManager.send_registration_otp(user.email, otp, 'patient')
@@ -309,7 +304,6 @@ class VerifyPasswordResetOTPView(APIView):
                     status.HTTP_404_NOT_FOUND
                 )
             
-            # Verify OTP using utility
             result = OTPManager.verify_otp(user, entered_otp, 'password_reset')
             
             if result['success']:
@@ -369,7 +363,6 @@ class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Check if user is a patient
         if request.user.role != 'patient':
             return ResponseManager.error_response(
                 'This endpoint is only for patients',
@@ -791,7 +784,6 @@ class ValidateVideoCallAPI(APIView):
             start_window = slot_time - timedelta(minutes=15)
             end_window = slot_time + timedelta(minutes=slot.duration)
 
-            # ✅ Time check with TEST_MODE override
             if not SiteSetting.is_test_mode() and not (start_window <= now <= end_window):
                 return Response(
                     {"error": "Video call is only available during your scheduled time"},
@@ -814,7 +806,6 @@ class BookingConfirmationByPaymentView(APIView):
     
     def get(self, request, payment_id):
         try:
-            # Ensure user is a patient
             if request.user.role != 'patient':
                 return Response({
                     'success': False,
@@ -832,7 +823,6 @@ class BookingConfirmationByPaymentView(APIView):
                 payment__payment_status='success'
             )
             
-            # Serialize the appointment data
             serializer = BookingConfirmationSerializer(appointment)
             
             return Response({
@@ -941,7 +931,6 @@ class VerifyEmergencyPaymentView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     def _create_notification(self, payment):
-        # Create notification in database
         notification = Notification.objects.create(
             sender=payment.patient,
             receiver=payment.doctor.user,
@@ -951,10 +940,9 @@ class VerifyEmergencyPaymentView(APIView):
             object_id=payment.id
         )
 
-        # Send real-time notification using channels
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f'notifications_{payment.doctor.user.id}',  # Doctor's WebSocket group
+            f'notifications_{payment.doctor.user.id}',  
             {
                 'type': 'send_notification',
                 'message': notification.message,
@@ -977,7 +965,6 @@ class ValidateEmergencyVideoCallAPI(APIView):
                 payment_status='success'
             )
             
-            # Check if user is authorized (doctor or patient)
             user = request.user
             is_doctor = emergency_payment.doctor.user.id == user.id
             is_patient = emergency_payment.patient.id == user.id
@@ -988,7 +975,6 @@ class ValidateEmergencyVideoCallAPI(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
             
-            # Check if consultation has ended
             if emergency_payment.consultation_end_time:
                 return Response(
                     {"error": "This emergency consultation has already ended"},
@@ -1025,7 +1011,6 @@ class EmergencyConsultationConfirmationView(APIView):
         
         payment = get_object_or_404(EmergencyPayment, id=payment_id)
         
-        # Check if user has permission to access this consultation
         if self.request.user != payment.patient and self.request.user != payment.doctor.user:
             return None
         return payment
@@ -1101,7 +1086,6 @@ class EmergencyConsultationConfirmationView(APIView):
         
         payment.consultation_end_time = timezone.now()
         
-        # Calculate duration if start time exists
         if payment.consultation_start_time:
             duration = payment.consultation_end_time - payment.consultation_start_time
             payment.duration_minutes = int(duration.total_seconds() / 60)
@@ -1122,7 +1106,6 @@ class ValidateChatAccessAPI(APIView):
         user = request.user
 
         try:
-            # Find a valid appointment
             appointment = Appointment.objects.get(
                 payment__slot__id=slot_id,
                 payment__payment_status='success',

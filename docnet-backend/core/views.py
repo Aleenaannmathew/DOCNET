@@ -277,7 +277,6 @@ class AdminAppointmentListView(APIView):
         now = timezone.now()
         threshold = now - timedelta(minutes=30)
 
-        # Auto-update outdated appointments
         Appointment.objects.filter(
             status='scheduled',
             created_at__lte=threshold
@@ -287,17 +286,14 @@ class AdminAppointmentListView(APIView):
         status_filter = request.query_params.get('status', '').strip().lower()
         date_filter = request.query_params.get('date_filter', '').strip().lower()
 
-        # Normal Appointments
         normal_qs = Appointment.objects.select_related(
             'payment', 'payment__slot', 'payment__slot__doctor__user', 'payment__patient'
         ).all()
 
-        # Emergency Appointments
         emergency_qs = EmergencyPayment.objects.select_related(
             'doctor__user', 'patient'
         ).all()
 
-        # Apply filters
         if search_term:
             normal_qs = normal_qs.filter(
                 Q(payment__patient__username__icontains=search_term) |
@@ -326,11 +322,9 @@ class AdminAppointmentListView(APIView):
                 normal_qs = normal_qs.filter(payment__slot__date__range=[today, next_week])
                 emergency_qs = emergency_qs.filter(timestamp__date__range=[today, next_week])
 
-        # Serialize both
         normal_data = AdminAppointmentListSerializer(normal_qs, many=True).data
         emergency_data = EmergencyAppointmentSerializer(emergency_qs, many=True).data
 
-        # Mark emergency
         for e in emergency_data:
             e["is_emergency"] = True
         for n in normal_data:
@@ -341,7 +335,6 @@ class AdminAppointmentListView(APIView):
             key=lambda x: x.get("created_at", ""), reverse=True
         )
 
-        # Manual pagination
         page_size = int(request.query_params.get("page_size", 10))
         page_number = int(request.query_params.get("page", 1))
         paginator = Paginator(combined_data, page_size)
@@ -449,7 +442,6 @@ class AdminPaymentHistoryAPIView(APIView):
         status = request.query_params.get('status')
         search = request.query_params.get('search')
 
-        # Normal payments
         normal_qs = Payment.objects.select_related('patient', 'slot__doctor__user').all()
         if status:
             normal_qs = normal_qs.filter(payment_status=status.lower())
@@ -460,7 +452,6 @@ class AdminPaymentHistoryAPIView(APIView):
                 Q(slot__doctor__user__username__icontains=search)
             )
 
-        # Emergency payments
         emergency_qs = EmergencyPayment.objects.select_related('patient', 'doctor__user').all()
         if status:
             emergency_qs = emergency_qs.filter(payment_status=status.lower())
@@ -471,14 +462,12 @@ class AdminPaymentHistoryAPIView(APIView):
                 Q(doctor__user__username__icontains=search)
             )
 
-        # Merge both
         combined = sorted(
             chain(normal_qs, emergency_qs),
             key=lambda x: x.timestamp,
             reverse=True
         )
 
-        # Paginate manually
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(combined, request)
         serializer = UnifiedPaymentSerializer(page, many=True)
@@ -501,7 +490,6 @@ class AdminPaymentCSVExportView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        # Query all payments (or apply filters if required)
         payments = Payment.objects.all().order_by('-created_at')
 
         response = HttpResponse(content_type='text/csv')
@@ -528,7 +516,7 @@ class AdminPaymentPDFExportView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        payments = Payment.objects.all().order_by('-created_at')[:50]  # Limiting to latest 50 for PDF
+        payments = Payment.objects.all().order_by('-created_at')[:50] 
 
         response = HttpResponse(content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="payment_history.pdf"'
@@ -582,7 +570,6 @@ class AdminWithdrawalListAPIView(ListAPIView):
     pagination_class = AdminWithdrawalListPagination
 
     def get_queryset(self):
-        # Auto-fix status if payout_status is RECEIVED
         Withdrawal.objects.filter(status='pending', payout_status='RECEIVED').update(status='completed')
 
         queryset = Withdrawal.objects.select_related('doctor__user').order_by('-requested_at')
@@ -641,7 +628,6 @@ class AdminWithdrawalActionView(APIView):
 
             try:
                 with transaction.atomic():
-                    # Ensure beneficiary exists
                     beneficiary_exists = False
                     try:
                         if get_beneficiary_v2(beneficiary_id=beneficiary_id):
@@ -667,7 +653,6 @@ class AdminWithdrawalActionView(APIView):
                             logger.error(f"Create beneficiary failed: {e}")
                             return Response({'error': str(e)}, status=500)
 
-                    # Initiate transfer
                     payout_response = standard_transfer_v2(
                         transfer_id=transfer_id,
                         amount=withdrawal.amount,
@@ -690,7 +675,6 @@ class AdminWithdrawalActionView(APIView):
                         payout_data.get('utr')
                     )
 
-                    # Determine final status
                     if payout_status in ['SUCCESS', 'RECEIVED', 'ACCEPTED']:
                         final_status = 'completed'
                     elif payout_status in ['PENDING', 'PROCESSING']:
