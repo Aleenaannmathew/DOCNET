@@ -21,9 +21,9 @@ import razorpay
 
 
 cloudinary.config(
-    cloud_name='ds9y1cj9u',
-    api_key='999752882965587',
-    api_secret='Hi9PbuFPRZ92UNjC8mpPtkg3ygw'
+    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+    api_key=settings.CLOUDINARY_API_KEY,
+    api_secret=settings.CLOUDINARY_API_SECRET
 )
 def cloudinary_upload(image_file):
     if not image_file:
@@ -235,18 +235,17 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
         ]
     
     def get_rating(self, obj):
-        # Add your rating logic here or return a default
-        return 4.5  # placeholder
+        
+        return 4.5  
     
-    def get_total_reviews(self, obj):
-        # Add your review count logic here or return a default
-        return 10  # placeholder
+    def get_total_reviews(self, obj): 
+        return 10 
     
     def get_next_available_slot(self, obj):
         try:
             today = timezone.now().date()
             
-            # Find the next available slot
+           
             next_slot = DoctorSlot.objects.filter(
                 doctor=obj,
                 date__gte=today,
@@ -314,10 +313,10 @@ class CreatePaymentSerializer(serializers.ModelSerializer):
         amount = validated_data.get('amount', slot.fee)
         reason = validated_data.pop('reason')
 
-        # Create Razorpay order
-        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl","sXYZOT0gNEqb4wh8rZ67jwYM"))
+       
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
         razorpay_order = client.order.create({
-            "amount": int(amount * 100),  # in paise
+            "amount": int(amount * 100),  
             "currency": "INR",
             "payment_capture": 1,
             "notes": {
@@ -352,10 +351,10 @@ class VerifyPaymentSerializer(serializers.Serializer):
     razorpay_signature = serializers.CharField()
 
     def validate(self, data):
-        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl","sXYZOT0gNEqb4wh8rZ67jwYM"))
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
         try:
-            # Verify signature
+           
             client.utility.verify_payment_signature({
                 'razorpay_order_id': data['razorpay_order_id'],
                 'razorpay_payment_id': data['razorpay_payment_id'],
@@ -370,27 +369,27 @@ class VerifyPaymentSerializer(serializers.Serializer):
         order_id = validated_data['razorpay_order_id']
         payment = Payment.objects.get(payment_id=order_id)
 
-        # Update payment record
+       
         payment.razorpay_payment_id = validated_data['razorpay_payment_id']
         payment.razorpay_signature = validated_data['razorpay_signature']
         payment.payment_status = 'success'
         payment.save()
 
-        # Create appointment
+     
         appointment = Appointment.objects.get(payment=payment)
 
         slot_booking = payment.slot
         slot_booking.is_booked = True
         slot_booking.save()
 
-        # Update wallet
+      
         doctor = slot_booking.doctor
         wallet, created = Wallet.objects.get_or_create(doctor=doctor)
-        credited_amount = payment.amount * Decimal('0.90')  # 90% to doctor
+        credited_amount = payment.amount * Decimal('0.90') 
         wallet.balance += credited_amount
         wallet.save()
 
-        # Wallet history
+       
         WalletHistory.objects.create(
             wallet=wallet,
             type='credit',
@@ -598,7 +597,7 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
         except AttributeError:
             return 0
     
-    # Slot Information Methods
+    
     def get_appointment_date(self, obj):
         try:
             return obj.payment.slot.date if obj.payment and obj.payment.slot else None
@@ -635,7 +634,7 @@ class BookingConfirmationSerializer(serializers.ModelSerializer):
         except AttributeError:
             return 0
     
-    # Payment Information Methods
+    
     def get_payment_id(self, obj):
         try:
             return obj.payment.payment_id if obj.payment else "N/A"
@@ -777,7 +776,7 @@ class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
         amount = validated_data.get('amount', 800.00)
         reason = validated_data.get('reason','')
 
-        # Check for existing active consultation
+       
         active_consultation = EmergencyPayment.objects.filter(
             patient=patient,
             payment_status='success',
@@ -790,13 +789,13 @@ class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
                 "You already have an active emergency consultation."
             )
 
-        # Initialize Razorpay client
-        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl", "sXYZOT0gNEqb4wh8rZ67jwYM"))
+        
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
         try:
-            # Create Razorpay order
+          
             razorpay_order = client.order.create({
-                "amount": int(amount * 100),  # in paise
+                "amount": int(amount * 100), 
                 "currency": "INR",
                 "payment_capture": 1,
                 "notes": {
@@ -808,7 +807,7 @@ class CreateEmergencyPaymentSerializer(serializers.ModelSerializer):
                 }
             })
 
-            # Create payment entry
+           
             with transaction.atomic():
                 payment = EmergencyPayment.objects.create(
                     doctor=doctor,
@@ -835,11 +834,11 @@ class VerifyEmergencyPaymentSerializer(serializers.Serializer):
     razorpay_signature = serializers.CharField(max_length=500)
 
     def validate(self, data):
-        # Initialize Razorpay client
-        client = razorpay.Client(auth=("rzp_test_JFRhohewvJ81Dl","sXYZOT0gNEqb4wh8rZ67jwYM"))
+        
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
         try:
-            # Verify payment signature
+           
             client.utility.verify_payment_signature({
                 'razorpay_order_id': data['razorpay_order_id'],
                 'razorpay_payment_id': data['razorpay_payment_id'],
@@ -1119,7 +1118,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
        
         if hasattr(obj, 'platform_fee') and obj.platform_fee:
             return f"₹{obj.platform_fee:,.2f}"
-        # Calculate 10% platform fee if not stored
+       
         if hasattr(obj, 'amount') and obj.amount:
             fee = Decimal(str(obj.amount)) * Decimal('0.10')
             return f"₹{fee:,.2f}"
@@ -1129,7 +1128,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
         
         if hasattr(obj, 'tax_amount') and obj.tax_amount:
             return f"₹{obj.tax_amount:,.2f}"
-        # Calculate 18% GST if not stored
+       
         if hasattr(obj, 'amount') and obj.amount:
             base_amount = Decimal(str(obj.amount))
             platform_fee = base_amount * Decimal('0.10')
@@ -1142,7 +1141,7 @@ class EmergencyConsultationConfirmationSerializer(serializers.ModelSerializer):
        
         if hasattr(obj, 'total_amount') and obj.total_amount:
             return f"₹{obj.total_amount:,.2f}"
-        # Calculate total if not stored
+       
         if hasattr(obj, 'amount') and obj.amount:
             base_amount = Decimal(str(obj.amount))
             platform_fee = base_amount * Decimal('0.10')
@@ -1227,7 +1226,7 @@ class MedicalRecordSerializer(serializers.ModelSerializer):
         
         representation = super().to_representation(instance)
         
-        # Format dates
+       
         if instance.follow_up_date:
             representation['follow_up_date'] = instance.follow_up_date.strftime('%Y-%m-%d')
         if instance.created_at:

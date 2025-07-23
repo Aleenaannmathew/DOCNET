@@ -84,6 +84,7 @@ DOMAIN_URL = 'http://127.0.0.1:8000'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -133,13 +134,10 @@ CHANNEL_LAYERS = {
 
 AUTH_USER_MODEL = 'accounts.User'
 
-# Cloudinary credentials
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': env('CLOUD_NAME'),
-    'API_KEY': env('CLOUD_API_KEY'),
-    'API_SECRET': env('CLOUD_API_SECRET'),
-    'SECURE': True,
-}
+
+CLOUDINARY_CLOUD_NAME = env('CLOUDINARY_CLOUD_NAME')
+CLOUDINARY_API_KEY = env('CLOUDINARY_API_KEY')
+CLOUDINARY_API_SECRET = env('CLOUDINARY_API_SECRET')
 
 GOOGLE_CLIENT_ID = env('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = env('GOOGLE_CLIENT_SECRET')
@@ -206,8 +204,8 @@ REST_FRAMEWORK = {
 
 
 
-RAZORPAY_API_KEY = env('RAZORPAY_API_KEY')
-RAZORPAY_API_SECRET = env('RAZORPAY_API_SECRET')
+RAZORPAY_KEY_ID = env("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = env("RAZORPAY_KEY_SECRET")
 
 REST_USE_JWT = True
 
@@ -290,11 +288,29 @@ LOGIN_REDIRECT_URL = '/'
 
 REST_USE_JWT = True
 
+OTP_EXPIRY_MINUTES = 2
+
+AVAILABILITY_FILTER_DAYS = {
+    'next_3_days': 3,
+    'this_week': 7,
+}
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 LOGIN_REDIRECT_URL = '/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',  # If you have custom static files
+]
+
+if DEBUG:
+    # Disable caching in development for easier debugging
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

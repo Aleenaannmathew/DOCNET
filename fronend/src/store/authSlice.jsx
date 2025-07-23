@@ -1,4 +1,4 @@
-import { createSlice} from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 
 
 const safeParse = (key) => {
@@ -37,7 +37,13 @@ const authSlice = createSlice({
       localStorage.setItem('user', JSON.stringify(user));
     },
     logout: (state) => {
-      Object.assign(state, initialState);
+      state.token = null;
+      state.refreshToken = null;
+      state.user = null;
+      state.isAuthenticated = false;
+      state.role = null;
+      state.isLoading = false;
+      state.error = null;
       ['token', 'refreshToken', 'user'].forEach(key => localStorage.removeItem(key));
     },
     setLoading: (state, action) => {
@@ -48,33 +54,33 @@ const authSlice = createSlice({
     },
 
     updateToken: (state, action) => {
-  state.token = action.payload.access;
-  if (action.payload.refresh) {
-    state.refreshToken = action.payload.refresh;
-    localStorage.setItem('refreshToken', action.payload.refresh);
-  }
-  localStorage.setItem('token', action.payload.access);
-},
+      state.token = action.payload.access;
+      if (action.payload.refresh) {
+        state.refreshToken = action.payload.refresh;
+        localStorage.setItem('refreshToken', action.payload.refresh);
+      }
+      localStorage.setItem('token', action.payload.access);
+    },
 
     updateUser: (state, action) => {
-   
+
       state.user = {
         ...state.user,
         ...action.payload
       };
-      
-    
+
+
       localStorage.setItem('user', JSON.stringify(state.user));
     },
-    
+
     updateProfileComplete: (state, action) => {
-     
+
       state.user = {
         ...state.user,
         is_profile_complete: action.payload
       };
-      
-    
+
+
       localStorage.setItem('user', JSON.stringify(state.user));
     }
   }

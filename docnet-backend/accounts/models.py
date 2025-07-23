@@ -23,6 +23,7 @@ class User(AbstractUser):
             models.Index(fields=['email']),
             models.Index(fields=['username']),
             models.Index(fields=['role']),
+            models.Index(fields=['phone']),
         ]
 
     def __str__(self):
@@ -41,25 +42,19 @@ class OTPVerification(models.Model):
     
 
 class PatientProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, db_index=True)
-    age = models.IntegerField(null=True, blank=True, db_index=True)
-    blood_group = models.CharField(max_length=10, blank=True, null=True, db_index=True)
-    height = models.FloatField(null=True, blank=True, help_text="Height in cm")
-    weight = models.FloatField(null=True, blank=True, help_text="Weight in kg")
-    allergies = models.TextField(blank=True, help_text="Known allergies")
-    chronic_conditions = models.TextField(blank=True, help_text="Any chronic health conditions")
-    emergency_contact = models.CharField(max_length=15, blank=True, null=True, db_index=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    age = models.IntegerField(null=True, blank=True)
+    blood_group = models.CharField(max_length=10, blank=True, null=True)
+    height = models.FloatField(null=True, blank=True)
+    weight = models.FloatField(null=True, blank=True)
+    allergies = models.TextField(blank=True)
+    chronic_conditions = models.TextField(blank=True)
+    emergency_contact = models.CharField(max_length=15, blank=True, null=True)
     emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"Profile for {self.user.username}"
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['blood_group']),
-            models.Index(fields=['age']),
-            models.Index(fields=['emergency_contact']),
-        ]
 
     
 class Payment(models.Model):
@@ -84,7 +79,6 @@ class Payment(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['payment_status']),
-            models.Index(fields=['timestamp']),
             models.Index(fields=['payment_id']),
         ]
 

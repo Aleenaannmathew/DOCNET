@@ -18,6 +18,7 @@ from datetime import timedelta, datetime
 from django.utils.timezone import localtime
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from core.models import SiteSetting
 from .models import OTPVerification, PatientProfile, Appointment, Payment,EmergencyPayment, ChatRoom, Message,MedicalRecord, Notification,DoctorReview,DoctorReport
 from doctor.models import DoctorProfile
 from doctor.serializers import DoctorProfileSerializer
@@ -116,7 +117,7 @@ class VerifyOTPView(APIView):
         try:
             user = User.objects.get(id=user_id)
             
-            result = OTPManager.verify_otp(user, entered_otp, 'registration', expiry_minutes=1)
+            result = OTPManager.verify_otp(user, entered_otp, 'registration', expiry_minutes=settings.OTP_EXPIRY_MINUTES)
             
             if result['success']:
                 
@@ -564,13 +565,15 @@ class DoctorListView(generics.ListAPIView):
             if availability == 'Available today':
                 queryset = queryset.filter(available_today=True)
             elif availability == 'Next 3 days':
-                next_3_days = today + timedelta(days=3)
+                days = settings.AVAILABILITY_FILTER_DAYS.get('next_3_days', 3)
+                next_3_days = today + timedelta(days=days)
                 queryset = queryset.filter(
                     slots__date__range=[today, next_3_days],
                     slots__is_booked=False
                 ).distinct()
             elif availability == 'This Week':
-                week_end = today + timedelta(days=7)
+                days = settings.AVAILABILITY_FILTER_DAYS.get('this_week', 7)
+                week_end = today + timedelta(days=days)
                 queryset = queryset.filter(
                     slots__date__range=[today, week_end],
                     slots__is_booked=False
@@ -780,32 +783,32 @@ class ValidateVideoCallAPI(APIView):
     def get(self, request, slot_id):
         try:
             now = timezone.now()
+
             appointment = Appointment.objects.get(
                 payment__slot__id=slot_id,
                 status='scheduled',
                 payment__payment_status='success'
             )
-            
-            # slot = appointment.payment.slot
-            # slot_time = datetime.combine(slot.date, slot.start_time)
-            
-            # slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
 
-            # start_window = slot_time - timedelta(minutes=15)
-            # end_window = slot_time + timedelta(minutes=slot.duration)
-            
-            # if not (start_window <= now <= end_window):
-            #     return Response(
-            #         {"error": "Video call is only available during your scheduled time"},
-            #         status=status.HTTP_400_BAD_REQUEST
-            #     )
-            
-                
+            slot = appointment.payment.slot
+            slot_time = datetime.combine(slot.date, slot.start_time)
+            slot_time = timezone.make_aware(slot_time, timezone.get_current_timezone())
+
+            start_window = slot_time - timedelta(minutes=15)
+            end_window = slot_time + timedelta(minutes=slot.duration)
+
+            # ✅ Time check with TEST_MODE override
+            if not SiteSetting.is_test_mode() and not (start_window <= now <= end_window):
+                return Response(
+                    {"error": "Video call is only available during your scheduled time"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             return Response({
                 "valid": True,
                 "room_name": str(slot_id),
             })
-            
+
         except Appointment.DoesNotExist:
             return Response(
                 {"error": "No valid appointment found"},
@@ -1134,9 +1137,9 @@ class ValidateChatAccessAPI(APIView):
                 status='completed'
             )
 
-            # Check if consultation is still valid
+            
             consultation_end = appointment.updated_at
-            if timezone.now() > consultation_end + timedelta(days=7):
+            if not SiteSetting.is_test_mode() and timezone.now() > consultation_end + timedelta(days=7):
                 return Response(
                     {"error": "Chat window has expired"},
                     status=status.HTTP_403_FORBIDDEN
@@ -1145,13 +1148,8 @@ class ValidateChatAccessAPI(APIView):
             doctor_user = appointment.payment.slot.doctor.user
             patient_user = appointment.payment.patient
 
-            # Determine if the logged-in user is doctor or patient
-            if user == doctor_user:
-                room, _ = ChatRoom.objects.get_or_create(
-                    doctor=doctor_user,
-                    patient=patient_user
-                )
-            elif user == patient_user:
+           
+            if user == doctor_user or user == patient_user:
                 room, _ = ChatRoom.objects.get_or_create(
                     doctor=doctor_user,
                     patient=patient_user
@@ -1169,6 +1167,7 @@ class ValidateChatAccessAPI(APIView):
                 {"error": "No valid completed appointment found"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
         
 class MedicalRecordListView(generics.ListAPIView):
     serializer_class = MedicalRecordSerializer
@@ -1254,14 +1253,14 @@ class SubmitDoctorReviewView(APIView):
         if not rating or not comment:
             return Response({'detail': 'Rating and comment are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if the patient had a completed consultation
+        
         appointment = Appointment.objects.filter(
             payment__patient=patient,
             payment__slot__doctor=doctor,
             status='completed'
         ).first()
 
-        # Check if the patient had a completed emergency consultation
+       
         emergency_payment = EmergencyPayment.objects.filter(
             patient=patient,
             doctor=doctor,
@@ -1273,7 +1272,7 @@ class SubmitDoctorReviewView(APIView):
         if not appointment and not emergency_payment:
             return Response({'detail': 'You can only review doctors you have consulted with.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Prevent duplicate reviews
+       
         if DoctorReview.objects.filter(patient=patient, doctor=doctor).exists():
             return Response({'detail': 'You have already reviewed this doctor.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1286,7 +1285,7 @@ class SubmitDoctorReviewView(APIView):
             comment=comment
         )
 
-        # Serialize the review to return it to the frontend
+        
         serializer = DoctorReviewSerializer(review)
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -1361,14 +1360,14 @@ class SubmitDoctorReportView(APIView):
 
         patient = request.user
 
-        # Check if the patient had a completed consultation (normal)
+        
         appointment = Appointment.objects.filter(
             payment__patient=patient,
             payment__slot__doctor=doctor,
             status='completed'
         ).exists()
 
-        # Check if the patient had a completed emergency consultation
+        
         emergency = EmergencyPayment.objects.filter(
             patient=patient,
             doctor=doctor,

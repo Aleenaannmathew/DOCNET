@@ -74,14 +74,6 @@ export default function DashboardAdmin() {
       icon: <CalendarDays className="text-purple-500" size={24} />
     },
     {
-      title: 'Total Revenue',
-      value: `Rs.${dashboardData.total_revenue}`,
-      change: dashboardData.trends.total_revenue_change,
-      trend: dashboardData.trends.total_revenue_change.startsWith('+') ? 'up' : 'down',
-      color: 'border-l-amber-500',
-      icon: <CreditCard className="text-amber-500" size={24} />
-    },
-    {
       title: 'Admin Profit',
       value: `Rs.${dashboardData.admin_profit}`,
       change: '+10%',

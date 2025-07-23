@@ -10,9 +10,11 @@ import {
   LogOut 
 } from 'lucide-react';
 import { logout } from '../../store/authSlice';
+import { useDispatch } from 'react-redux';
 
 const PatientSidebar = ({ activeTab, setActiveTab }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch()
 
   const sidebarItems = [
     { name: 'Profile Information', icon: User },
@@ -42,7 +44,7 @@ const PatientSidebar = ({ activeTab, setActiveTab }) => {
   };
 
   const handleLogout = async () => {
-      try{
+      try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
           await userAxios.post('/logout/', {
@@ -55,13 +57,12 @@ const PatientSidebar = ({ activeTab, setActiveTab }) => {
         navigate('/login');
       } catch (error) {
         console.error('Logout error:', error);
-  
         dispatch(logout());
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        navigate('/login')
+        navigate('/login');
       }
-    }
+    };
 
   return (
     <>

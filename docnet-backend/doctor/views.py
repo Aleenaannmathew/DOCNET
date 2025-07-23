@@ -28,6 +28,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.utils import timezone
 import logging
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import api_view, permission_classes
 from accounts.models import Appointment,MedicalRecord
 from .models import DoctorProfile, DoctorSlot, Wallet,WalletHistory,Withdrawal
@@ -82,7 +83,7 @@ class VerifyOTPView(APIView):
         try:
             user = User.objects.get(id=user_id)
             
-            result = OTPManager.verify_otp(user, entered_otp, 'registration', expiry_minutes=1)
+            result = OTPManager.verify_otp(user, entered_otp, 'registration', expiry_minutes=settings.OTP_EXPIRY_MINUTES)
             
             if result['success']:
                 # Mark user as verified
@@ -875,6 +876,11 @@ class DoctorDashboardView(APIView):
 class DoctorAnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
 
+    class AnalyticsPagination(PageNumberPagination):
+        page_size = 10
+        page_size_query_param = 'page_size'
+        max_page_size = 100
+
     def get(self, request):
         user = request.user
         filter_type = request.query_params.get('filter', 'all')
@@ -883,8 +889,8 @@ class DoctorAnalyticsView(APIView):
             return Response({"detail": "Doctor profile not found."}, status=404)
 
         doctor = user.doctor_profile
-        wallet, created = Wallet.objects.get_or_create(doctor=doctor)
-     
+        wallet = doctor.wallet
+
         if not wallet:
             return Response({
                 "wallet_balance": Decimal('0.00'),
@@ -896,42 +902,44 @@ class DoctorAnalyticsView(APIView):
                 "expected_monthly_revenue": Decimal('0.00')
             })
 
-        balance = wallet.balance
         transactions = wallet.history.all().order_by('-updated_date')
-
         today = localdate()
         current_month = today.month
         current_year = today.year
-
         week_start = today - timedelta(days=today.weekday())
 
+        # Filter transactions based on the filter_type
         if filter_type == 'daily':
-            filtered_txns = transactions.filter(updated_date__date=today)
+            transactions = transactions.filter(updated_date__date=today)
         elif filter_type == 'weekly':
-            filtered_txns = transactions.filter(updated_date__date__gte=week_start)
+            transactions = transactions.filter(updated_date__date__gte=week_start)
         elif filter_type == 'monthly':
-            filtered_txns = transactions.filter(updated_date__month=current_month, updated_date__year=current_year)
+            transactions = transactions.filter(updated_date__month=current_month, updated_date__year=current_year)
         elif filter_type == 'yearly':
-            filtered_txns = transactions.filter(updated_date__year=current_year)
-        else:
-            filtered_txns = transactions
+            transactions = transactions.filter(updated_date__year=current_year)
 
+        # Apply pagination
+        paginator = self.AnalyticsPagination()
+        page = paginator.paginate_queryset(transactions, request)
+
+        # Serialize paginated transaction data
         txn_list = [{
             "date": txn.updated_date.strftime('%Y-%m-%d %H:%M'),
             "type": txn.type,
             "amount": txn.amount,
             "new_balance": txn.new_balance
-        } for txn in filtered_txns]
+        } for txn in page]
 
+        # Calculate revenues
         month_revenue = wallet.history.filter(updated_date__month=current_month, updated_date__year=current_year, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         week_revenue = wallet.history.filter(updated_date__date__gte=week_start, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         today_revenue = wallet.history.filter(updated_date__date=today, type='credit').aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
         expected_weekly_revenue = (month_revenue / today.day) * 7 if today.day else Decimal('0.00')
         expected_monthly_revenue = (month_revenue / today.day) * 30 if today.day else Decimal('0.00')
 
-        return Response({
-            "wallet_balance": balance,
+        # Return paginated response
+        return paginator.get_paginated_response({
+            "wallet_balance": wallet.balance,
             "transactions": txn_list,
             "monthly_revenue": month_revenue,
             "weekly_revenue": week_revenue,
@@ -939,6 +947,7 @@ class DoctorAnalyticsView(APIView):
             "expected_weekly_revenue": expected_weekly_revenue,
             "expected_monthly_revenue": expected_monthly_revenue
         })
+
     
 class DoctorCSVExportView(APIView):
     permission_classes = [IsAuthenticated]

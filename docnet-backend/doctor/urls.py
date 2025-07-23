@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
 from .views import DoctorRegistrationView, DoctorLoginView, DoctorProfileRetrieveUpdateView, DoctorProfileUpdateView, DoctorChangePasswordView,VerifyOTPView,ResendOTPView
-from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView, GoogleLoginView, DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView, DoctorBookedPatientsView, DoctorWalletView
+from .views import DoctorCheckEmailView, DoctorSendPasswordResetOTPView, DoctorVerifyPasswordResetOTPView, DoctorResetPasswordView,  DoctorLogoutView, DoctorSlotCreate, DoctorSlotUpdate, AvailableSlotsView, DoctorBookedPatientsView, DoctorWalletView
 from .views import DoctorAppointmentDetailView,EmergencyStatusUpdateView,DoctorEmergencyConsultationListView,EmergencyConsultationDetailView,start_emergency_consultation,end_emergency_consultation,DoctorDashboardView
 from .views import DoctorAnalyticsView, DoctorCSVExportView,DoctorPDFExportView,MedicalRecordAPIView,DoctorNotificationListView,MarkNotificationAsReadView,RequestWithdrawalView
 
@@ -17,7 +17,6 @@ urlpatterns = [
     path('send-password-reset-otp/', DoctorSendPasswordResetOTPView.as_view(), name='doctor-send-password-reset-otp'),
     path('verify-password-reset-otp/', DoctorVerifyPasswordResetOTPView.as_view(), name='doctor-verify-password-reset-otp'),
     path('doctor-reset-password/', DoctorResetPasswordView.as_view(), name='doctor-reset-password'),
-    path('google-login-doctor/', GoogleLoginView.as_view(), name='google-login-doctor'),
     path('doctor-logout/', DoctorLogoutView.as_view(), name='doctor-logout'),
     path('slots/', DoctorSlotCreate.as_view(), name='doctor-slots'),
     path('slots/<int:pk>/', DoctorSlotUpdate.as_view(), name='doctor-slot-detail'),

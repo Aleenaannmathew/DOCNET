@@ -22,15 +22,15 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('accounts.urls')), #user
+    path('api/', include('accounts.urls')), 
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('dj-rest-auth/', include('dj_rest_auth.urls')),
     path('dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
     path('dj-rest-auth/social/', include('allauth.socialaccount.urls')),
     path('dj-rest-auth/google/', include('allauth.socialaccount.providers.google.urls')),
     path('accounts/', include('allauth.urls')), 
-    path('doctor/', include('doctor.urls')), #doctor
-    path('core/',include('core.urls')), #admin
+    path('doctor/', include('doctor.urls')), 
+    path('core/',include('core.urls')), 
   
 
 

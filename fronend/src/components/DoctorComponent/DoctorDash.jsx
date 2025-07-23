@@ -43,6 +43,7 @@ const StatCard = ({ title, value, icon, color }) => {
 const DoctorDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
+  const [pagination, setPagination] = useState({ next: null, previous: null });
   const [filter, setFilter] = useState("all");
   const { user } = useSelector((state) => state.auth);
 
@@ -60,10 +61,15 @@ const DoctorDashboard = () => {
     }
   };
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (url = null) => {
     try {
-      const response = await doctorAxios.get(`doctor-analytics/?filter=${filter}`);
-      setAnalytics(response.data);
+      const endpoint = url || `doctor-analytics/?filter=${filter}`;
+      const response = await doctorAxios.get(endpoint);
+      setAnalytics(response.data.results);
+      setPagination({
+        next: response.data.next,
+        previous: response.data.previous
+      });
     } catch (error) {
       console.error("Error fetching analytics:", error);
     }
@@ -95,13 +101,10 @@ const DoctorDashboard = () => {
     if (!analytics || !analytics.transactions) return [];
 
     const grouped = {};
-
     analytics.transactions.forEach((txn) => {
       if (txn.type !== "credit") return;
-
       const date = moment(txn.date);
       let key;
-
       switch (filter) {
         case "daily":
           key = date.format("HH:00");
@@ -118,7 +121,6 @@ const DoctorDashboard = () => {
         default:
           key = date.format("YYYY-MM-DD");
       }
-
       grouped[key] = (grouped[key] || 0) + parseFloat(txn.amount);
     });
 
@@ -169,6 +171,7 @@ const DoctorDashboard = () => {
         <DocSidebar />
         <main className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
+
             {/* Welcome Section */}
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-8 text-white">
               <div className="flex items-center justify-between">
@@ -177,8 +180,7 @@ const DoctorDashboard = () => {
                     Good morning, Dr. {user?.username}
                   </h2>
                   <p className="text-emerald-100 text-lg">
-                    You have {dashboardData.today_appointments} appointments scheduled for
-                    today
+                    You have {dashboardData.today_appointments} appointments today
                   </p>
                   <p className="text-emerald-200 text-sm mt-1">
                     {user?.doctor_profile?.hospital} •{" "}
@@ -191,17 +193,11 @@ const DoctorDashboard = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {statCards.map((card, index) => (
-                <StatCard
-                  key={index}
-                  title={card.title}
-                  value={card.value}
-                  icon={card.icon}
-                  color={card.color}
-                />
+                <StatCard key={index} {...card} />
               ))}
             </div>
 
-            {/* Filters and Downloads */}
+            {/* Filters & Downloads */}
             <div className="flex space-x-4 my-4 flex-wrap">
               {["all", "daily", "weekly", "monthly", "yearly"].map((f) => (
                 <button
@@ -242,7 +238,7 @@ const DoctorDashboard = () => {
               </LineChart>
             </ResponsiveContainer>
 
-            {/* Wallet Transactions Table */}
+            {/* Transactions Table */}
             <div className="overflow-x-auto mt-8">
               <table className="min-w-full border border-gray-200 text-left">
                 <thead className="bg-gray-100">
@@ -272,6 +268,24 @@ const DoctorDashboard = () => {
                   )}
                 </tbody>
               </table>
+
+              {/* Pagination Buttons */}
+              <div className="flex justify-between items-center mt-4">
+                <button
+                  disabled={!pagination.previous}
+                  onClick={() => fetchAnalytics(pagination.previous)}
+                  className="bg-gray-300 px-4 py-2 rounded disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={!pagination.next}
+                  onClick={() => fetchAnalytics(pagination.next)}
+                  className="bg-gray-300 px-4 py-2 rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           </div>
         </main>

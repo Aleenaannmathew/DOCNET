@@ -2,12 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Calendar, Users, Clock, Wallet, Settings, LogOut, Home, Bell, Search, Filter, Activity, TrendingUp, Stethoscope, ArrowUpRight, ArrowDownLeft, CreditCard, DollarSign, Download, Plus, AlertCircle, Loader } from "lucide-react";
 import { doctorAxios } from "../../axios/DoctorAxios";
 import DocSidebar from "./DocSidebar";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import Swal from "sweetalert2";
 
 
-
-// Transaction Card Component
 const TransactionCard = ({ transaction, last = false }) => {
   const isCredit = transaction.type === 'credit';
   const statusConfig = {
@@ -287,31 +285,27 @@ const DoctorWallet = () => {
     .sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date));
 
   const handleWithdraw = async (amount) => {
-    try {
-      const response = await doctorAxios.post('/withdrawal-requests/', { amount });
-      if (response.status === 200) {
-        toast.success('Withdrawal successful!');
-        // Update wallet data
-        setWalletData((prev) => ({
-          ...prev,
-          balance: response.data.balance,
-          history: [response.data.transaction, ...prev.history],
-        }));
-      }
-    } catch (error) {
-      if (error.response) {
-        toast.error(error.response.data.detail || 'Withdrawal failed.');
-      } else {
-        toast.error('Something went wrong. Please try again.');
-      }
+  try {
+    const response = await doctorAxios.post('/withdrawal-requests/', { amount });
+
+    if (response.status === 200) {
+      toast.success('Withdrawal request submitted!');
     }
-  };
+  } catch (error) {
+    if (error.response) {
+      toast.error(error.response.data.detail || error.response.data.error || 'Withdrawal failed.');
+    } else {
+      toast.error('Something went wrong. Please try again.');
+    }
+  }
+};
 
 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
+      <ToastContainer/>
 
 
       <div className="flex">

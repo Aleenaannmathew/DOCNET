@@ -17,8 +17,6 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-
-# Global rooms dictionary to track connections
 rooms = {}
 
 class VideoCallConsumer(AsyncWebsocketConsumer):
@@ -29,7 +27,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
         self.is_emergency = self.room_name.startswith('emergency_')
         
         try:
-            # Parse token from query string
             query_string = self.scope['query_string'].decode()
             query_params = parse_qs(query_string)
             
@@ -44,7 +41,6 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 access_token = AccessToken(token)
                 self.user_id = access_token['user_id']
                 
-                # Validate appointment/emergency access
                 if self.is_emergency:
                     emergency_id = self.room_name.replace('emergency_', '')
                     if not await self.validate_emergency_consultation(emergency_id, self.user_id):
@@ -62,17 +58,17 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 await self.close(code=4003)
                 return
             
-            # Accept connection
+         
             await self.accept()
             logger.info(f"User {self.user_id} connected to room {self.room_name} (emergency: {self.is_emergency})")
             
-            # Add to channel layer group
+           
             await self.channel_layer.group_add(
                 self.room_group_name,
                 self.channel_name
             )
             
-            # Track room connections
+           
             is_offerer = False
             if self.room_name not in rooms:
                 rooms[self.room_name] = [self.channel_name]
@@ -80,7 +76,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             else:
                 rooms[self.room_name].append(self.channel_name)
             
-            # Send joined confirmation
+          
             await self.send(text_data=json.dumps({
                 "type": "joined",
                 "isOfferer": is_offerer,
@@ -89,7 +85,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 "isEmergency": self.is_emergency
             }))
             
-            # Notify other participants
+          
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -106,7 +102,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         logger.info(f"User {getattr(self, 'user_id', 'unknown')} disconnecting from room {getattr(self, 'room_name', 'unknown')} with code {close_code}")
         
-        # Notify other participants about disconnection
+       
         if hasattr(self, 'room_group_name') and hasattr(self, 'user_id'):
             await self.channel_layer.group_send(
                 self.room_group_name,
@@ -117,14 +113,14 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                 }
             )
         
-        # Remove from channel layer group
+       
         if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
             )
         
-        # Clean up room tracking
+      
         if hasattr(self, 'room_name') and self.room_name in rooms:
             if self.channel_name in rooms[self.room_name]:
                 rooms[self.room_name].remove(self.channel_name)
@@ -138,9 +134,9 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             
             logger.debug(f"Received message type {message_type} from user {self.user_id}")
             
-            # Handle different message types
+           
             if message_type in ['offer', 'answer', 'ice-candidate', 'chat']:
-                # Forward signaling messages to other participants
+              
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -151,7 +147,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
                     }
                 )
             elif message_type == 'ping':
-                # Handle ping/pong for connection health
+               
                 await self.send(text_data=json.dumps({
                     "type": "pong",
                     "timestamp": data.get('timestamp')
@@ -223,7 +219,7 @@ class VideoCallConsumer(AsyncWebsocketConsumer):
             is_doctor = emergency_payment.doctor.user.id == user_id
             is_patient = emergency_payment.patient.id == user_id
             
-            # Check that consultation hasn't ended
+           
             consultation_active = not emergency_payment.consultation_end_time
             
             logger.info(f"Emergency validation for room {emergency_id}, user {user_id}: doctor={is_doctor}, patient={is_patient}, active={consultation_active}")
@@ -392,15 +388,15 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            # Decode JWT token
+           
             access_token = AccessToken(token)
             user_id = access_token['user_id']
 
-            # Fetch user asynchronously
+            
             self.scope['user'] = await database_sync_to_async(User.objects.get)(id=user_id)
             self.user = self.scope['user']
 
-            # Create group name using user ID
+         
             self.group_name = f'notifications_{self.user.id}'
             await self.channel_layer.group_add(self.group_name, self.channel_name)
 
