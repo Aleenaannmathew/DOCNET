@@ -3,7 +3,8 @@ from django.contrib.auth import authenticate
 from .models import User,  PatientProfile, Appointment
 from doctor.models import DoctorProfile, DoctorSlot,ContactMessage
 from cloudinary.uploader import upload
-from datetime import datetime, timezone 
+from datetime import datetime,timedelta
+from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.password_validation import validate_password
 import cloudinary
@@ -407,6 +408,7 @@ class BookingHistorySerializer(serializers.ModelSerializer):
     payment_status = serializers.CharField(source='payment.payment_status', read_only=True)
     amount = serializers.DecimalField(source='payment.amount', max_digits=10, decimal_places=2, read_only=True)
     reason = serializers.CharField(read_only=True)
+    status = serializers.SerializerMethodField()
 
     class Meta:
         model = Appointment
@@ -423,13 +425,33 @@ class BookingHistorySerializer(serializers.ModelSerializer):
             'created_at',
         ]
 
+    def get_status(self, obj):
+        db_status = obj.status
+        if db_status != 'scheduled':
+            return db_status
+
+        try:
+            slot = obj.payment.slot
+            slot_date = slot.date
+            slot_time = slot.start_time
+            duration = getattr(slot, 'duration', 30)  # Fallback to 30 if somehow missing
+        except Exception:
+            return db_status  # Avoid crashing the serializer
+
+        slot_datetime = datetime.combine(slot_date, slot_time)
+        end_time = timezone.make_aware(slot_datetime + timedelta(minutes=duration))
+
+        if timezone.now() > end_time:
+            return 'completed'
+        return db_status
+
 class AppointmentDetailSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='payment.patient.username', read_only=True)
     patient_email = serializers.CharField(source='payment.patient.email', read_only=True)
     patient_phone = serializers.CharField(source='payment.patient.phone', read_only=True)
     patient_profile_image = serializers.CharField(source='payment.patient.profile_image', read_only=True)
     reason = serializers.CharField(read_only = True)
-    
+    status = serializers.SerializerMethodField()
     appointment_date = serializers.DateField(source='payment.slot.date', read_only=True)
     appointment_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
     duration = serializers.IntegerField(source='payment.slot.duration', read_only=True)
@@ -474,6 +496,24 @@ class AppointmentDetailSerializer(serializers.ModelSerializer):
             }
         except PatientProfile.DoesNotExist:
             return None
+    def get_status(self, obj):
+        db_status = obj.status
+        if db_status != 'scheduled':
+            return db_status
+
+        try:
+            slot_date = obj.payment.slot.date
+            slot_time = obj.payment.slot.start_time
+            slot_duration = obj.payment.slot.duration or 30  # Default to 30 minutes
+        except Exception:
+            return db_status  # If data is missing
+
+        slot_datetime = datetime.combine(slot_date, slot_time)
+        end_time = timezone.make_aware(slot_datetime + timedelta(minutes=slot_duration))
+
+        if timezone.now() > end_time:
+            return 'completed'
+        return db_status
     
     def get_doctor_info(self, obj):
         doctor_profile = obj.payment.slot.doctor

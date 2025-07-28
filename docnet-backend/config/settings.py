@@ -15,6 +15,8 @@ from pathlib import Path
 import os
 from datetime import timedelta,datetime
 from celery import Celery
+from concurrent_log_handler import ConcurrentRotatingFileHandler
+
 
 
 # Initialize environment variables
@@ -351,13 +353,12 @@ LOGGING = {
 
     'handlers': {
         'file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(LOG_DIR, 'django.log'),  # <-- FIXED
-            'when': 'midnight',
-            'backupCount': 30,
+            'level': 'DEBUG',
+            'class': 'logging.handlers.ConcurrentRotatingFileHandler',
+            'filename': BASE_DIR / 'logs/django.log',
+            'maxBytes': 1024*1024*5,  
+            'backupCount': 5,
             'formatter': 'verbose',
-            'encoding': 'utf-8',
         },
         'console': {
             'level': 'DEBUG',

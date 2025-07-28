@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from .models import DoctorProfile, DoctorSlot, Wallet, WalletHistory,Withdrawal
 from django.db import transaction
+from django.utils import timezone
 import cloudinary
-from datetime import date, datetime
+from datetime import date, datetime,timedelta
 import cloudinary.uploader
 from accounts.models import Appointment, PatientProfile, EmergencyPayment, MedicalRecord,Notification
 from django.contrib.auth import get_user_model
@@ -345,11 +346,26 @@ class BookedPatientSerializer(serializers.ModelSerializer):
     profile = serializers.SerializerMethodField()
     slot_date = serializers.DateField(source='payment.slot.date', read_only=True)
     slot_time = serializers.TimeField(source='payment.slot.start_time', read_only=True)
-
+    status = serializers.SerializerMethodField()
     class Meta:
         model = Appointment
         fields = ['id', 'status', 'created_at', 'slot_date', 'slot_time', 'patient', 'profile']
+    
+    def get_status(self, obj):
+        # Use original DB status
+        db_status = obj.status
+        if db_status != 'scheduled':
+            return db_status
 
+        # Combine slot date and time into a datetime
+        slot_datetime = datetime.combine(obj.payment.slot.date, obj.payment.slot.start_time)
+        end_time = slot_datetime + timedelta(minutes=30)
+
+        # If past current time, mark as completed
+        if timezone.now() > timezone.make_aware(end_time):
+            return 'completed'
+        return db_status
+    
     def get_patient(self, obj):
         return {
             'id': obj.payment.patient.id,

@@ -43,6 +43,7 @@ export default function AppointmentDetails() {
         // First try to fetch as regular appointment
         try {
           const response = await userAxios.get(`appointment-details/${id}`);
+          console.log(response.data)
           if (response.data.success) {
             setAppointmentData(response.data.data);
             setIsEmergency(false);

@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator
-from datetime import timedelta
+from datetime import timedelta,datetime
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
@@ -105,7 +105,12 @@ class Appointment(models.Model):
         ]
     @property
     def consultation_end_time(self):
-        return self.created_at + timedelta(minutes=30)
+        try:
+            slot = self.payment.slot
+            start_datetime = datetime.combine(slot.date, slot.start_time)
+            return start_datetime + timedelta(minutes=slot.duration or 30)
+        except Exception:
+            return self.created_at + timedelta(minutes=30)
     
     def __str__(self):
         return f"Appointment #{self.id} - {self.payment.patient.username} with slot {self.payment.slot}"

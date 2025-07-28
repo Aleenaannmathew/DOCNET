@@ -770,6 +770,8 @@ class ValidateVideoCallAPI(APIView):
     def get(self, request, slot_id):
         try:
             now = timezone.now()
+            print(request)
+            print(slot_id)
 
             appointment = Appointment.objects.get(
                 payment__slot__id=slot_id,
@@ -1107,9 +1109,8 @@ class ValidateChatAccessAPI(APIView):
 
         try:
             appointment = Appointment.objects.get(
-                payment__slot__id=slot_id,
+                payment__slot_id=slot_id,
                 payment__payment_status='success',
-                status='completed'
             )
 
             
