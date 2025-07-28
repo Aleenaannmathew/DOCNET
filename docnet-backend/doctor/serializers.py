@@ -108,7 +108,8 @@ class DoctorRegistrationSerializer(serializers.Serializer):
         user.save()
         
        
-        DoctorProfile.objects.create(user=user, **doctor_data)
+        doctor_profile = DoctorProfile.objects.create(user=user, **doctor_data)
+        Wallet.objects.create(doctor=doctor_profile)
         
         return user
 

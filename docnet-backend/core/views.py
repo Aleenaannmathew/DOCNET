@@ -565,8 +565,8 @@ class AdminWithdrawalListPagination(PageNumberPagination):
 
 
 class AdminWithdrawalListAPIView(ListAPIView):
-    serializer_class = WithdrawalSerializer
     permission_classes = [IsAdminUser]
+    serializer_class = WithdrawalSerializer
     pagination_class = AdminWithdrawalListPagination
 
     def get_queryset(self):

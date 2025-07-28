@@ -29,7 +29,7 @@ urlpatterns = [
     path('dj-rest-auth/social/', include('allauth.socialaccount.urls')),
     path('dj-rest-auth/google/', include('allauth.socialaccount.providers.google.urls')),
     path('accounts/', include('allauth.urls')), 
-    path('doctor/', include('doctor.urls')), 
+    path('doctor-api/', include('doctor.urls')), 
     path('core/',include('core.urls')), 
   
 

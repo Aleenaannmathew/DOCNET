@@ -43,7 +43,6 @@ export default function AppointmentDetails() {
         // First try to fetch as regular appointment
         try {
           const response = await userAxios.get(`appointment-details/${id}`);
-          console.log(response.data)
           if (response.data.success) {
             setAppointmentData(response.data.data);
             setIsEmergency(false);
@@ -97,14 +96,22 @@ export default function AppointmentDetails() {
   };
 
   const formatTime = (timeString) => {
-    if (!timeString) return 'N/A';
-    const time = new Date(timeString);
-    return time.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+  if (!timeString) return 'N/A';
+
+  
+  const today = new Date().toISOString().split('T')[0]; 
+  const fullDateTime = `${today}T${timeString}`; 
+
+  const time = new Date(fullDateTime);
+  if (isNaN(time)) return 'Invalid Time';
+
+  return time.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
 
   const formatEmergencyTimeRange = (startTime, endTime) => {
     if (!startTime) return 'Not started';
