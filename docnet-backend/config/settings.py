@@ -36,7 +36,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['docnet.live', 'www.docnet.live', '127.0.0.1', 'localhost']
 
 
 # Application definition
@@ -85,6 +85,7 @@ CORS_ALLOW_METHODS = [
 DOMAIN_URL = 'http://127.0.0.1:8000'
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -94,7 +95,6 @@ MIDDLEWARE = [
     'core.middleware.BlockedUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
 ]
 
@@ -233,12 +233,18 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     'http://127.0.0.1:5173',
- 
+    "https://docnet.live",
+    "https://www.docnet.live",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://docnet.live",
+    "https://www.docnet.live",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
     "http://localhost:5173",
 ]
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -330,7 +336,6 @@ DEFAULT_FROM_EMAIL = env('EMAIL_HOST_USER')
 
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 CORS_ALLOW_CREDENTIALS = True
 
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
@@ -390,3 +395,4 @@ LOGGING = {
         },
     },
 }
+

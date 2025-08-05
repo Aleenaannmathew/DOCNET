@@ -21,7 +21,7 @@ from django.urls import path,include
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     path('api/', include('accounts.urls')), 
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('dj-rest-auth/', include('dj_rest_auth.urls')),
@@ -30,8 +30,5 @@ urlpatterns = [
     path('dj-rest-auth/google/', include('allauth.socialaccount.providers.google.urls')),
     path('accounts/', include('allauth.urls')), 
     path('doctor-api/', include('doctor.urls')), 
-    path('core/',include('core.urls')), 
-  
-
-
+    path('core/',include('core.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -36,6 +36,7 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
 
   const addDebug = (message) => {
     const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] ${message}`);
   };
 
   useEffect(() => {
@@ -76,7 +77,10 @@ const VideoCall = ({ slotId, token, onEndCall }) => {
 
         localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-        const wsUrl = `ws://127.0.0.1:8000/ws/videocall/${slotId}/?token=${encodeURIComponent(token)}`;
+        const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const host = window.location.host;
+        const wsUrl = `${scheme}://${host}/ws/videocall/${slotId}/?token=${encodeURIComponent(token)}`;
+
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
 

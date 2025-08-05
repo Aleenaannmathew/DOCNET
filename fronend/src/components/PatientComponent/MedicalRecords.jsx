@@ -87,24 +87,6 @@ const MedicalRecordsPage = () => {
     { id: 'prescription', label: 'Prescriptions', count: records.filter(r => r?.prescription).length },
   ];
 
-  const handleDownload = async (recordId) => {
-    try {
-      const response = await axios.get(`/api/records/${recordId}/download/`, {
-        responseType: 'blob',
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `medical-record-${recordId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to download record');
-    }
-  };
-
   const handleViewPrescription = (record) => {
     setSelectedRecord(record);
     setShowPrescriptionModal(true);
@@ -180,13 +162,6 @@ const MedicalRecordsPage = () => {
                       <h1 className="text-2xl font-semibold text-gray-900">Medical Records</h1>
                       <p className="text-gray-600 mt-1">View and manage your medical history</p>
                     </div>
-                    <button 
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      onClick={() => toast.info('Feature coming soon!')}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download All
-                    </button>
                   </div>
                 </div>
 
@@ -271,15 +246,6 @@ const MedicalRecordsPage = () => {
                             >
                               <Eye className="w-5 h-5" />
                             </button>
-                            <button 
-                              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownload(record.id);
-                              }}
-                            >
-                              <Download className="w-5 h-5" />
-                            </button>
                           </div>
                         </div>
                       </div>
@@ -358,13 +324,6 @@ const MedicalRecordsPage = () => {
               </div>
 
               <div className="flex justify-end space-x-3 border-t border-gray-200 pt-4">
-                <button
-                  onClick={() => handleDownload(selectedRecord.id)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
-                </button>
                 <button
                   onClick={() => setShowPrescriptionModal(false)}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

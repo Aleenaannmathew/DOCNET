@@ -391,50 +391,45 @@ class ChangePasswordView(APIView):
 
 class GoogleLoginView(APIView):
     def post(self, request):
-        code = request.data.get('code')  
-
+        code = request.data.get('code')
+        
         if not code:
             return ResponseManager.error_response('Authorization code is required')
-
+        
         try:
-           
-            token_response = requests.post('https://oauth2.googleapis.com/token', data={
+            token_data = {
                 'code': code,
                 'client_id': settings.GOOGLE_CLIENT_ID,
                 'client_secret': settings.GOOGLE_CLIENT_SECRET,
                 'redirect_uri': 'postmessage',
                 'grant_type': 'authorization_code',
-            })
-
+            }
+            
+            token_response = requests.post('https://oauth2.googleapis.com/token', data=token_data)
             if token_response.status_code != 200:
-                return ResponseManager.error_response('Failed to exchange code for tokens.')
-
+                google_error = token_response.text
+                return ResponseManager.error_response(f'Google API Error: {google_error}')
+            
             token_data = token_response.json()
             access_token = token_data.get('access_token')
-
             if not access_token:
                 return ResponseManager.error_response('Access token not received from Google.')
-
-           
+            
             google_result = GoogleAuthManager.get_user_info(access_token)
             if not google_result['success']:
                 return ResponseManager.error_response(google_result['error'])
-
+            
             email = google_result['userinfo']['email']
-
+            
             try:
                 user = User.objects.get(email=email)
-
                 if not user.is_verified:
                     user.is_verified = True
                     user.save()
-
                 if user.role != 'patient':
                     return ResponseManager.error_response('This login is for patients only.')
-
             except User.DoesNotExist:
                 username = GoogleAuthManager.generate_unique_username(email)
-
                 user = User.objects.create(
                     username=username,
                     email=email,
@@ -442,17 +437,15 @@ class GoogleLoginView(APIView):
                     is_verified=True
                 )
                 PatientProfile.objects.create(user=user)
-
             
             tokens = GoogleAuthManager.create_jwt_tokens(user)
-
-           
+            
             try:
                 patient_profile = PatientProfile.objects.get(user=user)
                 is_profile_complete = patient_profile.age is not None
             except PatientProfile.DoesNotExist:
                 is_profile_complete = False
-
+            
             return ResponseManager.success_response({
                 'access': tokens['access'],
                 'refresh': tokens['refresh'],
@@ -461,15 +454,13 @@ class GoogleLoginView(APIView):
                 'phone': user.phone,
                 'is_profile_complete': is_profile_complete
             })
-
+            
         except Exception as e:
             return ResponseManager.error_response(
                 f'Authentication failed: {str(e)}',
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        
- 
+             
 class UserLogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
