@@ -70,7 +70,44 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment variables (.env)
+## 🧪 Sample `.env` Configuration
+
+Create a `.env` file in the root of your backend and add the following:
+
+```env
+# SECURITY
+SECRET_KEY=your-secret-key
+DEBUG=True
+
+# DATABASE
+DATABASE_NAME=your-db-name
+DATABASE_USER=your-db-user
+DATABASE_PASSWORD=your-db-password
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+
+# EMAIL
+EMAIL_HOST_USER=your-email@example.com
+EMAIL_HOST_PASSWORD=your-email-password
+
+# CLOUDINARY 
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
+# GOOGLE OAUTH
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# RAZORPAY
+RAZORPAY_KEY_ID=your-razorpay-key-id
+RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+
+# CASHFREE
+CASHFREE_CLIENT_ID=your-cashfree-client-id
+CASHFREE_CLIENT_SECRET=your-cashfree-client-secret
+CASHFREE_PAYOUT_BASE_URL=https://sandbox.cashfree.com/payout
+
 # Run migrations and start server
 python manage.py migrate
 python manage.py runserver
