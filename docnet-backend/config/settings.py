@@ -393,7 +393,6 @@ LOGGING = {
     },
 }
 
-<<<<<<< HEAD
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -406,5 +405,3 @@ CACHES = {
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
-=======
->>>>>>> 8ab67394e744961a0cc57d7e14865d0b8e3221b4
