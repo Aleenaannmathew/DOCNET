@@ -20,24 +20,21 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler
 
 
 # Initialize environment variables
-env = environ.Env()
-environ.Env.read_env(os.path.join(Path(__file__).resolve().parent.parent, '.env'))  # Read from .env file
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-
+env = environ.Env()
+env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
+DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -82,7 +79,7 @@ CORS_ALLOW_METHODS = [
     'OPTIONS',
 ]
 
-DOMAIN_URL = 'http://127.0.0.1:8000'
+DOMAIN_URL = 'http://127.0.0.1:8001'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -390,3 +387,16 @@ LOGGING = {
         },
     },
 }
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1", 
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"

@@ -8,6 +8,8 @@ from django.db import transaction
 import requests
 from django.http import FileResponse
 from django.http import JsonResponse
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.contenttypes.models import ContentType
@@ -498,7 +500,7 @@ class UserLogoutView(APIView):
                 message='Logged out with warnings',
                 status_code=status.HTTP_200_OK
             )
-        
+@method_decorator(cache_page(60 * 10), name='dispatch')        
 class ActiveDoctorsView(APIView):
     def get(self, request):
         doctors = DoctorProfile.objects.filter(
@@ -506,8 +508,9 @@ class ActiveDoctorsView(APIView):
         ).select_related('user').order_by('-created_at')[:3]
         
         serializer = DoctorProfileSerializer(doctors, many=True)
-        return Response(serializer.data)        
-       
+        return Response(serializer.data)  
+          
+@method_decorator(cache_page(60 * 5), name='dispatch')      
 class DoctorListView(generics.ListAPIView):
     serializer_class = DoctorProfileSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -573,8 +576,9 @@ class DoctorListView(generics.ListAPIView):
         if show_only_available.lower() == 'true':
             queryset = queryset.filter(has_available_slots=True)
             
-        return queryset     
-
+        return queryset  
+       
+@method_decorator(cache_page(60 * 10), name='dispatch')
 class DoctorDetailView(APIView):
     def get(self, request, slug):
         try:
@@ -583,7 +587,8 @@ class DoctorDetailView(APIView):
             return ResponseManager.success_response(data=serializer.data)
         except DoctorProfile.DoesNotExist:
             return ResponseManager.error_response(error_message="Doctor not found", status_code=404)
-        
+
+@method_decorator(cache_page(30), name='dispatch')      
 class DoctorSlotsView(APIView):
     def get(self, request, slug):
         now = localtime() 
@@ -847,6 +852,8 @@ class BookingConfirmationByPaymentView(APIView):
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@method_decorator(cache_page(60 * 10), name='dispatch')
 class EmergencyDoctorListView(generics.ListAPIView):
     serializer_class = DoctorProfileSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

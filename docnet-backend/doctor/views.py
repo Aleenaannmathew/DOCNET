@@ -12,6 +12,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 import random, re,requests
 from datetime import datetime
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -137,7 +139,7 @@ class ResendOTPView(APIView):
                 status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-
+@method_decorator(cache_page(60 * 15), name='get')
 class DoctorProfileRetrieveUpdateView(APIView): 
     permission_classes = [IsAuthenticated]
     
@@ -797,7 +799,8 @@ def end_emergency_consultation(request, consultation_id):
             {'error': str(e)}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
+    
+@method_decorator(cache_page(60 * 15), name='get')
 class DoctorDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
