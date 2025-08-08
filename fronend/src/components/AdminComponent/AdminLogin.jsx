@@ -25,8 +25,7 @@ const AdminSignIn = () => {
     setError('');
 
     try {
-      // Make API call to Django backend using your custom axios instance
-      // Fix: Use the correct API endpoint based on your Django URL configuration
+     
       const response = await adminAxios.post('admin-login/', formData);
       const data=response.data
        dispatch(login({

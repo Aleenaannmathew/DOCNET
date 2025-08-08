@@ -174,7 +174,6 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
     is_verified = serializers.ReadOnlyField(source='user.is_verified')
     role = serializers.ReadOnlyField(source='user.role')
     certificate = serializers.CharField(required=False, allow_null=True)
-
     average_rating = serializers.SerializerMethodField()
 
     def get_average_rating(self, obj):
@@ -189,7 +188,7 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
             'registration_id', 'hospital', 'specialization', 'languages',
             'age', 'gender', 'experience', 'location', 'is_approved',
             'is_verified', 'role', 'certificate', 'bank_account', 'ifsc_code',
-            'beneficiary_id', 'average_rating',
+            'beneficiary_id', 'average_rating'
         ]
         read_only_fields = [
             'registration_id', 'specialization', 'is_approved'
