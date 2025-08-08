@@ -411,31 +411,6 @@ class AdminDashboardView(APIView):
             for item in appointments_per_month if item['month']
         ]
 
-        today = timezone.now().date()
-        last_7_days = [today - timedelta(days=i) for i in range(6,-1,-1,-1)]
-
-        daily_profit = []
-
-        for date in last_7_days:
-            normal_amount = Payment.objects.filter(
-                payment_status='success',
-                timestamp__date = date
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-
-            normal_admin_profit = normal_amount * Decimal('0.10')
-
-            emergency_amount = EmergencyPayment.objects.filter(
-                payment_status='success',
-                timestamp__date=date
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-
-            emergency_admin_profit = emergency_amount * Decimal('0.15')
-
-            total_daily_profit = normal_admin_profit + emergency_admin_profit
-            daily_profit.append({
-                'date': date.strftime('%b %d'),
-                'profit': float(total_daily_profit)
-            })
         data = {
             'total_doctors': total_doctors,
             'total_patients': total_patients,
@@ -444,7 +419,6 @@ class AdminDashboardView(APIView):
             'monthly_revenue': formatted_monthly_revenue,
             'admin_profit': float(admin_profit),
             'appointment_analytics': appointment_analytics,
-            'daily_profit': daily_profit,
             'trends': {
                 'total_doctors_change': '+2.5%',
                 'total_patients_change': '+1.8%',

@@ -150,28 +150,6 @@ export default function DashboardAdmin() {
             </ResponsiveContainer>
           </div>
 
-          {/* Daily Profit Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <CreditCard className="mr-2" /> Daily Admin Profit
-            </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dashboardData.daily_profit}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(str) => {
-                    const date = new Date(str);
-                    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-                  }}
-                />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
         </main>
       </div>
     </div>
