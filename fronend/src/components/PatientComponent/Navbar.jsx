@@ -158,7 +158,9 @@ const Navbar = () => {
   useEffect(() => {
     if (!isAuthenticated || !token) return;
 
-    const ws = new WebSocket(`ws://localhost:8000/ws/notifications/?token=${token}`);
+    const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const host = window.location.host;
+    const ws = new WebSocket(`${scheme}://${host}/ws/notifications/?token=${token}`);
 
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);

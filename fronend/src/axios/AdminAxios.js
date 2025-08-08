@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { adminApi } from '../constants/api';
+import { adminApi } from '../constants/Api';
 
 export const adminAxios = axios.create({
   baseURL: adminApi,

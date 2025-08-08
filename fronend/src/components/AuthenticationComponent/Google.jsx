@@ -12,6 +12,7 @@ const GoogleAuthButton = () => {
 
     const handleGoogleLoginSuccess = async (codeResponse) => {
         try {
+            console.log('Google login response:', codeResponse);
             if (!codeResponse || !codeResponse.code) {
                 throw new Error('Authorization code not found in Google response');
             }
@@ -41,13 +42,19 @@ const GoogleAuthButton = () => {
             navigate('/', { replace: true });
         } catch (error) {
             console.error('Google authentication error: ', error);
+            console.error('Error details:', error.response?.data);
         }
+    };
+    
+    const handleGoogleLoginError = (error) => {
+        console.error('Google OAuth error:', error);
     };
 
     const googleLogin = useGoogleLogin({
+        flow: 'auth-code',
         onSuccess: handleGoogleLoginSuccess,
-        flow: 'auth-code', 
-        
+        onError: handleGoogleLoginError,
+        scope: 'openid email profile',
     });
 
     return (

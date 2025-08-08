@@ -10,7 +10,6 @@ const TransactionCard = ({ transaction, last = false }) => {
   const isCredit = transaction.type === 'credit';
   const statusConfig = {
     completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-    pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
     failed: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' }
   };
 
@@ -193,14 +192,6 @@ const DoctorWallet = () => {
       })
       .reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
 
-    // Calculate pending amount (assuming recent transactions might be pending)
-    const pendingAmount = history
-      .filter(transaction => {
-        const transactionDate = new Date(transaction.updated_date);
-        const daysDiff = (new Date() - transactionDate) / (1000 * 60 * 60 * 24);
-        return daysDiff <= 1 && transaction.type === 'credit';
-      })
-      .reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
 
     // Calculate total withdrawn
     const totalWithdrawn = history
@@ -221,13 +212,6 @@ const DoctorWallet = () => {
         icon: <TrendingUp size={20} />,
         color: "blue",
         description: "Total earnings"
-      },
-      {
-        title: "Pending Amount",
-        value: `₹${pendingAmount.toLocaleString('en-IN')}`,
-        icon: <Clock size={20} />,
-        color: "amber",
-        description: "Processing payments"
       },
       {
         title: "Total Withdrawn",

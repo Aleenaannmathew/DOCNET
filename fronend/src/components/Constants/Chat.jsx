@@ -19,7 +19,9 @@ const ChatRoom = () => {
 
   useEffect(() => {
     if (!token || !id) return;
-    const ws = new WebSocket(`ws://localhost:8000/ws/chat/?room_id=${id}&token=${token}`);
+    const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    const host = window.location.host;
+    const ws = new WebSocket(`${scheme}://${host}/ws/chat/?room_id=${id}&token=${token}`);
     setSocket(ws);
 
     ws.onmessage = (e) => {

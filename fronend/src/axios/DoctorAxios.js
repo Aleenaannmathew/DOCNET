@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { doctorApi } from '../constants/api';
+import { doctorApi } from '../constants/Api';
 import { logout, updateToken } from '../store/authSlice';
 import store from '../store/store';
 
